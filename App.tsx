@@ -1,11 +1,21 @@
-import { View, Text, useColorScheme } from 'react-native';
+import { View, Text, useColorScheme,Button,Alert,NativeModules } from 'react-native';
+
+const { RnJavaConnector } = NativeModules;
 
 export default function App() {
   const isDark = useColorScheme() === 'dark';
-
+  const onStart = async () => {
+    try {
+      console.log("************");
+      const result = await RnJavaConnector.hello();      
+      Alert.alert('Native response1', result);
+    } catch (e) {
+      Alert.alert('Error', String(e));
+    }
+  }
   return (
     <View
-      style={{
+      style={{ 
         flex: 1,
         backgroundColor: isDark ? '#000' : '#fff',
         justifyContent: 'center',
@@ -15,10 +25,7 @@ export default function App() {
       <Text style={{ color: isDark ? '#fff' : '#000' }}>
         SpeechTrainerAI
       </Text>
-      <Text style={{ color: isDark ? '#fff' : '#000', fontSize:22 }}>
-        Быррбыррррбырррр
-      </Text>
-
+      <Button title="Start1" onPress={onStart} />
     </View>
   );
 }
