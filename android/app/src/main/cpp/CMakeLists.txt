@@ -1,11 +1,19 @@
-cmake_minimum_required(VERSION 3.18.1)
+cmake_minimum_required(VERSION 3.22)
 
 project(speechtrainer_jni LANGUAGES C CXX)
 
 add_library(
         speechtrainer_jni
         SHARED
-        speechtrainer_jni.cpp
+
+        jni/speechtrainer_jni.cpp
+        engine/SpeechEngine.cpp
+)
+
+target_include_directories(
+        speechtrainer_jni
+        PRIVATE
+        engine
 )
 
 find_library(
