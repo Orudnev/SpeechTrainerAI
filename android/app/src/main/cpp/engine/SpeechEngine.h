@@ -1,5 +1,9 @@
-#include "Threading.h"
+#pragma once
+#include <atomic>
+#include <string>
 #include "EngineState.h"
+#include "Threading.h"
+#include "AudioBuffer.h"
 
 class SpeechEngine {
 public:
@@ -12,6 +16,8 @@ public:
     bool startRecognition();
     void stopRecognition();
 
+    void pushAudio(const int16_t* data, size_t frames);
+
     EngineState getState() const;
 
     // callback setter (JNI layer will set this)
@@ -23,8 +29,9 @@ private:
     void recognitionLoop();
 
     std::atomic<EngineState> state_;
+    RecognitionThread recognition_;
+    AudioBuffer audioBuffer_;
     std::string modelPath_;
 
-    RecognitionThread recognition_;
     void (*resultCallback_)(const char* text) = nullptr;
 };

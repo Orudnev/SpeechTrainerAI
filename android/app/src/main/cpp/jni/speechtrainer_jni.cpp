@@ -19,6 +19,18 @@ void emitResultToJava(const char* text) {
     env->DeleteLocalRef(jtext);
 }
 
+JNIEXPORT void JNICALL
+Java_com_speechtrainerai_rn_1java_1connector_RnJavaConnectorModule_nativePushAudio(
+        JNIEnv* env, jclass, jshortArray data, jint frames) {
+
+jshort* pcm = env->GetShortArrayElements(data, nullptr);
+SpeechEngine::instance().pushAudio(
+reinterpret_cast<int16_t*>(pcm),
+frames
+);
+env->ReleaseShortArrayElements(data, pcm, JNI_ABORT);
+}
+
 JNIEXPORT jboolean JNICALL
 Java_com_speechtrainerai_rn_1java_1connector_RnJavaConnectorModule_nativeInit(
         JNIEnv* env, jclass clazz) {

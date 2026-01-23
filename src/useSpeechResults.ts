@@ -1,14 +1,25 @@
 import { useEffect } from 'react';
-import { NativeEventEmitter, NativeModules } from 'react-native';
+import { DeviceEventEmitter } from 'react-native';
 
-const emitter = new NativeEventEmitter(NativeModules.RnJavaConnector);
+type SpeechEvent = {
+  type: 'partial' | 'final';
+  text: string;
+};
 
 export function useSpeechResults() {
   useEffect(() => {
-    const sub = emitter.addListener(
+    const sub = DeviceEventEmitter.addListener(
       'SpeechResult',
-      (text: string) => {
-        console.log('🎤 result:', text);
+      (raw: string) => {
+        const evt: SpeechEvent = JSON.parse(raw);
+
+        if (evt.type === 'partial') {
+          console.log('… partial:', evt.text);
+        }
+
+        if (evt.type === 'final') {
+          console.log('✅ final:', evt.text);
+        }
       }
     );
 
