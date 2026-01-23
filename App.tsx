@@ -1,5 +1,6 @@
 import { View, Text, useColorScheme,Button,Alert,NativeModules } from 'react-native';
-
+import { useEffect } from 'react';
+import { useSpeechResults } from './src/useSpeechResults';
 const { RnJavaConnector } = NativeModules;
 
 
@@ -29,13 +30,11 @@ export async function testNativeEngine() {
 
 export default function App() {
   const isDark = useColorScheme() === 'dark';
-  const onStart = async () => {
-    try {
-      testNativeEngine();
-    } catch (e) {
-      Alert.alert('Error', String(e));
-    }
-  }
+  useEffect(() => {
+    // 🔹 запускаем тест один раз
+    testNativeEngine();
+  }, []);
+  useSpeechResults();
   return (
     <View
       style={{ 
@@ -48,7 +47,7 @@ export default function App() {
       <Text style={{ color: isDark ? '#fff' : '#000' }}>
         SpeechTrainerAI
       </Text>
-      <Button title="Start1" onPress={onStart} />
+      <Button title="Start1" onPress={()=>console.log("press")} />
     </View>
   );
 }

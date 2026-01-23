@@ -3,6 +3,7 @@
 
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "SpeechEngine", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "SpeechEngine", __VA_ARGS__)
+#include <chrono>
 
 SpeechEngine::SpeechEngine()
         : state_(EngineState::UNINITIALIZED) {}
@@ -43,23 +44,46 @@ bool SpeechEngine::loadModel(const std::string& path) {
     return true;
 }
 
+EngineState SpeechEngine::getState() const {
+    return state_;
+}
+#include <chrono>
+
+void SpeechEngine::setResultCallback(void (*cb)(const char*)) {
+    resultCallback_ = cb;
+}
+
 bool SpeechEngine::startRecognition() {
-    if (state_ != EngineState::MODEL_LOADED) {
-        LOGE("startRecognition() invalid state");
+    if (state_ != EngineState::MODEL_LOADED)
         return false;
-    }
-    LOGI("Fake recognition started");
+
+    recognition_.running = true;
+    recognition_.worker = std::thread(&SpeechEngine::recognitionLoop, this);
+
     state_ = EngineState::RECOGNIZING;
     return true;
 }
 
 void SpeechEngine::stopRecognition() {
-    if (state_ == EngineState::RECOGNIZING) {
-        LOGI("Fake recognition stopped");
-        state_ = EngineState::MODEL_LOADED;
+    if (recognition_.running) {
+        recognition_.running = false;
+        if (recognition_.worker.joinable())
+            recognition_.worker.join();
     }
+    if (state_ == EngineState::RECOGNIZING)
+        state_ = EngineState::MODEL_LOADED;
 }
 
-EngineState SpeechEngine::getState() const {
-    return state_;
+void SpeechEngine::recognitionLoop() {
+    int counter = 0;
+    while (recognition_.running) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        if (!recognition_.running)
+            break;
+        if (resultCallback_) {
+            std::string fake =
+                    "fake result #" + std::to_string(++counter);
+            resultCallback_(fake.c_str());
+        }
+    }
 }

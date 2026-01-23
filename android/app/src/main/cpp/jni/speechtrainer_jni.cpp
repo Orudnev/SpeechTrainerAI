@@ -2,10 +2,35 @@
 #include "../engine/SpeechEngine.h"
 
 extern "C" {
+static JavaVM* gJvm = nullptr;
+static jclass gModuleClass = nullptr;
+static jmethodID gOnResultMethod = nullptr;
+
+void emitResultToJava(const char* text) {
+    JNIEnv* env = nullptr;
+    gJvm->AttachCurrentThread(&env, nullptr);
+
+    jstring jtext = env->NewStringUTF(text);
+    env->CallStaticVoidMethod(
+            gModuleClass,
+            gOnResultMethod,
+            jtext
+    );
+    env->DeleteLocalRef(jtext);
+}
 
 JNIEXPORT jboolean JNICALL
 Java_com_speechtrainerai_rn_1java_1connector_RnJavaConnectorModule_nativeInit(
-        JNIEnv*, jclass) {
+        JNIEnv* env, jclass clazz) {
+
+    gModuleClass = (jclass)env->NewGlobalRef(clazz);
+    gOnResultMethod = env->GetStaticMethodID(
+            clazz,
+            "onNativeResult",
+            "(Ljava/lang/String;)V"
+    );
+
+    SpeechEngine::instance().setResultCallback(emitResultToJava);
     return SpeechEngine::instance().init();
 }
 
@@ -48,5 +73,12 @@ Java_com_speechtrainerai_rn_1java_1connector_RnJavaConnectorModule_nativeGetEngi
     auto state = SpeechEngine::instance().getState();
     return env->NewStringUTF(toString(state));
 }
+
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void*) {
+    gJvm = vm;
+    return JNI_VERSION_1_6;
+}
+
+
 
 }
