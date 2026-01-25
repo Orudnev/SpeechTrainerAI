@@ -125,33 +125,36 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void startRecognition(Promise p) {
 
+        // Guard: already running
+        if (audioRunning) {
+            Log.i("RnJavaConnector", "Audio already running, ignoring startRecognition()");
+            p.resolve(true);
+            return;
+        }
+
+        // Permission check
         if (ContextCompat.checkSelfPermission(
                 getReactApplicationContext(),
                 Manifest.permission.RECORD_AUDIO
         ) != PackageManager.PERMISSION_GRANTED) {
-
             p.reject("NO_PERMISSION", "RECORD_AUDIO not granted");
             return;
         }
 
-        boolean ok = nativeStartRecognition();
-        if (!ok) {
-            p.resolve(false);
+        // Buffer size
+        audioBufferSize = AudioRecord.getMinBufferSize(
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+        );
+
+        if (audioBufferSize <= 0) {
+            p.reject("AUDIO_ERROR", "Invalid buffer size: " + audioBufferSize);
             return;
         }
 
+        // Create AudioRecord
         try {
-            audioBufferSize = AudioRecord.getMinBufferSize(
-                    SAMPLE_RATE,
-                    AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT
-            );
-
-            if (audioBufferSize <= 0) {
-                p.reject("AUDIO_ERROR", "Invalid buffer size: " + audioBufferSize);
-                return;
-            }
-
             audioRecord = new AudioRecord(
                     MediaRecorder.AudioSource.MIC,
                     SAMPLE_RATE,
@@ -159,52 +162,134 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
                     AudioFormat.ENCODING_PCM_16BIT,
                     audioBufferSize
             );
-
         } catch (SecurityException se) {
             p.reject("SECURITY_EXCEPTION", se);
             return;
         }
 
+        // Check initialized
+        if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
+            p.reject("AUDIO_ERROR", "AudioRecord not initialized");
+            return;
+        }
+
+        // Start audio capture
         audioRunning = true;
         audioRecord.startRecording();
 
+        // Start audio thread
         audioThread = new Thread(() -> {
-            // PCM16 → 2 bytes per sample
-            short[] buffer = new short[audioBufferSize / 2];
+
+            short[] buffer = new short[4000];
 
             while (audioRunning) {
                 int read = audioRecord.read(buffer, 0, buffer.length);
+
                 if (read > 0) {
+                    long sum = 0;
+                    for (int i = 0; i < read; i++) {
+                        sum += Math.abs(buffer[i]);
+                    }
+                    long avg = sum / read;
+
+                    Log.i("AudioDebug", "read=" + read + " avgAmp=" + avg);
+
                     nativePushAudio(buffer, read);
                 }
             }
+
         }, "AudioRecordThread");
 
         audioThread.start();
+
+        // Start recognition AFTER audio is flowing
+        boolean ok = nativeStartRecognition();
+        if (!ok) {
+            p.reject("ENGINE_ERROR", "nativeStartRecognition failed");
+            return;
+        }
+
         p.resolve(true);
     }
 
-
-
     @ReactMethod
     public void stopRecognition(Promise p) {
+
+        // Stop loop
         audioRunning = false;
 
+        // Join audio thread FIRST
+        if (audioThread != null) {
+            try {
+                audioThread.join();
+            } catch (InterruptedException ignored) {
+            }
+            audioThread = null;
+        }
+
+        // Stop + release AudioRecord
         if (audioRecord != null) {
-            audioRecord.stop();
+            try {
+                audioRecord.stop();
+            } catch (Exception ignored) {
+            }
+
             audioRecord.release();
             audioRecord = null;
         }
 
+        // Stop native recognition thread
         nativeStopRecognition();
+
         p.resolve(null);
     }
+
 
 
     @ReactMethod
     public void getEngineState(Promise p) {
         p.resolve(nativeGetEngineState());
     }
+
+    @ReactMethod
+    public void prepareModel(Promise p) {
+        try {
+            String installedPath =
+                    ModelInstaller.installModelIfNeeded(
+                            getReactApplicationContext(),
+                            "vosk-model-small-en-us-0.15"
+                    );
+
+            p.resolve(installedPath);
+
+        } catch (Exception ex) {
+            p.reject("MODEL_INSTALL_ERROR", ex);
+        }
+    }
+
+    @ReactMethod
+    public void initEngineWithBundledModel(Promise p) {
+        try {
+            nativeInit();
+
+            String installedPath =
+                    ModelInstaller.installModelIfNeeded(
+                            getReactApplicationContext(),
+                            "vosk-model-small-en-us-0.15"
+                    );
+
+            boolean ok = nativeLoadModel(installedPath);
+
+            p.resolve(ok);
+
+        } catch (Exception ex) {
+            p.reject("ENGINE_INIT_ERROR", ex);
+        }
+    }
+
+
+
+
     public static void onNativeResult(String text) {
         if (reactContext == null) return;
 

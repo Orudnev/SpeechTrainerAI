@@ -19,6 +19,7 @@ SpeechEngine& SpeechEngine::instance() {
 }
 
 bool SpeechEngine::init() {
+    vosk_set_log_level(0);
     if (state_ != EngineState::UNINITIALIZED) {
         LOGI("init() called again, ignoring");
         return true; // <-- ВАЖНО
@@ -30,11 +31,26 @@ bool SpeechEngine::init() {
 }
 
 void SpeechEngine::shutdown() {
-    LOGI("Engine shutdown");
+
+    LOGI("Engine shutdown requested");
+
     stopRecognition();
-    modelPath_.clear();
+
+    if (recognizer_) {
+        vosk_recognizer_free(recognizer_);
+        recognizer_ = nullptr;
+    }
+
+    if (model_) {
+        vosk_model_free(model_);
+        model_ = nullptr;
+    }
+
     state_ = EngineState::UNINITIALIZED;
+
+    LOGI("Engine fully shutdown");
 }
+
 
 bool SpeechEngine::isInitialized() const {
     return state_ != EngineState::UNINITIALIZED;
@@ -42,23 +58,34 @@ bool SpeechEngine::isInitialized() const {
 
 bool SpeechEngine::loadModel(const std::string& path) {
 
-    if (state_ == EngineState::MODEL_LOADED ||
-        state_ == EngineState::RECOGNIZING) {
-
-        LOGI("loadModel() called again, ignoring");
+    if (model_ != nullptr) {
+        LOGI("Model already loaded, ignoring");
         return true;
     }
 
-    if (state_ != EngineState::INITIALIZED) {
-        LOGE("loadModel() invalid state");
+    LOGI("Loading Vosk model from: %s", path.c_str());
+
+    model_ = vosk_model_new(path.c_str());
+    if (!model_) {
+        LOGE("vosk_model_new failed (bad path?)");
         return false;
     }
 
-    LOGI("Fake model loaded from: %s", path.c_str());
-    modelPath_ = path;
+    recognizer_ = vosk_recognizer_new(model_, 16000.0f);
+    if (!recognizer_) {
+        LOGE("vosk_recognizer_new failed");
+        return false;
+    }
+
+    vosk_recognizer_set_max_alternatives(recognizer_, 0);
+    vosk_recognizer_set_words(recognizer_, 1);
+
     state_ = EngineState::MODEL_LOADED;
+
+    LOGI("Vosk model loaded OK");
     return true;
 }
+
 
 EngineState SpeechEngine::getState() const {
     return state_;
@@ -72,7 +99,7 @@ void SpeechEngine::setResultCallback(void (*cb)(const char*)) {
 bool SpeechEngine::startRecognition() {
     if (state_ == EngineState::RECOGNIZING) {
         LOGI("startRecognition() already running");
-        return true;
+        return false;
     }
 
     if (state_ != EngineState::MODEL_LOADED) {
@@ -88,43 +115,150 @@ bool SpeechEngine::startRecognition() {
 }
 
 void SpeechEngine::stopRecognition() {
+
+    LOGI("stopRecognition() requested");
+
+    // 1) Stop recognition thread
     if (recognition_.running) {
         recognition_.running = false;
-        if (recognition_.worker.joinable())
+
+        if (recognition_.worker.joinable()) {
             recognition_.worker.join();
+        }
     }
-    if (state_ == EngineState::RECOGNIZING)
-        state_ = EngineState::MODEL_LOADED;
-}
 
-void SpeechEngine::recognitionLoop() {
-    int counter = 0;
-    int16_t tmp[1600];
+    // 2) Flush final result from Vosk
+    if (recognizer_) {
 
-    while (recognition_.running) {
-        size_t frames = audioBuffer_.pop(tmp, 1600);
+        const char* finalJson = vosk_recognizer_final_result(recognizer_);
 
-        if (frames > 0 && resultCallback_) {
-            counter++;
+        LOGI("Final result JSON: %s", finalJson);
 
-            std::string json =
-                    std::string("{\"type\":\"partial\",\"text\":\"fake chunk ")
-                    + std::to_string(counter)
-                    + "\"}";
+        // Extract "text" field (temporary simple parser)
+        std::string json = finalJson;
 
-            resultCallback_(json.c_str());
+        auto pos = json.find("\"text\"");
+        if (pos != std::string::npos) {
 
-            if (counter % 5 == 0) {
-                std::string finalJson =
-                        std::string("{\"type\":\"final\",\"text\":\"fake sentence ")
-                        + std::to_string(counter / 5)
-                        + "\"}";
+            auto q1 = json.find("\"", pos + 6);
+            auto q2 = json.find("\"", q1 + 1);
 
-                resultCallback_(finalJson.c_str());
+            if (q1 != std::string::npos && q2 != std::string::npos) {
+
+                std::string finalText =
+                        json.substr(q1 + 1, q2 - q1 - 1);
+
+                if (!finalText.empty() && resultCallback_) {
+
+                    std::string evt =
+                            std::string("{\"type\":\"final\",\"text\":\"")
+                            + finalText + "\"}";
+
+                    resultCallback_(evt.c_str());
+                }
             }
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // 3) Reset recognizer for next session
+        vosk_recognizer_reset(recognizer_);
     }
+
+    // 4) Update engine state
+    if (state_ == EngineState::RECOGNIZING) {
+        state_ = EngineState::MODEL_LOADED;
+    }
+
+    LOGI("stopRecognition() done");
 }
+
+void SpeechEngine::recognitionLoop() {
+
+    LOGI("Recognition thread started");
+
+    int16_t tmp[4000]; // ~250ms audio
+    std::string lastPartial;
+
+    while (recognition_.running) {
+
+        size_t frames = audioBuffer_.pop(tmp, 4000);
+
+        if (frames > 0 && recognizer_) {
+
+            int accepted = vosk_recognizer_accept_waveform_s(
+                    recognizer_,
+                    tmp,
+                    frames
+            );
+
+            if (accepted) {
+                // FINAL
+                const char* resJson = vosk_recognizer_result(recognizer_);
+                std::string json = resJson;
+
+                auto pos = json.find("\"text\"");
+                if (pos != std::string::npos) {
+
+                    auto q1 = json.find("\"", pos + 6);
+                    auto q2 = json.find("\"", q1 + 1);
+
+                    std::string finalText =
+                            json.substr(q1 + 1, q2 - q1 - 1);
+
+                    if (!finalText.empty() && resultCallback_) {
+
+                        std::string evt =
+                                std::string("{\"type\":\"final\",\"text\":\"")
+                                + finalText + "\"}";
+
+                        resultCallback_(evt.c_str());
+                    }
+                }
+
+                lastPartial.clear();
+            }
+            else {
+                // PARTIAL
+                const char* partialJson =
+                        vosk_recognizer_partial_result(recognizer_);
+
+                std::string json = partialJson;
+
+                auto pos = json.find("\"partial\"");
+                if (pos != std::string::npos) {
+
+                    auto q1 = json.find("\"", pos + 9);
+                    auto q2 = json.find("\"", q1 + 1);
+
+                    std::string partialText =
+                            json.substr(q1 + 1, q2 - q1 - 1);
+
+                    if (partialText.empty()) {
+                        continue; // <-- НЕ return!
+                    }
+
+                    if (partialText == lastPartial) {
+                        continue; // no spam
+                    }
+
+                    lastPartial = partialText;
+
+                    if (resultCallback_) {
+
+                        std::string evt =
+                                std::string("{\"type\":\"partial\",\"text\":\"")
+                                + partialText + "\"}";
+
+                        resultCallback_(evt.c_str());
+                    }
+                }
+            }
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+
+    LOGI("Recognition thread stopped");
+}
+
+
 

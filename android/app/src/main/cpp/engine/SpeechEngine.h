@@ -4,6 +4,7 @@
 #include "EngineState.h"
 #include "Threading.h"
 #include "AudioBuffer.h"
+#include <vosk_api.h>
 
 class SpeechEngine {
 public:
@@ -32,6 +33,8 @@ private:
     RecognitionThread recognition_;
     AudioBuffer audioBuffer_;
     std::string modelPath_;
+    VoskModel* model_ = nullptr;
+    VoskRecognizer* recognizer_ = nullptr;
 
     void (*resultCallback_)(const char* text) = nullptr;
 };

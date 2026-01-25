@@ -1,6 +1,7 @@
 import { View, Text, useColorScheme,Button,Alert,NativeModules } from 'react-native';
 import { useEffect } from 'react';
 import { useSpeechResults } from './src/useSpeechResults';
+import {testVoskAssets} from './src/testVoskAssets';
 const { RnJavaConnector } = NativeModules;
 
 
@@ -17,6 +18,7 @@ export default function App() {
   useEffect(() => {
     // 🔹 запускаем тест один раз
     testNativeEngine();
+    testVoskAssets();
   }, []);
   useSpeechResults();
   return (

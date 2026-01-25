@@ -1,5 +1,10 @@
 #include <jni.h>
 #include "../engine/SpeechEngine.h"
+#include <android/log.h>
+
+#define LOG_TAG "SpeechTrainerJNI"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 extern "C" {
 static JavaVM* gJvm = nullptr;
@@ -22,7 +27,7 @@ void emitResultToJava(const char* text) {
 JNIEXPORT void JNICALL
 Java_com_speechtrainerai_rn_1java_1connector_RnJavaConnectorModule_nativePushAudio(
         JNIEnv* env, jclass, jshortArray data, jint frames) {
-
+LOGI("nativePushAudio frames=%d", frames);
 jshort* pcm = env->GetShortArrayElements(data, nullptr);
 SpeechEngine::instance().pushAudio(
 reinterpret_cast<int16_t*>(pcm),

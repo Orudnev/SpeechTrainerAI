@@ -10,15 +10,14 @@ export function useSpeechResults() {
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener(
       'SpeechResult',
-      (raw: string) => {
-        const evt: SpeechEvent = JSON.parse(raw);
-
+      (msg: string) => {
+        const evt = JSON.parse(msg);
         if (evt.type === 'partial') {
-          console.log('… partial:', evt.text);
+          console.log("… partial:", evt.text);
         }
 
         if (evt.type === 'final') {
-          console.log('✅ final:', evt.text);
+          console.log("✅ final:", evt.text);
         }
       }
     );
