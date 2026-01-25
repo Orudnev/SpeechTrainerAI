@@ -2,6 +2,9 @@ import { View, Text, useColorScheme,Button,Alert,NativeModules } from 'react-nat
 import { useEffect } from 'react';
 import { useSpeechResults } from './src/useSpeechResults';
 import {testVoskAssets} from './src/testVoskAssets';
+import  SpeechCompare  from "./src/components/SpeechCompare";
+
+console.log("Hermes?", (global as any).HermesInternal != null);
 const { RnJavaConnector } = NativeModules;
 
 
@@ -17,7 +20,6 @@ export default function App() {
   const isDark = useColorScheme() === 'dark';
   useEffect(() => {
     // 🔹 запускаем тест один раз
-    testNativeEngine();
     testVoskAssets();
   }, []);
   useSpeechResults();
@@ -33,6 +35,7 @@ export default function App() {
       <Text style={{ color: isDark ? '#fff' : '#000' }}>
         SpeechTrainerAI
       </Text>
+      <SpeechCompare inStr="hello world this is test" />
       <Button title="Start1" onPress={()=>console.log("press")} />
     </View>
   );
