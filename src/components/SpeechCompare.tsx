@@ -129,6 +129,9 @@ export default function SpeechCompare({ inStr }: Props) {
         if (currEtlWrdInd.current >= inStrWords.length) {
           // 3.2.8
           setStatus("Ответ засчитан");
+          DeviceEventEmitter.emit("PhraseMatched", {
+            phrase: inStrWords.join(" "),
+          });          
         }
       }
     );

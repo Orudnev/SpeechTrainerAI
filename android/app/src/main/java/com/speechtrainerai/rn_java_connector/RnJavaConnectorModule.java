@@ -16,15 +16,77 @@ import androidx.core.app.ActivityCompat;
 import com.facebook.react.modules.core.PermissionAwareActivity;
 import com.facebook.react.modules.core.PermissionListener;
 import android.app.Activity;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
+import java.util.Locale;
+import java.util.UUID;
+import java.util.HashMap;
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.WritableMap;
+
+
 public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
 
     static {
         System.loadLibrary("speechtrainer_jni");
     }
 
-    public RnJavaConnectorModule(com.facebook.react.bridge.ReactApplicationContext ctx) {
+    public RnJavaConnectorModule(ReactApplicationContext ctx) {
         super(ctx);
         reactContext = ctx;
+
+        Log.i("TTS", "Initializing TextToSpeech...");
+
+        tts = new TextToSpeech(ctx, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+
+                Log.i("TTS", "TTS engine ready");
+
+                // Default language = English
+                tts.setLanguage(localeEn);
+
+                // Attach progress listener
+                tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+
+                    @Override
+                    public void onStart(String utteranceId) {
+                        Log.i("TTS", "Speech started: " + utteranceId);
+                    }
+
+                    @Override
+                    public void onDone(String utteranceId) {
+                        WritableMap map = Arguments.createMap();
+                        map.putString("utteranceId", utteranceId);
+
+                        reactContext
+                                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                                .emit("TtsFinished", map);
+                    }
+
+                    @Override
+                    public void onError(String utteranceId) {
+                        WritableMap map = Arguments.createMap();
+                        map.putString("utteranceId", utteranceId);
+
+                        reactContext
+                                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                                .emit("TtsError", map);
+                    }
+                });
+
+                ttsReady = true;
+                WritableMap map = Arguments.createMap();
+                map.putBoolean("ready", true);
+
+                reactContext
+                        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                        .emit("TtsReady", map);
+
+            } else {
+                Log.e("TTS", "TTS init failed");
+                ttsReady = false;
+            }
+        });
     }
 
     @Override
@@ -48,6 +110,32 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
     private volatile boolean audioRunning = false;
     private static final int SAMPLE_RATE = 16000;
     private int audioBufferSize = 0;
+    private TextToSpeech tts;
+    private boolean ttsReady = false;
+
+    private Locale localeEn = Locale.US;
+
+    private Locale localeRu = new Locale("ru", "RU");
+
+    private void emitEventToJS(String eventName, String payload) {
+        if (reactContext == null) return;
+
+        reactContext
+                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                .emit(eventName, payload);
+    }
+
+    private Locale detectLanguage(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+
+            // Cyrillic диапазон
+            if (c >= 0x0400 && c <= 0x04FF) {
+                return localeRu;
+            }
+        }
+        return localeEn;
+    }
 
     @ReactMethod
     public void init(Promise p) {
@@ -287,8 +375,55 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
         }
     }
 
+    @ReactMethod
+    public void speak(String text, Promise p) {
+
+        if (!ttsReady || tts == null) {
+            p.reject("TTS_NOT_READY", "TextToSpeech not initialized yet");
+            return;
+        }
+
+        if (text == null || text.trim().isEmpty()) {
+            p.reject("EMPTY_TEXT", "Nothing to speak");
+            return;
+        }
+
+        Locale lang = detectLanguage(text);
+
+        int res = tts.setLanguage(lang);
+        if (res == TextToSpeech.LANG_MISSING_DATA ||
+                res == TextToSpeech.LANG_NOT_SUPPORTED) {
+
+            p.reject("LANG_NOT_SUPPORTED", "Language not supported: " + lang);
+            return;
+        }
+
+        String utteranceId = UUID.randomUUID().toString();
+
+        Log.i("TTS", "Speaking (" + lang + "): " + text);
+
+        tts.speak(
+                text,
+                TextToSpeech.QUEUE_FLUSH,
+                null,
+                utteranceId
+        );
+
+        p.resolve(utteranceId);
+    }
 
 
+    @Override
+    public void invalidate() {
+        super.invalidate();
+
+        if (tts != null) {
+            Log.i("TTS", "Shutting down TTS");
+            tts.stop();
+            tts.shutdown();
+            tts = null;
+        }
+    }
 
     public static void onNativeResult(String text) {
         if (reactContext == null) return;

@@ -2,7 +2,8 @@ import { View, Text, useColorScheme,Button,Alert,NativeModules } from 'react-nat
 import { useEffect } from 'react';
 import { useSpeechResults } from './src/useSpeechResults';
 import {testVoskAssets,reloadVoskAssets} from './src/testVoskAssets';
-import  SpeechCompare  from "./src/components/SpeechCompare";
+import SpeechTrainerPhrase from "./src/components/SpeechTrainerPhrase";
+import { speakAndListen } from "./src/speechOrchestrator";
 
 console.log("Hermes?", (global as any).HermesInternal != null);
 const { RnJavaConnector } = NativeModules;
@@ -21,6 +22,7 @@ export default function App() {
   useEffect(() => {
     // 🔹 запускаем тест один раз
     testVoskAssets();
+    RnJavaConnector.speak("Hello from Android TTS");
   }, []);
   useSpeechResults();
   return (
@@ -35,8 +37,12 @@ export default function App() {
       <Text style={{ color: isDark ? '#fff' : '#000' }}>
         SpeechTrainerAI
       </Text>
-      <SpeechCompare inStr="hello world this is test hello world this is test hello world this is test hello world this is testhello world this is testhello world this is testhello world this is test" />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <SpeechTrainerPhrase />
+      </View>
       <Button title="Start1" onPress={()=>reloadVoskAssets()} />
+      <Button title="Speak" onPress={()=>speakAndListen("Hello! SpeechTrainerAI is working.")} />
+      <Button title="Speak" onPress={()=>speakAndListen("Превед-медвед! В очередь су\u0301кины дети! Отлезь гнида!")} />
     </View>
   );
 }
