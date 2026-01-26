@@ -2,10 +2,20 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Hermes Android",
-      "type": "reactnative",
+      "name": "Attach to Hermes application",
       "request": "attach",
-      "platform": "android"
+      "type": "reactnativedirect",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Attach Hermes Inspector",
+      "type": "reactnativedirect",
+      "request": "attach",
+      "platform": "android",
+      "cwd": "${workspaceFolder}",
+      "port": 8081,
+      "sourceMaps": true,
+      "trace": true
     }
   ]
 }
