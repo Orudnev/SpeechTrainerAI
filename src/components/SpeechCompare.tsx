@@ -39,6 +39,9 @@ export default function SpeechCompare({ inStr }: Props) {
   // Флаг ожидания final после ошибки
   const waitFinal = useRef(false);
 
+  // UI: текущие результаты распознавания ASR
+  const [asrResult, setAsrResult] = useState("");
+
   // UI: какие слова уже совпали
   const [matchedWords, setMatchedWords] = useState<string[]>([]);
 
@@ -59,7 +62,7 @@ export default function SpeechCompare({ inStr }: Props) {
       "SpeechResult",
       (msg: string) => {
         const evt = JSON.parse(msg) as SpeechEvent;
-
+        setAsrResult(evt.text);
         // 3.2.1 Разбиваем ASR текст на слова
         const ASRWords = evt.text
           .trim()
@@ -138,8 +141,8 @@ export default function SpeechCompare({ inStr }: Props) {
   // -----------------------------
   return (
     <View style={styles.box}>
-      <Text style={styles.title}>Эталон:</Text>
-      <Text style={styles.etalon}>{inStr}</Text>
+      <Text style={styles.title}>Ответ:</Text>
+      <Text style={styles.etalon}>{asrResult}</Text>
 
       <Text style={styles.title}>Совпало:</Text>
       <Text style={styles.matched}>{matchedWords.join(" ")}</Text>

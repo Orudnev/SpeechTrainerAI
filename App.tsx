@@ -1,7 +1,7 @@
 import { View, Text, useColorScheme,Button,Alert,NativeModules } from 'react-native';
 import { useEffect } from 'react';
 import { useSpeechResults } from './src/useSpeechResults';
-import {testVoskAssets} from './src/testVoskAssets';
+import {testVoskAssets,reloadVoskAssets} from './src/testVoskAssets';
 import  SpeechCompare  from "./src/components/SpeechCompare";
 
 console.log("Hermes?", (global as any).HermesInternal != null);
@@ -35,8 +35,8 @@ export default function App() {
       <Text style={{ color: isDark ? '#fff' : '#000' }}>
         SpeechTrainerAI
       </Text>
-      <SpeechCompare inStr="hello world this is test" />
-      <Button title="Start1" onPress={()=>console.log("press")} />
+      <SpeechCompare inStr="hello world this is test hello world this is test hello world this is test hello world this is testhello world this is testhello world this is testhello world this is test" />
+      <Button title="Start1" onPress={()=>reloadVoskAssets()} />
     </View>
   );
 }
