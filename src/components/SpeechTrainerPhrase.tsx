@@ -8,23 +8,46 @@ import { waitTtsFinish } from "../tts";
 
 const { RnJavaConnector } = NativeModules;
 
-/**
- * Trainer phrases list (temporary hardcoded)
- */
-const PHRASES = [
-  "hello world this is speech trainer ai",
-  "react native is working perfectly",
-  "vosk recognition and tts are connected",
+// ============================================================
+// Тип тренировочного элемента
+// ============================================================
+type SpItem = {
+  q: string; // question (что озвучиваем)
+  a: string; // answer   (что должен сказать пользователь)
+};
+
+// ============================================================
+// Trainer dataset (temporary hardcoded)
+// ============================================================
+const PHRASES: SpItem[] = [
+  {
+    q: "Здравствуй мир",
+    a: "hello world",
+  },
+  {
+    q: "React Native работает прекрасно",
+    a: "react native is working perfectly",
+  },
+  {
+    q: "Распознавание речи и tts речи связаны",
+    a: "Voice recognition and tts are connected",
+  },
 ];
 
 export default function SpeechTrainerPhrase() {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [phase, setPhase] = useState<"speaking" | "listening">("speaking");
 
-  // 🔥 важный флаг: стартуем только после готовности TTS
+  // 🔥 Trainer starts only after TTS ready
   const [ttsInitialized, setTtsInitialized] = useState(false);
 
-  const currentPhrase = PHRASES[phraseIndex];
+  // ============================================================
+  // Current training item
+  // ============================================================
+  const currentItem = PHRASES[phraseIndex];
+
+  const currentQuestion = currentItem.q; // what we speak
+  const currentAnswer = currentItem.a;   // what user must repeat
 
   // ============================================================
   // 1) Wait for TtsReady event (first launch only)
@@ -52,20 +75,23 @@ export default function SpeechTrainerPhrase() {
     async function runStep() {
       console.log("====================================");
       console.log("🔊 Trainer step started");
-      console.log("Phrase:", currentPhrase);
+
+      console.log("Question:", currentQuestion);
+      console.log("Expected answer:", currentAnswer);
 
       setPhase("speaking");
 
-      // Speak phrase + auto start ASR after finish
-      await speakAndListen(currentPhrase);
+      // 1) Speak the QUESTION
+      await speakAndListen(currentQuestion);
 
       if (cancelled) return;
 
       console.log("🎤 Listening...");
       setPhase("listening");
+
     }
 
-    // 🔥 маленькая задержка, чтобы Android AudioFocus успел стабилизироваться
+    // 🔥 Small delay for Android AudioFocus stabilization
     setTimeout(() => {
       runStep();
     }, 300);
@@ -97,8 +123,8 @@ export default function SpeechTrainerPhrase() {
             const next = prev + 1;
 
             if (next >= PHRASES.length) {
-              console.log("🏁 Training finished!");
-              return 0; // restart loop
+              console.log("🏁 Training finished! Restarting...");
+              return 0;
             }
 
             return next;
@@ -117,8 +143,9 @@ export default function SpeechTrainerPhrase() {
     <View style={styles.root}>
       <Text style={styles.header}>SpeechTrainer Loop</Text>
 
+      {/* Show QUESTION */}
       <Text style={styles.title}>Current phrase:</Text>
-      <Text style={styles.phrase}>{currentPhrase}</Text>
+      <Text style={styles.phrase}>{currentQuestion}</Text>
 
       {phase === "speaking" && (
         <Text style={styles.phase}>🔊 Озвучивание...</Text>
@@ -128,8 +155,8 @@ export default function SpeechTrainerPhrase() {
         <Text style={styles.phase}>🎤 Повторите фразу...</Text>
       )}
 
-      {/* Compare UI */}
-      <SpeechCompare inStr={currentPhrase} />
+      {/* Compare uses ANSWER */}
+      <SpeechCompare inStr={currentAnswer} />
     </View>
   );
 }
