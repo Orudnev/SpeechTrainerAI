@@ -91,20 +91,20 @@ export async function seedSpeechDbIfEmpty() {
 
   const seed: Omit<SpItem, "uid">[] = [
     {
-      topic: "basic",
+      topic: "test",
       q: "Здравствуй мир",
       a: "hello world",
     },
     {
-      topic: "rn",
+      topic: "test",
       q: "React Native работает прекрасно",
       a: "react native is working perfectly",
     },
     {
-      topic: "speech",
+      topic: "test",
       q: "Распознавание речи и tts речи связаны",
       a: "voice recognition and tts are connected",
-    },
+    }, 
   ];
 
   for (const item of seed) {

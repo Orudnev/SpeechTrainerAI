@@ -4,6 +4,7 @@ import { useSpeechResults } from './src/useSpeechResults';
 import {testVoskAssets,reloadVoskAssets} from './src/testVoskAssets';
 import SpeechTrainerPhrase from "./src/components/SpeechTrainerPhrase";
 import { speakAndListen } from "./src/speechOrchestrator";
+import { registerDebugApi } from "./src/debug/registerDebugApi";
 
 console.log("Hermes?", (global as any).HermesInternal != null);
 const { RnJavaConnector } = NativeModules;
@@ -22,6 +23,7 @@ export default function App() {
   useEffect(() => {
     // 🔹 запускаем тест один раз
     testVoskAssets();
+    registerDebugApi();
   }, []);
   useSpeechResults();
   return (
@@ -39,7 +41,9 @@ export default function App() {
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <SpeechTrainerPhrase />
       </View>
-      <Button title="Start1" onPress={()=>reloadVoskAssets()} />
+      <Button title="Start1" onPress={()=>{
+        reloadVoskAssets();
+      }} />
       <Button title="Speak" onPress={()=>speakAndListen("Hello! SpeechTrainerAI is working.")} />
       <Button title="Speak" onPress={()=>speakAndListen("Превед-медвед! В очередь су\u0301кины дети! Отлезь гнида!")} />
     </View>

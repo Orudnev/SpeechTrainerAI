@@ -14,6 +14,17 @@ type Props = {
   inStr: string;
 };
 
+function normalizeText(input: string): string {
+  return input
+    .toLowerCase()
+    // убираем всё, кроме букв, цифр и пробелов
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    // схлопываем множественные пробелы
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+
 // -----------------------------
 // Component
 // -----------------------------
@@ -24,14 +35,10 @@ type Props = {
  */
 export default function SpeechCompare({ inStr }: Props) {
   // 3.1 Инициализация
-  const inStrWords = useMemo(
-    () =>
-      inStr
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean),
-    [inStr]
-  );
+  const inStrWords = useMemo(() => {
+    const normalized = normalizeText(inStr);
+    return normalized.split(" ").filter(Boolean);
+  }, [inStr]);
 
   // Индекс текущего эталонного слова
   const currEtlWrdInd = useRef(0);
