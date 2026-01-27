@@ -376,6 +376,11 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
+    public void isTtsReady(Promise p) {
+        p.resolve(ttsReady);
+    }    
+
+    @ReactMethod
     public void speak(String text, Promise p) {
 
         if (!ttsReady || tts == null) {

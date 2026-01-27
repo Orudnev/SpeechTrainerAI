@@ -22,7 +22,6 @@ export default function App() {
   useEffect(() => {
     // 🔹 запускаем тест один раз
     testVoskAssets();
-    RnJavaConnector.speak("Hello from Android TTS");
   }, []);
   useSpeechResults();
   return (

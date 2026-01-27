@@ -6,51 +6,52 @@ import { speakAndListen } from "../speechOrchestrator";
 import { NativeModules } from "react-native";
 import { waitTtsFinish } from "../tts";
 
+import {
+  initSpeechDb,
+  seedSpeechDbIfEmpty,
+  loadAllPhrases,
+  SpItem,
+} from "../db/speechDb";
+
 const { RnJavaConnector } = NativeModules;
 
-// ============================================================
-// Тип тренировочного элемента
-// ============================================================
-type SpItem = {
-  q: string; // question (что озвучиваем)
-  a: string; // answer   (что должен сказать пользователь)
-};
-
-// ============================================================
-// Trainer dataset (temporary hardcoded)
-// ============================================================
-const PHRASES: SpItem[] = [
-  {
-    q: "Здравствуй мир",
-    a: "hello world",
-  },
-  {
-    q: "React Native работает прекрасно",
-    a: "react native is working perfectly",
-  },
-  {
-    q: "Распознавание речи и tts речи связаны",
-    a: "Voice recognition and tts are connected",
-  },
-];
-
 export default function SpeechTrainerPhrase() {
+  // ============================================================
+  // State
+  // ============================================================
+  const [items, setItems] = useState<SpItem[]>([]);
   const [phraseIndex, setPhraseIndex] = useState(0);
+
   const [phase, setPhase] = useState<"speaking" | "listening">("speaking");
 
-  // 🔥 Trainer starts only after TTS ready
+  // Trainer starts only after TTS ready
   const [ttsInitialized, setTtsInitialized] = useState(false);
 
   // ============================================================
-  // Current training item
+  // 0) Init DB + Load phrases
   // ============================================================
-  const currentItem = PHRASES[phraseIndex];
+  useEffect(() => {
+    console.log("🗄️ Initializing SQLite DB...");
 
-  const currentQuestion = currentItem.q; // what we speak
-  const currentAnswer = currentItem.a;   // what user must repeat
+    async function load() {
+      try {
+        await initSpeechDb();
+        await seedSpeechDbIfEmpty();
+
+        const data = await loadAllPhrases();
+        console.log("✅ Loaded phrases:", data.length);
+
+        setItems(data);
+      } catch (err) {
+        console.error("DB load error:", err);
+      }
+    }
+
+    load();
+  }, []);
 
   // ============================================================
-  // 1) Wait for TtsReady event (first launch only)
+  // 1) Wait for TTS Ready
   // ============================================================
   useEffect(() => {
     console.log("⏳ Waiting for TTS initialization...");
@@ -65,98 +66,104 @@ export default function SpeechTrainerPhrase() {
   }, []);
 
   // ============================================================
-  // 2) Start one training step (only when TTS ready)
+  // Current item (safe)
+  // ============================================================
+  const hasData = items.length > 0;
+  const currentItem = hasData ? items[phraseIndex] : null;
+
+  const currentQuestion = currentItem?.q ?? "";
+  const currentAnswer = currentItem?.a ?? "";
+
+  // ============================================================
+  // 2) Training step loop
   // ============================================================
   useEffect(() => {
     if (!ttsInitialized) return;
+    if (!hasData) return;
 
     let cancelled = false;
 
     async function runStep() {
       console.log("====================================");
       console.log("🔊 Trainer step started");
-
       console.log("Question:", currentQuestion);
       console.log("Expected answer:", currentAnswer);
 
       setPhase("speaking");
 
-      // 1) Speak the QUESTION
+      // Speak QUESTION, then ASR starts automatically
       await speakAndListen(currentQuestion);
 
       if (cancelled) return;
 
       console.log("🎤 Listening...");
       setPhase("listening");
-
     }
 
-    // 🔥 Small delay for Android AudioFocus stabilization
-    setTimeout(() => {
-      runStep();
-    }, 300);
+    // Small delay for Android AudioFocus stabilization
+    setTimeout(runStep, 300);
 
     return () => {
       cancelled = true;
     };
-  }, [phraseIndex, ttsInitialized]);
+  }, [phraseIndex, ttsInitialized, hasData]);
 
   // ============================================================
-  // 3) PhraseMatched listener → feedback + next phrase
+  // 3) PhraseMatched → feedback + next phrase
   // ============================================================
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener(
-      "PhraseMatched",
-      async (evt) => {
-        console.log("✅ Phrase complete:", evt.phrase);
+    if (!hasData) return;
 
-        // 1) Stop recognition immediately
-        await RnJavaConnector.stopRecognition();
+    const sub = DeviceEventEmitter.addListener("PhraseMatched", async () => {
+      console.log("✅ Phrase matched!");
 
-        // 2) Speak feedback
-        const id = await RnJavaConnector.speak("Correct!");
-        await waitTtsFinish(id);
+      // Stop recognition immediately
+      await RnJavaConnector.stopRecognition();
 
-        // 3) Next phrase after delay
-        setTimeout(() => {
-          setPhraseIndex((prev) => {
-            const next = prev + 1;
+      // Speak feedback
+      const id = await RnJavaConnector.speak("Correct!");
+      await waitTtsFinish(id);
 
-            if (next >= PHRASES.length) {
-              console.log("🏁 Training finished! Restarting...");
-              return 0;
-            }
-
-            return next;
-          });
-        }, 500);
-      }
-    );
+      // Next phrase
+      setTimeout(() => {
+        setPhraseIndex((prev) => {
+          const next = (prev + 1) % items.length;
+          return next;
+        });
+      }, 500);
+    });
 
     return () => sub.remove();
-  }, []);
+  }, [hasData, items.length]);
 
   // ============================================================
   // Render
   // ============================================================
   return (
     <View style={styles.root}>
-      <Text style={styles.header}>SpeechTrainer Loop</Text>
+      <Text style={styles.header}>SpeechTrainer Loop (SQLite)</Text>
 
-      {/* Show QUESTION */}
-      <Text style={styles.title}>Current phrase:</Text>
-      <Text style={styles.phrase}>{currentQuestion}</Text>
+      {/* Loading state */}
+      {!hasData && <Text>Loading phrases from database...</Text>}
 
-      {phase === "speaking" && (
-        <Text style={styles.phase}>🔊 Озвучивание...</Text>
+      {/* Main trainer UI */}
+      {hasData && (
+        <>
+          <Text style={styles.title}>Current question:</Text>
+          <Text style={styles.phrase}>{currentQuestion}</Text>
+
+          {phase === "speaking" && (
+            <Text style={styles.phase}>🔊 Озвучивание...</Text>
+          )}
+
+          {phase === "listening" && (
+            <Text style={styles.phase}>🎤 Повторите фразу...</Text>
+          )}
+
+          {/* Compare ASR with expected ANSWER */}
+          <SpeechCompare inStr={currentAnswer} />
+        </>
       )}
-
-      {phase === "listening" && (
-        <Text style={styles.phase}>🎤 Повторите фразу...</Text>
-      )}
-
-      {/* Compare uses ANSWER */}
-      <SpeechCompare inStr={currentAnswer} />
     </View>
   );
 }

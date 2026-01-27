@@ -99,7 +99,7 @@ void SpeechEngine::setResultCallback(void (*cb)(const char*)) {
 bool SpeechEngine::startRecognition() {
     if (state_ == EngineState::RECOGNIZING) {
         LOGI("startRecognition() already running");
-        return false;
+        return true;
     }
 
     if (state_ != EngineState::MODEL_LOADED) {

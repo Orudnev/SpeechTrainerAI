@@ -3,7 +3,8 @@ import { NativeModules, DeviceEventEmitter } from "react-native";
 const { RnJavaConnector } = NativeModules;
 
 export async function speak(text: string) {
-  return await RnJavaConnector.speak(text);
+  await waitForTtsReady();
+  return await RnJavaConnector.speak(text);  
 }
 
 export function subscribeTts() {
@@ -31,3 +32,31 @@ export function waitTtsFinish(utteranceId: string) {
   });
 }
 
+let ready = false;
+let waiting: Promise<void> | null = null;
+
+export async function waitForTtsReady(): Promise<void> {
+  if (ready) return;
+
+  // 1) спросим у Java напрямую
+  const nativeReady = await RnJavaConnector.isTtsReady();
+  if (nativeReady) {
+    ready = true;
+    return;
+  }
+
+  // 2) если уже ждём — возвращаем тот же promise
+  if (waiting) return waiting;
+
+  // 3) ждём событие
+  waiting = new Promise((resolve) => {
+    const sub = DeviceEventEmitter.addListener("TtsReady", () => {
+      ready = true;
+      waiting = null;
+      sub.remove();
+      resolve();
+    });
+  });
+
+  return waiting;
+}
