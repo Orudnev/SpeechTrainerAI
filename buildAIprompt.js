@@ -27,17 +27,18 @@ function addFilesContent() {
     result += "Приложение 2. TypeScript Layer\r\n";
     result += "________________________________________________________________________________________________\r\n";
     var filesOfTsLayer = ["App.tsx"];
-    filesOfTsLayer.push(...getFilesByMask(".\\src\\*.ts"));
+    filesOfTsLayer.push(...getFilesByMask("./src/*.ts"));
+    filesOfTsLayer.push(...getFilesByMask("./src/components/*.tsx"));
     result += getFilesContent(filesOfTsLayer);
     result += "________________________________________________________________________________________________\r\n";
-    result += "Приложение 2. Java Layer\r\n";
+    result += "Приложение 3. Java Layer\r\n";
     result += "________________________________________________________________________________________________\r\n";
     var filesOfJavaLayer = getFilesByMask("./android/app/src/main/java/com/speechtrainerai/*.java");
     filesOfJavaLayer.push(...getFilesByMask("./android/app/src/main/java/com/speechtrainerai/rn_java_connector/*.java"));
     result += getFilesContent(filesOfJavaLayer);
 
     result += "________________________________________________________________________________________________\r\n";
-    result += "Приложение 3. C++ Layer\r\n";
+    result += "Приложение 4. C++ Layer\r\n";
     result += "________________________________________________________________________________________________\r\n";
     var filesOfCppLayer = getFilesByMask("./android/app/src/main/cpp/engine/*.*");
     filesOfCppLayer.push(...getFilesByMask("./android/app/src/main/cpp/jni/*.*"));
