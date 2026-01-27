@@ -84,7 +84,7 @@ export default function SpeechCompare({ inStr }: Props) {
         // 3.2.4 Цикл обработки ASRWords
         for (let currAsrWrdInd = 0; currAsrWrdInd < ASRWords.length; currAsrWrdInd++) {
           const etlWord = inStrWords[currEtlWrdInd.current]?.toLowerCase();
-          const asrWord = ASRWords[currAsrWrdInd];
+          const asrWord = ASRWords[currAsrWrdInd].toLowerCase();
 
           // если эталон уже закончился
           if (!etlWord) break;
