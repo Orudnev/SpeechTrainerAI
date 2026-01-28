@@ -6,6 +6,7 @@ import {
   generatePseudoUniqueId,
   SpItem
 } from "../db/speechDb";
+import { AsrService } from "../speech/asr/AsrService";
 import {dataRows} from "./testPhraseData";
 
 export async function dropPhrasesTable() {
@@ -50,9 +51,17 @@ export async function listAllRows(): Promise<void> {
   for (let i = 0; i < rows.length; i++) {
     let r = rows.item(i);
     let str1 = `${i}\t${r.uid}\tfcnt:${r.fcnt} \tfcorCnt:${r.fcorCnt} \tfaccTS:${r.faccTS} \t${r.q}`;
-    let str2 = `\t${r.topic}\t\trcnt:${r.fcnt} \trcorCnt:${r.fcorCnt} \traccTS:${r.faccTS} \t${r.a}`;
+    let str2 = `\t${r.topic}\t\trcnt:${r.fcnt} \trcorCnt:${r.fcorCnt} \traccTS:${r.faccTS} \t${r.a} variants:${r.variants}`;
     console.log(`${str1}\n${str2}`);
   }
 }
 
+export async function asrinit(){
+  await AsrService.initAllEngines();
+}
+
+export async function asrshutdown(){
+  console.log("shutdown");
+  await AsrService.shutdownAllEngines();
+}
 

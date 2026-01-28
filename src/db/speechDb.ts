@@ -34,9 +34,13 @@ export type SpItem = {
   raccTS?: number;
   fcorCnt?: number;
   rcorCnt?: number;
+
+  /** список допустимых ASR вариантов (JSON stored) */
+  variants?: string[];
 };
 
 let db: SQLiteDatabase | null = null;
+
 /**
  * Open database
  */
@@ -71,7 +75,9 @@ export async function initSpeechDb() {
       raccTS INTEGER DEFAULT 0,
 
       fcorCnt INTEGER DEFAULT 0,
-      rcorCnt INTEGER DEFAULT 0
+      rcorCnt INTEGER DEFAULT 0,
+
+      variants TEXT DEFAULT NULL
     );
   `);
 }
@@ -94,24 +100,33 @@ export async function seedSpeechDbIfEmpty() {
       topic: "test",
       q: "Здравствуй мир",
       a: "hello world",
+      variants: [],
     },
     {
       topic: "test",
       q: "React Native работает прекрасно",
       a: "react native is working perfectly",
+      variants: [],
     },
     {
       topic: "test",
       q: "Распознавание речи и tts речи связаны",
       a: "voice recognition and tts are connected",
-    }, 
+      variants: [],
+    },
   ];
 
   for (const item of seed) {
     await db.executeSql(
-      `INSERT INTO phrases(uid, topic, q, a)
-       VALUES(?, ?, ?, ?);`,
-      [generatePseudoUniqueId(), item.topic, item.q, item.a]
+      `INSERT INTO phrases(uid, topic, q, a, variant)
+       VALUES(?, ?, ?, ?, ?);`,
+      [
+        generatePseudoUniqueId(),
+        item.topic,
+        item.q,
+        item.a,
+        JSON.stringify(item.variants ?? []),
+      ]
     );
   }
 }
@@ -128,10 +143,27 @@ export async function loadAllPhrases(): Promise<SpItem[]> {
   const items: SpItem[] = [];
 
   for (let i = 0; i < rows.length; i++) {
-    items.push(rows.item(i));
+    const row = rows.item(i);
+
+    items.push({
+      ...row,
+      variant: row.variant ? JSON.parse(row.variant) : [],
+    });
   }
 
   return items;
+}
+
+/**
+ * Save variants array into DB (JSON stored)
+ */
+export async function saveVariantsToPhrase(uid: string, variants: string[]) {
+  const db = await openSpeechDb();
+
+  await db.executeSql(
+    `UPDATE phrases SET variants=? WHERE uid=?`,
+    [JSON.stringify(variants), uid]
+  );
 }
 
 /**

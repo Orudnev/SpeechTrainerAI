@@ -1,4 +1,4 @@
-import { clearDb, reseedDb, listAllRows } from "./debugCommands";
+import { clearDb, reseedDb, listAllRows, asrinit, asrshutdown } from "./debugCommands";
 
 export const testReg = ()=>{
     console.log("blablabla");
@@ -12,7 +12,9 @@ export function registerDebugApi() {
     clearDb,
     reseedDb,
     listAllRows,
-    testReg
+    testReg,
+    asrinit,
+    asrshutdown
   };
 
   console.log("✅ Debug API registered: globalThis.dbg");

@@ -1,20 +1,48 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, DeviceEventEmitter } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  DeviceEventEmitter,
+  Button,
+  Pressable,
+} from "react-native";
 
 import SpeechCompare from "./SpeechCompare";
 import { speakAndListen } from "../speech/flow/speechOrchestrator";
-import { NativeModules } from "react-native";
 import { TtsService } from "../speech/tts/TtsService";
-import { AsrService } from "../speech/asr/AsrService";
+import { NativeModules } from "react-native";
 
 import {
   initSpeechDb,
   seedSpeechDbIfEmpty,
   loadAllPhrases,
   SpItem,
+  toReverse,
+  saveVariantsToPhrase,
 } from "../db/speechDb";
 
-const { RnJavaConnector } = NativeModules;
+import { AsrService } from "../speech/asr/AsrService";
+
+
+/**
+ * Normalize ASR text
+ */
+function normalizeText(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Variant statistics
+ */
+type VariantStat = {
+  text: string;
+  count: number;
+};
 
 export default function SpeechTrainerPhrase() {
   // ============================================================
@@ -24,41 +52,41 @@ export default function SpeechTrainerPhrase() {
   const [phraseIndex, setPhraseIndex] = useState(0);
 
   const [phase, setPhase] = useState<"speaking" | "listening">("speaking");
-
-  // Trainer starts only after TTS ready
   const [ttsInitialized, setTtsInitialized] = useState(false);
 
+  // Reverse mode toggle
+  const [reverseMode, setReverseMode] = useState(false);
+
+  // Variant UI
+  const [showVariants, setShowVariants] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Variant buffer
+  const variantBuffer = useRef<Map<string, VariantStat>>(new Map());
+
   // ============================================================
-  // 0) Init DB + Load phrases
+  // Load DB phrases
   // ============================================================
   useEffect(() => {
-    console.log("🗄️ Initializing SQLite DB...");
-
     async function load() {
-      try {
-        await initSpeechDb();
-        await seedSpeechDbIfEmpty();
+      console.log("📦 Loading phrases from SQLite...");
 
-        const data = await loadAllPhrases();
-        console.log("✅ Loaded phrases:", data.length);
+      await initSpeechDb();
+      await seedSpeechDbIfEmpty();
 
-        setItems(data);
-      } catch (err) {
-        console.error("DB load error:", err);
-      }
+      const data = await loadAllPhrases();
+      setItems(data);
     }
 
     load();
   }, []);
 
   // ============================================================
-  // 1) Wait for TTS Ready
+  // Wait for TTS ready
   // ============================================================
   useEffect(() => {
-    console.log("⏳ Waiting for TTS initialization...");
-
     const sub = DeviceEventEmitter.addListener("TtsReady", () => {
-      console.log("✅ TTS Ready received → Trainer can start");
+      console.log("✅ TTS Ready");
       setTtsInitialized(true);
       sub.remove();
     });
@@ -67,16 +95,54 @@ export default function SpeechTrainerPhrase() {
   }, []);
 
   // ============================================================
-  // Current item (safe)
+  // Current phrase
   // ============================================================
   const hasData = items.length > 0;
-  const currentItem = hasData ? items[phraseIndex] : null;
+  const rawItem = hasData ? items[phraseIndex] : null;
+
+  const currentItem = useMemo(() => {
+    if (!rawItem) return null;
+    return reverseMode ? toReverse(rawItem) : rawItem;
+  }, [rawItem, reverseMode]);
 
   const currentQuestion = currentItem?.q ?? "";
   const currentAnswer = currentItem?.a ?? "";
+  const currentUid = rawItem?.uid ?? "";
+
+  // Parse per-answer variants JSON
+  const perAnswerVariants: string[] = useMemo(() => {
+    return rawItem?.variants ?? [];
+  }, [rawItem]);
 
   // ============================================================
-  // 2) Training step loop
+  // Collect ASR variants while listening
+  // ============================================================
+  useEffect(() => {
+    if (!hasData) return;
+
+    const sub = DeviceEventEmitter.addListener("SpeechResult", (msg: string) => {
+      try {
+        const evt = JSON.parse(msg);
+
+        if (evt.type !== "partial") return;
+        if (phase !== "listening") return;
+
+        const norm = normalizeText(evt.text);
+        if (!norm) return;
+
+        const buf = variantBuffer.current;
+        const existing = buf.get(norm);
+
+        if (existing) existing.count++;
+        else buf.set(norm, { text: norm, count: 1 });
+      } catch { }
+    });
+
+    return () => sub.remove();
+  }, [phase, hasData]);
+
+  // ============================================================
+  // Trainer loop
   // ============================================================
   useEffect(() => {
     if (!ttsInitialized) return;
@@ -85,73 +151,100 @@ export default function SpeechTrainerPhrase() {
     let cancelled = false;
 
     async function runStep() {
-      console.log("====================================");
-      console.log("🔊 Trainer step started");
-      console.log("Question:", currentQuestion);
-      console.log("Expected answer:", currentAnswer);
+      variantBuffer.current.clear();
+      setSelected(new Set());
 
       setPhase("speaking");
 
-      // Speak QUESTION, then ASR starts automatically
       await speakAndListen(currentQuestion,"vosk-en");
 
       if (cancelled) return;
 
-      console.log("🎤 Listening...");
       setPhase("listening");
     }
 
-    // Small delay for Android AudioFocus stabilization
     setTimeout(runStep, 300);
 
     return () => {
       cancelled = true;
     };
-  }, [phraseIndex, ttsInitialized, hasData]);
+  }, [phraseIndex, ttsInitialized, hasData, currentQuestion]);
 
   // ============================================================
-  // 3) PhraseMatched → feedback + next phrase
+  // PhraseMatched callback
   // ============================================================
-  useEffect(() => {
-    if (!hasData) return;
+  async function handleMatched() {
+    console.log("✅ Phrase complete!");
 
-    const sub = DeviceEventEmitter.addListener("PhraseMatched", async () => {
-      console.log("✅ Phrase matched!");
+    await AsrService.stopSession();
 
-      // Stop recognition immediately
-      await RnJavaConnector.stopRecognition("vosk-en");
+    const id = await TtsService.speak("Correct!");
+    await TtsService.waitFinish(id);
 
-      // Speak feedback
-      const id = await RnJavaConnector.speak("Correct!"); 
-      await TtsService.waitFinish(id);
+    setPhraseIndex((prev) => (prev + 1) % items.length);
+  }
 
-      // Next phrase
-      setTimeout(() => {
-        setPhraseIndex((prev) => {
-          const next = (prev + 1) % items.length;
-          return next;
-        });
-      }, 500);
+  // ============================================================
+  // Variant list for UI
+  // ============================================================
+  const variants: VariantStat[] = useMemo(() => {
+    return [...variantBuffer.current.values()]
+      .filter((v) => v.count >= 2)
+      .sort((a, b) => b.count - a.count);
+  }, [showVariants]);
+
+  // ============================================================
+  // Toggle selection
+  // ============================================================
+  function toggleVariant(text: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(text)) next.delete(text);
+      else next.add(text);
+      return next;
     });
+  }
 
-    return () => sub.remove();
-  }, [hasData, items.length]);
+  // ============================================================
+  // Save selected variants
+  // ============================================================
+  async function handleSaveVariants() {
+    if (!rawItem) return;
+
+    const arr = Array.from(selected);
+    console.log("💾 Saving variants:", arr);
+
+    await saveVariantsToPhrase(rawItem.uid, arr);
+
+    setShowVariants(false);
+    setSelected(new Set());
+  }
 
   // ============================================================
   // Render
   // ============================================================
   return (
     <View style={styles.root}>
-      <Text style={styles.header}>SpeechTrainer Loop (SQLite)</Text>
+      <Text style={styles.header}>SpeechTrainer Loop</Text>
 
-      {/* Loading state */}
-      {!hasData && <Text>Loading phrases from database...</Text>}
+      {!hasData && <Text>Loading phrases...</Text>}
 
-      {/* Main trainer UI */}
       {hasData && (
         <>
           <Text style={styles.title}>Current question:</Text>
           <Text style={styles.phrase}>{currentQuestion}</Text>
+
+          <Text style={styles.title}>Expected answer:</Text>
+          <Text style={styles.answer}>{currentAnswer}</Text>
+
+          <Text style={styles.mode}>
+            Mode: {reverseMode ? "Reverse" : "Forward"}
+          </Text>
+
+          <Button
+            title="Toggle Reverse Mode"
+            onPress={() => setReverseMode((p) => !p)}
+          />
 
           {phase === "speaking" && (
             <Text style={styles.phase}>🔊 Озвучивание...</Text>
@@ -161,23 +254,59 @@ export default function SpeechTrainerPhrase() {
             <Text style={styles.phase}>🎤 Повторите фразу...</Text>
           )}
 
-          {/* Compare ASR with expected ANSWER */}
+          {/* SpeechCompare */}
           <SpeechCompare
             inStr={currentAnswer}
-            onMatched={async () => {
-              console.log("✅ Phrase matched in Trainer!");
-
-              // 1) Stop ASR
-              await AsrService.stopSession();
-
-              // 2) Speak feedback
-              const id = await TtsService.speak("Correct!");
-              await TtsService.waitFinish(id);
-
-              // 3) Next phrase
-              setPhraseIndex((prev) => (prev + 1) % items.length);
-            }}
+            itemUid={currentUid}
+            variants={perAnswerVariants}
+            onMatched={handleMatched}
           />
+
+          <Button title="Show Variants" onPress={() => setShowVariants(true)} />
+
+          {/* Variant picker */}
+          {showVariants && (
+            <View style={styles.variantBox}>
+              <Text style={styles.variantTitle}>
+                ASR варианты (повторяющиеся):
+              </Text>
+
+              {variants.length === 0 && (
+                <Text style={{ marginTop: 8 }}>
+                  Нет повторяющихся вариантов
+                </Text>
+              )}
+
+              {variants.map((v) => {
+                const checked = selected.has(v.text);
+
+                return (
+                  <Pressable
+                    key={v.text}
+                    style={styles.variantRow}
+                    onPress={() => toggleVariant(v.text)}
+                  >
+                    <Text style={{ fontSize: 16 }}>
+                      {checked ? "✅" : "⬜"} {v.text} ({v.count})
+                    </Text>
+                  </Pressable>
+                );
+              })}
+
+              <View style={styles.variantButtons}>
+                <Button
+                  title="Cancel"
+                  onPress={() => setShowVariants(false)}
+                />
+
+                <Button
+                  title="Save"
+                  onPress={handleSaveVariants}
+                  disabled={selected.size === 0}
+                />
+              </View>
+            </View>
+          )}
         </>
       )}
     </View>
@@ -202,15 +331,43 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: "700",
-    marginTop: 6,
+    marginTop: 8,
   },
   phrase: {
     fontSize: 16,
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  answer: {
+    fontSize: 15,
+    fontStyle: "italic",
+    marginBottom: 8,
   },
   phase: {
     fontSize: 16,
-    marginBottom: 14,
+    marginTop: 10,
+    marginBottom: 10,
     fontWeight: "600",
+  },
+  mode: {
+    marginTop: 10,
+    fontWeight: "700",
+  },
+  variantBox: {
+    marginTop: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  variantTitle: {
+    fontWeight: "800",
+    fontSize: 16,
+  },
+  variantRow: {
+    paddingVertical: 6,
+  },
+  variantButtons: {
+    marginTop: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
 });

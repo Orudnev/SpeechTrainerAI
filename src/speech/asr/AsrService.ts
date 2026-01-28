@@ -31,6 +31,11 @@ class AsrServiceImpl {
     console.log("✅ ASR engines ready:", SupportedEngines);
   }
 
+  async shutdownAllEngines(){
+    console.log("🚀 shutdown ASR engines...");
+    await RnJavaConnector.shutdown();
+  }
+
   /**
    * Запуск ASR сессии (engine выбирается из TS)
    */
@@ -54,6 +59,7 @@ class AsrServiceImpl {
     console.log("🛑 Stopping ASR session:", this.activeEngine);
 
     await RnJavaConnector.stopRecognition(this.activeEngine);
+    
 
     this.activeEngine = null;
   }
