@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { AsrService } from "./asr/AsrService";
-import { AsrResultEvent } from "./asr/types";
+import { AsrService } from "./AsrService";
+import { AsrResultEvent } from "./types";
 
 /**
  * useSpeechResults

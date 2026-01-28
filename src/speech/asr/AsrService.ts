@@ -1,7 +1,7 @@
 import { NativeModules, DeviceEventEmitter } from "react-native";
 import { SupportedEngines } from "./engines";
 import { AsrEngineId, AsrResultEvent, AsrSessionConfig } from "./types";
-import { ensureAudioPermission } from "../audioPermission";
+import { ensureAudioPermission } from "../permissions/audioPermission";
 
 const { RnJavaConnector } = NativeModules;
 

@@ -1,10 +1,10 @@
 import { View, Text, useColorScheme,Button,Alert,NativeModules } from 'react-native';
 import { useEffect } from 'react';
-import { useSpeechResults } from './src/useSpeechResults';
+import { useSpeechResults } from './src/speech/asr/useSpeechResults';
 import SpeechTrainerPhrase from "./src/components/SpeechTrainerPhrase";
-import { speakAndListen } from "./src/speechOrchestrator";
+import { speakAndListen } from "./src/speech/flow/speechOrchestrator";
 import { registerDebugApi } from "./src/debug/registerDebugApi";
-import { AsrService } from "./src/asr/AsrService";
+import { AsrService } from "./src/speech/asr/AsrService";
 
 console.log("Hermes?", (global as any).HermesInternal != null);
 const { RnJavaConnector } = NativeModules;

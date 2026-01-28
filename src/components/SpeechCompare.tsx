@@ -1,43 +1,40 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { DeviceEventEmitter, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+
+import { AsrService } from "../speech/asr/AsrService";
+import { AsrResultEvent } from "../speech/asr/types";
 
 // -----------------------------
-// Types
+// Props
 // -----------------------------
-export type SpeechEvent = {
-  type: "partial" | "final";
-  text: string;
-};
-
 type Props = {
   /** Эталонный ответ */
   inStr: string;
+
+  /** Callback: вся фраза совпала */
+  onMatched: () => void;
 };
 
+// -----------------------------
+// Helpers
+// -----------------------------
 function normalizeText(input: string): string {
   return input
     .toLowerCase()
-    // убираем всё, кроме букв, цифр и пробелов
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    // схлопываем множественные пробелы
     .replace(/\s+/g, " ")
     .trim();
 }
 
-
 // -----------------------------
 // Component
 // -----------------------------
-/**
- * SpeechCompare
- * Сравнивает речь пользователя (ASR) с эталонной фразой.
- * Алгоритм реализован строго по описанию в задаче.
- */
-export default function SpeechCompare({ inStr }: Props) {
-  // 3.1 Инициализация
+export default function SpeechCompare({ inStr, onMatched }: Props) {
+  // ============================================================
+  // 1) Эталонные слова
+  // ============================================================
   const inStrWords = useMemo(() => {
-    const normalized = normalizeText(inStr);
-    return normalized.split(" ").filter(Boolean);
+    return normalizeText(inStr).split(" ").filter(Boolean);
   }, [inStr]);
 
   // Индекс текущего эталонного слова
@@ -46,112 +43,95 @@ export default function SpeechCompare({ inStr }: Props) {
   // Флаг ожидания final после ошибки
   const waitFinal = useRef(false);
 
-  // UI: текущие результаты распознавания ASR
+  // UI state
   const [asrResult, setAsrResult] = useState("");
-
-  // UI: какие слова уже совпали
   const [matchedWords, setMatchedWords] = useState<string[]>([]);
+  const [status, setStatus] = useState("");
 
-  // UI: сообщение
-  const [status, setStatus] = useState<string>("");
-
-  // Сброс при новом эталоне
+  // ============================================================
+  // 2) Reset при смене эталона
+  // ============================================================
   useEffect(() => {
     currEtlWrdInd.current = 0;
     waitFinal.current = false;
+
     setMatchedWords([]);
     setStatus("");
+    setAsrResult("");
   }, [inStrWords.join(" ")]);
 
-  // 3.2 Обработка SpeechResult
+  // ============================================================
+  // 3) Подписка на ASR результаты
+  // ============================================================
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener(
-      "SpeechResult",
-      (msg: string) => {
-        const evt = JSON.parse(msg) as SpeechEvent;
+    const unsubscribe = AsrService.subscribeResults(
+      (evt: AsrResultEvent) => {
         setAsrResult(evt.text);
-        // 3.2.1 Разбиваем ASR текст на слова
+
         const ASRWords = evt.text
           .trim()
           .split(/\s+/)
           .filter(Boolean)
           .map((w) => w.toLowerCase());
 
-        // 3.2.2
         let firstMatchedWrdIndex = -1;
 
-        // 3.2.3 Если ждём final — игнорируем partial
+        // Если ждём final → игнорируем partial
         if (waitFinal.current && evt.type === "final") {
-          // 3.2.6
           waitFinal.current = false;
         } else if (waitFinal.current) {
           return;
         }
 
-        // 3.2.4 Цикл обработки ASRWords
-        for (let currAsrWrdInd = 0; currAsrWrdInd < ASRWords.length; currAsrWrdInd++) {
-          const etlWord = inStrWords[currEtlWrdInd.current]?.toLowerCase();
-          const asrWord = ASRWords[currAsrWrdInd].toLowerCase();
+        // Сравнение слов
+        for (let i = 0; i < ASRWords.length; i++) {
+          const etlWord = inStrWords[currEtlWrdInd.current];
+          const asrWord = ASRWords[i];
 
-          // если эталон уже закончился
           if (!etlWord) break;
 
-          // 3.2.4.1 сравнение
-          const isCurrWrdMatched = etlWord === asrWord;
+          const matched = etlWord === asrWord;
 
-          // 3.2.4.2 шум в начале
-          if (!isCurrWrdMatched && firstMatchedWrdIndex === -1) {
+          // шум в начале
+          if (!matched && firstMatchedWrdIndex === -1) {
             continue;
           }
 
-          // 3.2.4.3 слово совпало?
-          if (isCurrWrdMatched) {
-            // 3.2.4.3.1 отображаем совпавшее слово
-            setMatchedWords((prev) => {
-              const next = [...prev];
-              next.push(inStrWords[currEtlWrdInd.current]);
-              return next;
-            });
+          if (matched) {
+            setMatchedWords((prev) => [...prev, etlWord]);
 
-            // 3.2.4.3.2 первое совпадение
             if (firstMatchedWrdIndex === -1) {
-              firstMatchedWrdIndex = currAsrWrdInd;
+              firstMatchedWrdIndex = i;
             }
 
-            // 3.2.4.3.3 следующее слово эталона
             currEtlWrdInd.current++;
 
-            // 3.2.4.3.4 конец полной сессии?
+            // фраза полностью совпала
             if (currEtlWrdInd.current >= inStrWords.length) {
-              break; // 3.2.5
+              setStatus("Ответ засчитан ✅");
+
+              // 🔥 сообщаем наружу
+              onMatched();
+              return;
             }
           } else {
-            // 3.2.4.3.5 слово не совпало → конец частичной сессии
+            // несовпадение → ждём финал
             waitFinal.current = true;
-            break; // 3.2.5
+            break;
           }
-        }
-
-        // 3.2.7 Проверка полной сессии
-        if (currEtlWrdInd.current >= inStrWords.length) {
-          // 3.2.8
-          setStatus("Ответ засчитан");
-          DeviceEventEmitter.emit("PhraseMatched", {
-            phrase: inStrWords.join(" "),
-          });          
         }
       }
     );
 
-    return () => sub.remove();
-  }, [inStrWords]);
+    return () => unsubscribe();
+  }, [inStrWords, onMatched]);
 
-  // -----------------------------
+  // ============================================================
   // Render
-  // -----------------------------
+  // ============================================================
   return (
     <View style={styles.box}>
-      <Text style={styles.title}>Ответ:</Text>
+      <Text style={styles.title}>ASR результат:</Text>
       <Text style={styles.etalon}>{asrResult}</Text>
 
       <Text style={styles.title}>Совпало:</Text>

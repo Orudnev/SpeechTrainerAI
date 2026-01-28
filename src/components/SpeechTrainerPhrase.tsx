@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, DeviceEventEmitter } from "react-native";
 
 import SpeechCompare from "./SpeechCompare";
-import { speakAndListen } from "../speechOrchestrator";
+import { speakAndListen } from "../speech/flow/speechOrchestrator";
 import { NativeModules } from "react-native";
-import { waitTtsFinish } from "../tts";
+import { TtsService } from "../speech/tts/TtsService";
+import { AsrService } from "../speech/asr/AsrService";
 
 import {
   initSpeechDb,
@@ -122,7 +123,7 @@ export default function SpeechTrainerPhrase() {
 
       // Speak feedback
       const id = await RnJavaConnector.speak("Correct!"); 
-      await waitTtsFinish(id);
+      await TtsService.waitFinish(id);
 
       // Next phrase
       setTimeout(() => {
@@ -161,7 +162,22 @@ export default function SpeechTrainerPhrase() {
           )}
 
           {/* Compare ASR with expected ANSWER */}
-          <SpeechCompare inStr={currentAnswer} />
+          <SpeechCompare
+            inStr={currentAnswer}
+            onMatched={async () => {
+              console.log("✅ Phrase matched in Trainer!");
+
+              // 1) Stop ASR
+              await AsrService.stopSession();
+
+              // 2) Speak feedback
+              const id = await TtsService.speak("Correct!");
+              await TtsService.waitFinish(id);
+
+              // 3) Next phrase
+              setPhraseIndex((prev) => (prev + 1) % items.length);
+            }}
+          />
         </>
       )}
     </View>
