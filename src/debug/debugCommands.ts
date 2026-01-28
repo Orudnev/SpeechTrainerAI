@@ -48,8 +48,10 @@ export async function listAllRows(): Promise<void> {
   console.log("listAllRows3");  
 
   for (let i = 0; i < rows.length; i++) {
-    console.log("row:"+i);
-    console.log(rows.item(i));
+    let r = rows.item(i);
+    let str1 = `${i}\t${r.uid}\tfcnt:${r.fcnt} \tfcorCnt:${r.fcorCnt} \tfaccTS:${r.faccTS} \t${r.q}`;
+    let str2 = `\t${r.topic}\t\trcnt:${r.fcnt} \trcorCnt:${r.fcorCnt} \traccTS:${r.faccTS} \t${r.a}`;
+    console.log(`${str1}\n${str2}`);
   }
 }
 
