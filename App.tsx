@@ -1,28 +1,20 @@
 import { View, Text, useColorScheme,Button,Alert,NativeModules } from 'react-native';
 import { useEffect } from 'react';
 import { useSpeechResults } from './src/useSpeechResults';
-import {testVoskAssets,reloadVoskAssets} from './src/testVoskAssets';
 import SpeechTrainerPhrase from "./src/components/SpeechTrainerPhrase";
 import { speakAndListen } from "./src/speechOrchestrator";
 import { registerDebugApi } from "./src/debug/registerDebugApi";
+import { AsrService } from "./src/asr/AsrService";
 
 console.log("Hermes?", (global as any).HermesInternal != null);
 const { RnJavaConnector } = NativeModules;
-
-
-export async function testNativeEngine() {
-await RnJavaConnector.init();        // true
-await RnJavaConnector.init();        // true (не ошибка)
-await RnJavaConnector.loadModel('x');
-await RnJavaConnector.startRecognition();
-}
 
 
 export default function App() {
   const isDark = useColorScheme() === 'dark';
   useEffect(() => {
     // 🔹 запускаем тест один раз
-    testVoskAssets();
+    AsrService.initAllEngines();
     registerDebugApi();
   }, []);
   useSpeechResults();
@@ -41,11 +33,7 @@ export default function App() {
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <SpeechTrainerPhrase />
       </View>
-      <Button title="Start1" onPress={()=>{
-        reloadVoskAssets();
-      }} />
-      <Button title="Speak" onPress={()=>speakAndListen("Hello! SpeechTrainerAI is working.")} />
-      <Button title="Speak" onPress={()=>speakAndListen("Превед-медвед! В очередь су\u0301кины дети! Отлезь гнида!")} />
+      {/* <Button title="Speak" onPress={()=>speakAndListen("Hello! SpeechTrainerAI is working.")} /> */}
     </View>
   );
 }

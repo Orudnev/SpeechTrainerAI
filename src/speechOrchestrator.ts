@@ -1,5 +1,7 @@
 import { NativeModules, DeviceEventEmitter } from "react-native";
 import { speak } from "./tts";
+import { AsrService } from "./asr/AsrService";
+import { AsrEngineId} from "./asr/types";
 
 const { RnJavaConnector } = NativeModules;
 
@@ -10,9 +12,9 @@ const { RnJavaConnector } = NativeModules;
  * 3) Wait until TTS finished
  * 4) Restart ASR
  */
-export async function speakAndListen(text: string) {
+export async function speakAndListen(text: string, engineId: AsrEngineId) {
   console.log("🎤 Stopping recognition before TTS...");
-  await RnJavaConnector.stopRecognition();
+  await RnJavaConnector.stopRecognition("vosk-en");
 
   console.log("🔊 Speaking:", text);
 
@@ -26,7 +28,7 @@ export async function speakAndListen(text: string) {
 
         sub.remove();
 
-        await RnJavaConnector.startRecognition();
+        await RnJavaConnector.startRecognition("vosk-en");
         resolve();
     }
     );

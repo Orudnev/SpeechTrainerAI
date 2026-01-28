@@ -29,6 +29,8 @@ function addFilesContent() {
     var filesOfTsLayer = ["App.tsx"];
     filesOfTsLayer.push(...getFilesByMask("./src/*.ts"));
     filesOfTsLayer.push(...getFilesByMask("./src/components/*.tsx"));
+    filesOfTsLayer.push(...getFilesByMask("./src/db/*.ts"));
+    filesOfTsLayer.push(...getFilesByMask("./src/debug/*.ts"));
     result += getFilesContent(filesOfTsLayer);
     result += "________________________________________________________________________________________________\r\n";
     result += "Приложение 3. Java Layer\r\n";

@@ -23,7 +23,8 @@ import java.util.UUID;
 import java.util.HashMap;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
-
+import com.speechtrainerai.asr.AsrEngine;
+import com.speechtrainerai.asr.AsrEngineManager;
 
 public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
 
@@ -94,15 +95,15 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
         return "RnJavaConnector";
     }
 
-    private static native boolean nativeInit();
-    private static native void nativeShutdown();
-    private static native boolean nativeIsInitialized();
-    private static native boolean nativeLoadModel(String path);
-    private static native boolean nativeStartRecognition();
-    private static native void nativeStopRecognition();
-    private static native String nativeGetEngineState();
+    public static native boolean nativeInit();
+    public static native void nativeShutdown();
+    public static native boolean nativeIsInitialized();
+    public static native boolean nativeLoadModel(String path);
+    public static native boolean nativeStartRecognition();
+    public static native void nativeStopRecognition();
+    public static native String nativeGetEngineState();
+    public static native void nativePushAudio(short[] data, int frames);
     private static ReactApplicationContext reactContext;
-    private static native void nativePushAudio(short[] data, int frames);
     private Promise permissionPromise;
     private PermissionListener permissionListener;
     private AudioRecord audioRecord;
@@ -116,6 +117,10 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
     private Locale localeEn = Locale.US;
 
     private Locale localeRu = new Locale("ru", "RU");
+
+    private final AsrEngineManager asrManager = new AsrEngineManager();
+
+    private AsrEngine currentEngine = null;
 
     private void emitEventToJS(String eventName, String payload) {
         if (reactContext == null) return;
@@ -211,11 +216,20 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
 
 
     @ReactMethod
-    public void startRecognition(Promise p) {
+    public void startRecognition(String engineId, Promise p) {
+
+        AsrEngine engine = asrManager.getEngine(engineId);
+
+        if (engine == null) {
+            p.reject("ENGINE_NOT_FOUND", "Unknown engine: " + engineId);
+            return;
+        }
+
+        currentEngine = engine;
 
         // Guard: already running
         if (audioRunning) {
-            Log.i("RnJavaConnector", "Audio already running, ignoring startRecognition()");
+            Log.i("RnJavaConnector", "Audio already running");
             p.resolve(true);
             return;
         }
@@ -229,7 +243,7 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
             return;
         }
 
-        // Buffer size
+        // === AudioRecord init stays unchanged ===
         audioBufferSize = AudioRecord.getMinBufferSize(
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
@@ -241,31 +255,22 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
             return;
         }
 
-        // Create AudioRecord
-        try {
-            audioRecord = new AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    SAMPLE_RATE,
-                    AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT,
-                    audioBufferSize
-            );
-        } catch (SecurityException se) {
-            p.reject("SECURITY_EXCEPTION", se);
-            return;
-        }
+        audioRecord = new AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                audioBufferSize
+        );
 
-        // Check initialized
         if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
             p.reject("AUDIO_ERROR", "AudioRecord not initialized");
             return;
         }
 
-        // Start audio capture
         audioRunning = true;
         audioRecord.startRecording();
 
-        // Start audio thread
         audioThread = new Thread(() -> {
 
             short[] buffer = new short[4000];
@@ -274,14 +279,6 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
                 int read = audioRecord.read(buffer, 0, buffer.length);
 
                 if (read > 0) {
-                    long sum = 0;
-                    for (int i = 0; i < read; i++) {
-                        sum += Math.abs(buffer[i]);
-                    }
-                    long avg = sum / read;
-
-                    Log.i("AudioDebug", "read=" + read + " avgAmp=" + avg);
-
                     nativePushAudio(buffer, read);
                 }
             }
@@ -290,48 +287,36 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
 
         audioThread.start();
 
-        // Start recognition AFTER audio is flowing
-        boolean ok = nativeStartRecognition();
-        if (!ok) {
-            p.reject("ENGINE_ERROR", "nativeStartRecognition failed");
-            return;
-        }
-
-        p.resolve(true);
+        // === теперь запускаем движок ===
+        boolean ok = engine.startRecognition();
+        p.resolve(ok);
     }
 
-    @ReactMethod
-    public void stopRecognition(Promise p) {
 
-        // Stop loop
+    @ReactMethod
+    public void stopRecognition(String engineId, Promise p) {
+
         audioRunning = false;
 
-        // Join audio thread FIRST
         if (audioThread != null) {
-            try {
-                audioThread.join();
-            } catch (InterruptedException ignored) {
-            }
+            try { audioThread.join(); }
+            catch (InterruptedException ignored) {}
             audioThread = null;
         }
 
-        // Stop + release AudioRecord
         if (audioRecord != null) {
-            try {
-                audioRecord.stop();
-            } catch (Exception ignored) {
-            }
-
+            try { audioRecord.stop(); }
+            catch (Exception ignored) {}
             audioRecord.release();
             audioRecord = null;
         }
 
-        // Stop native recognition thread
-        nativeStopRecognition();
+        if (currentEngine != null) {
+            currentEngine.stopRecognition();
+        }
 
         p.resolve(null);
     }
-
 
 
     @ReactMethod

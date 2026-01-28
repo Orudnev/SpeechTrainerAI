@@ -92,7 +92,7 @@ export default function SpeechTrainerPhrase() {
       setPhase("speaking");
 
       // Speak QUESTION, then ASR starts automatically
-      await speakAndListen(currentQuestion);
+      await speakAndListen(currentQuestion,"vosk-en");
 
       if (cancelled) return;
 
@@ -118,10 +118,10 @@ export default function SpeechTrainerPhrase() {
       console.log("✅ Phrase matched!");
 
       // Stop recognition immediately
-      await RnJavaConnector.stopRecognition();
+      await RnJavaConnector.stopRecognition("vosk-en");
 
       // Speak feedback
-      const id = await RnJavaConnector.speak("Correct!");
+      const id = await RnJavaConnector.speak("Correct!"); 
       await waitTtsFinish(id);
 
       // Next phrase
