@@ -31,11 +31,16 @@ function addFilesContent() {
     filesOfTsLayer.push(...getFilesByMask("./src/components/*.tsx"));
     filesOfTsLayer.push(...getFilesByMask("./src/db/*.ts"));
     filesOfTsLayer.push(...getFilesByMask("./src/debug/*.ts"));
+    filesOfTsLayer.push(...getFilesByMask("./src/speech/asr/*.ts"));
+    filesOfTsLayer.push(...getFilesByMask("./src/speech/flow/*.ts"));
+    filesOfTsLayer.push(...getFilesByMask("./src/speech/permissions/*.ts"));
+    filesOfTsLayer.push(...getFilesByMask("./src/speech/tts/*.ts"));
     result += getFilesContent(filesOfTsLayer);
     result += "________________________________________________________________________________________________\r\n";
     result += "Приложение 3. Java Layer\r\n";
     result += "________________________________________________________________________________________________\r\n";
     var filesOfJavaLayer = getFilesByMask("./android/app/src/main/java/com/speechtrainerai/*.java");
+    filesOfJavaLayer.push(...getFilesByMask("./android/app/src/main/java/com/speechtrainerai/asr/*.java"));
     filesOfJavaLayer.push(...getFilesByMask("./android/app/src/main/java/com/speechtrainerai/rn_java_connector/*.java"));
     result += getFilesContent(filesOfJavaLayer);
 
