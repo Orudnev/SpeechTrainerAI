@@ -14,10 +14,11 @@ export async function speakAndListen(
   await AsrService.stopSession();
 
   console.log("🔊 Speaking:", text);
-  const utteranceId = await TtsService.speak(text);
+  //const utteranceId = await TtsService.speak(text);
+  TtsService.speak(text);
 
-  console.log("⏳ Waiting TTS finish...");
-  await TtsService.waitFinish(utteranceId);
+  //console.log("⏳ Waiting TTS finish...");
+  //await TtsService.waitFinish(utteranceId);
 
   console.log("🎤 Restarting ASR...");
   await AsrService.startSession({ engineId });

@@ -7,7 +7,6 @@ const { RnJavaConnector } = NativeModules;
 
 /**
  * Центральный сервис управления ASR.
- * Единственное место, где TS общается с Native ASR.
  */
 class AsrServiceImpl {
   private activeEngine: AsrEngineId | null = null;
@@ -18,26 +17,23 @@ class AsrServiceImpl {
   async initAllEngines() {
     console.log("🚀 Initializing ASR engines...");
 
-    // 1) Init native layer (один раз)
     await RnJavaConnector.init();
 
-    // 2) Prepare bundled Vosk model
     const modelPath = await RnJavaConnector.prepareModel();
     console.log("📦 Vosk model installed:", modelPath);
 
-    // 3) Load model into Vosk engine
     await RnJavaConnector.loadModel(modelPath);
 
     console.log("✅ ASR engines ready:", SupportedEngines);
   }
 
-  async shutdownAllEngines(){
+  async shutdownAllEngines() {
     console.log("🚀 shutdown ASR engines...");
     await RnJavaConnector.shutdown();
   }
 
   /**
-   * Запуск ASR сессии (engine выбирается из TS)
+   * Запуск ASR сессии
    */
   async startSession(cfg: AsrSessionConfig) {
     const ok = await ensureAudioPermission();
@@ -45,8 +41,10 @@ class AsrServiceImpl {
 
     this.activeEngine = cfg.engineId;
 
-    console.log("🎤 Starting ASR session:", cfg.engineId);
+    console.log("🔄 Setting current ASR engine:", cfg.engineId);
+    await RnJavaConnector.setCurrentEngine(cfg.engineId);
 
+    console.log("🎤 Starting ASR session:", cfg.engineId);
     await RnJavaConnector.startRecognition(cfg.engineId);
   }
 
@@ -57,11 +55,34 @@ class AsrServiceImpl {
     if (!this.activeEngine) return;
 
     console.log("🛑 Stopping ASR session:", this.activeEngine);
-
     await RnJavaConnector.stopRecognition(this.activeEngine);
-    
 
     this.activeEngine = null;
+  }
+
+  /**
+   * ✅ NEW: Полная перезагрузка ASR движка
+   */
+  async reloadCurrentEngine() {
+    if (!this.activeEngine) {
+      console.log("⚠️ No active engine to reload");
+      return;
+    }
+
+    const engineId = this.activeEngine;
+
+    console.log("🔁 Reloading ASR engine:", engineId);
+
+    // 1) Stop current session
+    await RnJavaConnector.stopRecognition(engineId);
+
+    // 2) Full reset engine (AudioRecord + ASR)
+    await RnJavaConnector.setCurrentEngine(engineId);
+
+    // 3) Restart recognition
+    await RnJavaConnector.startRecognition(engineId);
+
+    console.log("✅ ASR reloaded successfully");
   }
 
   /**
@@ -73,7 +94,6 @@ class AsrServiceImpl {
       (msg: string) => {
         const parsed = JSON.parse(msg);
 
-        // пока engineId не приходит из native → подставляем активный
         const evt: AsrResultEvent = {
           engine: this.activeEngine ?? "vosk-en",
           type: parsed.type,

@@ -51,6 +51,38 @@ void SpeechEngine::shutdown() {
     LOGI("Engine fully shutdown");
 }
 
+void SpeechEngine::fullReset() {
+
+    LOGI("FULL RESET requested");
+
+    // 1) Stop recognition thread
+    stopRecognition();
+
+    // 2) Clear audio buffer
+    audioBuffer_.clear();
+
+    // 3) Destroy recognizer completely
+    if (recognizer_) {
+        vosk_recognizer_free(recognizer_);
+        recognizer_ = nullptr;
+    }
+
+    // 4) Recreate recognizer fresh (if model loaded)
+    if (model_) {
+
+        recognizer_ = vosk_recognizer_new(model_, 16000.0f);
+
+        vosk_recognizer_set_max_alternatives(recognizer_, 0);
+        vosk_recognizer_set_words(recognizer_, 1);
+
+        state_ = EngineState::MODEL_LOADED;
+
+        LOGI("Recognizer recreated successfully");
+    }
+
+    LOGI("FULL RESET done");
+}
+
 
 bool SpeechEngine::isInitialized() const {
     return state_ != EngineState::UNINITIALIZED;

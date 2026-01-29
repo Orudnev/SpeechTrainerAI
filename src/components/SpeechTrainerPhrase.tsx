@@ -6,24 +6,24 @@ import {
   DeviceEventEmitter,
   Button,
   Pressable,
+  ScrollView,
 } from "react-native";
 
 import SpeechCompare from "./SpeechCompare";
 import { speakAndListen } from "../speech/flow/speechOrchestrator";
 import { TtsService } from "../speech/tts/TtsService";
-import { NativeModules } from "react-native";
 
 import {
   initSpeechDb,
   seedSpeechDbIfEmpty,
   loadAllPhrases,
   SpItem,
+  Tvariant,
   toReverse,
   saveVariantsToPhrase,
 } from "../db/speechDb";
 
 import { AsrService } from "../speech/asr/AsrService";
-
 
 /**
  * Normalize ASR text
@@ -37,7 +37,7 @@ function normalizeText(input: string): string {
 }
 
 /**
- * Variant statistics
+ * Variant statistics (UI only)
  */
 type VariantStat = {
   text: string;
@@ -61,7 +61,10 @@ export default function SpeechTrainerPhrase() {
   const [showVariants, setShowVariants] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Variant buffer
+  // Current active etalon word (from SpeechCompare)
+  const [currentWord, setCurrentWord] = useState("");
+
+  // Variant buffer (partial ASR collector)
   const variantBuffer = useRef<Map<string, VariantStat>>(new Map());
 
   // ============================================================
@@ -109,13 +112,13 @@ export default function SpeechTrainerPhrase() {
   const currentAnswer = currentItem?.a ?? "";
   const currentUid = rawItem?.uid ?? "";
 
-  // Parse per-answer variants JSON
-  const perAnswerVariants: string[] = useMemo(() => {
+  // Per-answer variants теперь Tvariant[]
+  const perAnswerVariants: Tvariant[] = useMemo(() => {
     return rawItem?.variants ?? [];
   }, [rawItem]);
 
   // ============================================================
-  // Collect ASR variants while listening
+  // Collect ASR partial variants while listening
   // ============================================================
   useEffect(() => {
     if (!hasData) return;
@@ -156,7 +159,7 @@ export default function SpeechTrainerPhrase() {
 
       setPhase("speaking");
 
-      await speakAndListen(currentQuestion,"vosk-en");
+      await speakAndListen(currentQuestion, "vosk-en");
 
       if (cancelled) return;
 
@@ -176,10 +179,8 @@ export default function SpeechTrainerPhrase() {
   async function handleMatched() {
     console.log("✅ Phrase complete!");
 
-    await AsrService.stopSession();
-
     const id = await TtsService.speak("Correct!");
-    await TtsService.waitFinish(id);
+    //await TtsService.waitFinish(id);
 
     setPhraseIndex((prev) => (prev + 1) % items.length);
   }
@@ -206,15 +207,50 @@ export default function SpeechTrainerPhrase() {
   }
 
   // ============================================================
-  // Save selected variants
+  // Save selected variants for currentWord
   // ============================================================
   async function handleSaveVariants() {
     if (!rawItem) return;
+    if (!currentWord) return;
 
     const arr = Array.from(selected);
-    console.log("💾 Saving variants:", arr);
 
-    await saveVariantsToPhrase(rawItem.uid, arr);
+    console.log("💾 Saving variants for word:", currentWord, arr);
+
+    const prevVariants: Tvariant[] = rawItem.variants ?? [];
+
+    let updated: Tvariant[];
+
+    const existing = prevVariants.find((v) => v.word === currentWord);
+
+    if (existing) {
+      updated = prevVariants.map((v) =>
+        v.word === currentWord
+          ? {
+            ...v,
+            variants: Array.from(new Set([...v.variants, ...arr])),
+          }
+          : v
+      );
+    } else {
+      updated = [
+        ...prevVariants,
+        {
+          word: currentWord,
+          variants: arr,
+        },
+      ];
+    }
+
+    // Save into DB
+    await saveVariantsToPhrase(rawItem.uid, updated);
+
+    // Update React state immediately
+    setItems((prev) =>
+      prev.map((it) =>
+        it.uid === rawItem.uid ? { ...it, variants: updated } : it
+      )
+    );
 
     setShowVariants(false);
     setSelected(new Set());
@@ -231,6 +267,7 @@ export default function SpeechTrainerPhrase() {
 
       {hasData && (
         <>
+          <Button title="Reload" onPress={() => AsrService.reloadCurrentEngine()} />
           <Text style={styles.title}>Current question:</Text>
           <Text style={styles.phrase}>{currentQuestion}</Text>
 
@@ -246,6 +283,10 @@ export default function SpeechTrainerPhrase() {
             onPress={() => setReverseMode((p) => !p)}
           />
 
+          <Text style={styles.currentWord}>
+            Current word: {currentWord}
+          </Text>
+
           {phase === "speaking" && (
             <Text style={styles.phase}>🔊 Озвучивание...</Text>
           )}
@@ -260,6 +301,7 @@ export default function SpeechTrainerPhrase() {
             itemUid={currentUid}
             variants={perAnswerVariants}
             onMatched={handleMatched}
+            onCurrentWord={(w) => setCurrentWord(w)}
           />
 
           <Button title="Show Variants" onPress={() => setShowVariants(true)} />
@@ -271,33 +313,37 @@ export default function SpeechTrainerPhrase() {
                 ASR варианты (повторяющиеся):
               </Text>
 
-              {variants.length === 0 && (
-                <Text style={{ marginTop: 8 }}>
-                  Нет повторяющихся вариантов
-                </Text>
-              )}
+              {/* ✅ ScrollView всегда существует */}
+              <ScrollView style={styles.variantScroll}>
+                {variants.length === 0 && (
+                  <Text style={{ marginTop: 8 }}>
+                    Нет повторяющихся вариантов
+                  </Text>
+                )}
 
-              {variants.map((v) => {
-                const checked = selected.has(v.text);
+                {variants.map((v) => {
+                  const checked = selected.has(v.text);
 
-                return (
-                  <Pressable
-                    key={v.text}
-                    style={styles.variantRow}
-                    onPress={() => toggleVariant(v.text)}
-                  >
-                    <Text style={{ fontSize: 16 }}>
-                      {checked ? "✅" : "⬜"} {v.text} ({v.count})
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                  return (
+                    <Pressable
+                      key={v.text}
+                      style={[
+                        styles.variantRow,
+                        checked && styles.variantRowSelected,
+                      ]}
+                      onPress={() => toggleVariant(v.text)}
+                    >
+                      <Text style={styles.variantText}>
+                        {checked ? "✅" : "⬜"} {v.text} ({v.count})
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
 
+              {/* ✅ кнопки всегда внизу */}
               <View style={styles.variantButtons}>
-                <Button
-                  title="Cancel"
-                  onPress={() => setShowVariants(false)}
-                />
+                <Button title="Cancel" onPress={() => setShowVariants(false)} />
 
                 <Button
                   title="Save"
@@ -306,6 +352,7 @@ export default function SpeechTrainerPhrase() {
                 />
               </View>
             </View>
+
           )}
         </>
       )}
@@ -352,22 +399,43 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontWeight: "700",
   },
+  currentWord: {
+    marginTop: 10,
+    fontWeight: "800",
+    fontSize: 16,
+  },
+
+  // Variant picker styles
   variantBox: {
     marginTop: 20,
     padding: 12,
     borderWidth: 1,
     borderRadius: 12,
+    // ✅ фиксированная высота окна
+    height: 300,
   },
   variantTitle: {
     fontWeight: "800",
     fontSize: 16,
   },
+  variantScroll: {
+    marginTop: 10,
+    flex: 1, // ✅ занимает всё свободное место
+  },
   variantRow: {
-    paddingVertical: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+  },
+  variantRowSelected: {
+    backgroundColor: "rgba(0,0,0,0.08)",
+  },
+  variantText: {
+    fontSize: 16,
   },
   variantButtons: {
-    marginTop: 12,
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 10,
   },
 });

@@ -12,6 +12,7 @@ public:
 
     bool init();
     void shutdown();
+    void fullReset();
     bool isInitialized() const;
     bool loadModel(const std::string& path);
     bool startRecognition();

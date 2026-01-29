@@ -1,35 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { DeviceEventEmitter, StyleSheet, Text, View } from "react-native";
+import { Tvariant } from "../db/speechDb";
 
 /**
- * SpeechResult event type
- */
-export type SpeechEvent = {
-  type: "partial" | "final";
-  text: string;
-};
-
-type Props = {
-  /** Эталонный ответ */
-  inStr: string;
-
-  /** UID текущей фразы */
-  itemUid: string;
-
-  /** Per-answer допустимые ASR варианты */
-  variants: string[];
-
-  /** Callback при успешном совпадении */
-  onMatched: () => void;
-};
-
-/**
- * Normalize text:
- * - lowercase
- * - remove punctuation
- * - collapse spaces
+ * Normalize text
  */
 function normalizeText(input: string): string {
+  if (!input) return "";
   return input
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
@@ -38,39 +15,54 @@ function normalizeText(input: string): string {
 }
 
 /**
- * Try merge two ASR words:
- * scale + ability → scalability
+ * Проверка по вариантам
  */
-function tryMergeWords(words: string[], index: number): string | null {
-  if (index + 1 >= words.length) return null;
-  return words[index] + words[index + 1];
+function checkVariants(
+  etalonWord: string,
+  variants: Tvariant[],
+  casrr: string
+): boolean {
+  const entry = variants.find(
+    (v) => normalizeText(v.word) === normalizeText(etalonWord)
+  );
+
+  if (!entry) return false;
+
+  for (const tvElm of entry.variants) {
+    if (normalizeText(casrr).includes(normalizeText(tvElm))) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
- * SpeechCompare
- * Compares user ASR output against expected phrase.
+ * Props
  */
+type Props = {
+  inStr: string;
+  itemUid: string;
+  variants: Tvariant[];
+  onMatched: () => void;
+
+  /** ✅ NEW: сообщает текущее слово эталона */
+  onCurrentWord?: (word: string) => void;
+};
+
 export default function SpeechCompare({
   inStr,
   itemUid,
   variants,
   onMatched,
+  onCurrentWord,
 }: Props) {
-  // ============================================================
-  // Prepare эталонные слова
-  // ============================================================
-  const inStrWords = useMemo(() => {
-    const normalized = normalizeText(inStr);
-    return normalized.split(" ").filter(Boolean);
+  const etalonWords = useMemo(() => {
+    return normalizeText(inStr).split(" ").filter(Boolean);
   }, [inStr]);
 
-  // Current эталонный индекс
-  const currEtlWrdInd = useRef(0);
+  const currIndex = useRef(0);
 
-  // Wait for final after mismatch
-  const waitFinal = useRef(false);
-
-  // UI state
   const [asrResult, setAsrResult] = useState("");
   const [matchedWords, setMatchedWords] = useState<string[]>([]);
   const [status, setStatus] = useState("");
@@ -79,141 +71,125 @@ export default function SpeechCompare({
   // Reset on new phrase
   // ============================================================
   useEffect(() => {
-    currEtlWrdInd.current = 0;
-    waitFinal.current = false;
+    currIndex.current = 0;
     setMatchedWords([]);
     setStatus("");
+
+    // сообщаем первое слово
+    if (etalonWords.length > 0 && onCurrentWord) {
+      onCurrentWord(etalonWords[0]);
+    }
   }, [itemUid]);
 
-  // ============================================================
-  // Helper: check per-answer variants
-  // ============================================================
-  function isVariantMatch(asrText: string): boolean {
-    const norm = normalizeText(asrText);
+  /**
+   * Mark word matched
+   */
+  function markWordMatched(word: string) {
+    setMatchedWords((prev) => [...prev, word]);
+    currIndex.current++;
 
-    for (const v of variants) {
-      if (normalizeText(v) === norm) {
-        return true;
-      }
+    // ✅ Фраза полностью завершена?
+    if (currIndex.current >= etalonWords.length) {
+      setStatus("Ответ засчитан");
+      onMatched();
+      return;
     }
-    return false;
+
+    // сообщаем новое текущее слово
+    const nextWord = etalonWords[currIndex.current];
+    if (nextWord && onCurrentWord) {
+      onCurrentWord(nextWord);
+    }
+  }
+
+
+  /**
+   * CASRR обработка
+   */
+  function processCASRR(casrr: string) {
+    const CASRRWords = normalizeText(casrr)
+      .split(" ")
+      .filter(Boolean);
+
+    let etalonWord = etalonWords[currIndex.current];
+    if (!etalonWord) return;
+
+    // ============================================================
+    // 1) Шум: ничего нет
+    // ============================================================
+    if (CASRRWords.length === 0) {
+      if (checkVariants(etalonWord, variants, casrr)) {
+        markWordMatched(etalonWord);
+      }
+      return;
+    }
+
+    // ============================================================
+    // 1.2 Ищем совпадение текущего эталонного слова
+    // ============================================================
+    const foundIndex = CASRRWords.findIndex((w) => w === etalonWord);
+
+    if (foundIndex === -1) {
+      // ============================================================
+      // 2) Проверка по вариантам
+      // ============================================================
+      if (checkVariants(etalonWord, variants, casrr)) {
+        markWordMatched(etalonWord);
+      }
+      return;
+    }
+
+    // ============================================================
+    // 3) Сравнение следующих слов
+    // ============================================================
+    let i = foundIndex;
+
+    while (i < CASRRWords.length) {
+      etalonWord = etalonWords[currIndex.current];
+      if (!etalonWord) break;
+
+      const spoken = CASRRWords[i];
+
+      if (spoken === etalonWord) {
+        markWordMatched(etalonWord);
+        i++;
+        continue;
+      }
+
+      // ============================================================
+      // 4) fallback: variants
+      // ============================================================
+      if (checkVariants(etalonWord, variants, casrr)) {
+        markWordMatched(etalonWord);
+      }
+
+      break;
+    }
   }
 
   // ============================================================
-  // SpeechResult listener
+  // Listener
   // ============================================================
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener(
       "SpeechResult",
       (msg: string) => {
-        const evt = JSON.parse(msg) as SpeechEvent;
+        const evt = JSON.parse(msg);
 
         setAsrResult(evt.text);
-
-        // --------------------------------------------------------
-        // 1) Если ASR совпал с per-answer variant целиком
-        // --------------------------------------------------------
-        if (evt.type === "final" && isVariantMatch(evt.text)) {
-          setStatus("Ответ засчитан (variant)");
-          onMatched();
-          return;
-        }
-
-        // --------------------------------------------------------
-        // 2) Tokenize ASR words
-        // --------------------------------------------------------
-        const ASRWords = normalizeText(evt.text)
-          .split(" ")
-          .filter(Boolean);
-
-        // Ignore empty
-        if (ASRWords.length === 0) return;
-
-        // --------------------------------------------------------
-        // 3) WaitFinal logic
-        // --------------------------------------------------------
-        if (waitFinal.current && evt.type === "final") {
-          waitFinal.current = false;
-        } else if (waitFinal.current) {
-          return;
-        }
-
-        // --------------------------------------------------------
-        // 4) Main matching loop (supports merge)
-        // --------------------------------------------------------
-
-        let currAsrWrdInd = 0;
-        let startedMatching = false;
-
-        while (currAsrWrdInd < ASRWords.length) {
-          const etlWord = inStrWords[currEtlWrdInd.current];
-          if (!etlWord) break;
-
-          const asrWord = ASRWords[currAsrWrdInd];
-
-          let matched = false;
-
-          // Exact match
-          if (etlWord === asrWord) {
-            matched = true;
-            currAsrWrdInd += 1;
-          } else {
-            // Merge match
-            const merged = tryMergeWords(ASRWords, currAsrWrdInd);
-            if (merged && merged === etlWord) {
-              matched = true;
-              currAsrWrdInd += 2;
-            }
-          }
-
-          // --------------------------------------------------------
-          // ✅ Noise skipping BEFORE first match
-          // --------------------------------------------------------
-          if (!matched && !startedMatching) {
-            currAsrWrdInd += 1;
-            continue; // пропускаем шум
-          }
-
-          // --------------------------------------------------------
-          // ❌ Mismatch AFTER matching started → wait final
-          // --------------------------------------------------------
-          if (!matched) {
-            waitFinal.current = true;
-            break;
-          }
-
-          // --------------------------------------------------------
-          // ✅ Word matched
-          // --------------------------------------------------------
-          startedMatching = true;
-
-          setMatchedWords((prev) => [...prev, etlWord]);
-          currEtlWrdInd.current++;
-
-          if (currEtlWrdInd.current >= inStrWords.length) {
-            break;
-          }
-        }
-
-        // --------------------------------------------------------
-        // 5) Full phrase matched
-        // --------------------------------------------------------
-        if (currEtlWrdInd.current >= inStrWords.length) {
-          setStatus("Ответ засчитан");
-          onMatched();
-        }
+        processCASRR(evt.text);
       }
     );
 
     return () => sub.remove();
-  }, [inStrWords, variants]);
+  }, [etalonWords, variants]);
 
   // ============================================================
   // Render
   // ============================================================
   return (
     <View style={styles.box}>
-      <Text style={styles.title}>ASR:</Text>
+      <Text style={styles.title}>CASRR:</Text>
       <Text style={styles.etalon}>{asrResult}</Text>
 
       <Text style={styles.title}>Matched:</Text>
@@ -224,9 +200,6 @@ export default function SpeechCompare({
   );
 }
 
-// ============================================================
-// Styles
-// ============================================================
 const styles = StyleSheet.create({
   box: {
     padding: 12,

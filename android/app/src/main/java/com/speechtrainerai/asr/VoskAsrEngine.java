@@ -6,9 +6,7 @@ import com.speechtrainerai.rn_java_connector.RnJavaConnectorModule;
 /**
  * Реализация ASR движка на базе Vosk.
  *
- * Важно:
- * JNI и C++ остаются без изменений.
- * Этот класс просто адаптер.
+ * Vosk НЕ управляет микрофоном сам → needsExternalAudio() = true
  */
 public class VoskAsrEngine implements AsrEngine {
 
@@ -21,6 +19,11 @@ public class VoskAsrEngine implements AsrEngine {
     @Override
     public String getId() {
         return id;
+    }
+
+    @Override
+    public boolean needsExternalAudio() {
+        return true;
     }
 
     @Override

@@ -20,6 +20,14 @@ export function generatePseudoUniqueId() {
 }
 
 /**
+ * ✅ New Variant structure
+ */
+export type Tvariant = {
+  word: string;
+  variants: string[];
+};
+
+/**
  * SpItem type
  */
 export type SpItem = {
@@ -35,8 +43,8 @@ export type SpItem = {
   fcorCnt?: number;
   rcorCnt?: number;
 
-  /** список допустимых ASR вариантов (JSON stored) */
-  variants?: string[];
+  /** ✅ word-level ASR variants */
+  variants?: Tvariant[];
 };
 
 let db: SQLiteDatabase | null = null;
@@ -67,68 +75,9 @@ export async function initSpeechDb() {
       topic TEXT NOT NULL,
       q TEXT NOT NULL,
       a TEXT NOT NULL,
-
-      fcnt INTEGER DEFAULT 0,
-      rcnt INTEGER DEFAULT 0,
-
-      faccTS INTEGER DEFAULT 0,
-      raccTS INTEGER DEFAULT 0,
-
-      fcorCnt INTEGER DEFAULT 0,
-      rcorCnt INTEGER DEFAULT 0,
-
       variants TEXT DEFAULT NULL
     );
   `);
-}
-
-/**
- * Seed initial data if empty
- */
-export async function seedSpeechDbIfEmpty() {
-  const db = await openSpeechDb();
-
-  const res = await db.executeSql(`SELECT COUNT(*) as cnt FROM phrases;`);
-  const count = res[0].rows.item(0).cnt;
-
-  if (count > 0) return;
-
-  console.log("🌱 Seeding database...");
-
-  const seed: Omit<SpItem, "uid">[] = [
-    {
-      topic: "test",
-      q: "Здравствуй мир",
-      a: "hello world",
-      variants: [],
-    },
-    {
-      topic: "test",
-      q: "React Native работает прекрасно",
-      a: "react native is working perfectly",
-      variants: [],
-    },
-    {
-      topic: "test",
-      q: "Распознавание речи и tts речи связаны",
-      a: "voice recognition and tts are connected",
-      variants: [],
-    },
-  ];
-
-  for (const item of seed) {
-    await db.executeSql(
-      `INSERT INTO phrases(uid, topic, q, a, variant)
-       VALUES(?, ?, ?, ?, ?);`,
-      [
-        generatePseudoUniqueId(),
-        item.topic,
-        item.q,
-        item.a,
-        JSON.stringify(item.variants ?? []),
-      ]
-    );
-  }
 }
 
 /**
@@ -147,7 +96,9 @@ export async function loadAllPhrases(): Promise<SpItem[]> {
 
     items.push({
       ...row,
-      variant: row.variant ? JSON.parse(row.variant) : [],
+      variants: row.variants
+        ? JSON.parse(row.variants)
+        : [],
     });
   }
 
@@ -155,9 +106,12 @@ export async function loadAllPhrases(): Promise<SpItem[]> {
 }
 
 /**
- * Save variants array into DB (JSON stored)
+ * Save variants into DB
  */
-export async function saveVariantsToPhrase(uid: string, variants: string[]) {
+export async function saveVariantsToPhrase(
+  uid: string,
+  variants: Tvariant[]
+) {
   const db = await openSpeechDb();
 
   await db.executeSql(
@@ -176,3 +130,38 @@ export function toReverse(item: SpItem): SpItem {
     a: item.q,
   };
 }
+
+export async function seedSpeechDbIfEmpty() {
+  const db = await openSpeechDb();
+
+  const res = await db.executeSql(`SELECT COUNT(*) as cnt FROM phrases;`);
+  const count = res[0].rows.item(0).cnt;
+
+  if (count > 0) return;
+
+  console.log("🌱 Seeding database...");
+
+  const seed: Omit<SpItem, "uid">[] = [
+    {
+      topic: "test",
+      q: "Здравствуй мир",
+      a: "hello world",
+      variants: [],
+    },
+  ];
+
+  for (const item of seed) {
+    await db.executeSql(
+      `INSERT INTO phrases(uid, topic, q, a, variants)
+       VALUES(?, ?, ?, ?, ?);`,
+      [
+        generatePseudoUniqueId(),
+        item.topic,
+        item.q,
+        item.a,
+        JSON.stringify(item.variants ?? []),
+      ]
+    );
+  }
+}
+

@@ -5,24 +5,30 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.facebook.react.bridge.ReactApplicationContext;
+
 import android.util.Log;
 import android.media.AudioRecord;
 import android.media.AudioFormat;
 import android.media.MediaRecorder;
+
 import android.Manifest;
 import android.content.pm.PackageManager;
 import androidx.core.content.ContextCompat;
 import androidx.core.app.ActivityCompat;
+
 import com.facebook.react.modules.core.PermissionAwareActivity;
 import com.facebook.react.modules.core.PermissionListener;
 import android.app.Activity;
+
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
+
 import java.util.Locale;
 import java.util.UUID;
-import java.util.HashMap;
+
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
+
 import com.speechtrainerai.asr.AsrEngine;
 import com.speechtrainerai.asr.AsrEngineManager;
 
@@ -32,6 +38,67 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
         System.loadLibrary("speechtrainer_jni");
     }
 
+    // ============================================================
+    // Native JNI methods
+    // ============================================================
+
+    public static native boolean nativeInit();
+    public static native void nativeShutdown();
+
+    public static native void nativeFullReset();
+    public static native boolean nativeIsInitialized();
+    public static native boolean nativeLoadModel(String path);
+    public static native boolean nativeStartRecognition();
+    public static native void nativeStopRecognition();
+    public static native String nativeGetEngineState();
+    public static native void nativePushAudio(short[] data, int frames);
+
+    // ============================================================
+    // React context
+    // ============================================================
+
+    private static ReactApplicationContext reactContext;
+
+    // ============================================================
+    // Engines
+    // ============================================================
+
+    private final AsrEngineManager asrManager = new AsrEngineManager();
+    private AsrEngine currentEngine = null;
+    private String currentModelPath = null;
+
+    // ============================================================
+    // AudioRecord
+    // ============================================================
+
+    private AudioRecord audioRecord;
+    private Thread audioThread;
+    private volatile boolean audioRunning = false;
+
+    private static final int SAMPLE_RATE = 16000;
+    private int audioBufferSize = 0;
+
+    // ============================================================
+    // Permissions
+    // ============================================================
+
+    private Promise permissionPromise;
+    private PermissionListener permissionListener;
+
+    // ============================================================
+    // TTS
+    // ============================================================
+
+    private TextToSpeech tts;
+    private boolean ttsReady = false;
+
+    private final Locale localeEn = Locale.US;
+    private final Locale localeRu = new Locale("ru", "RU");
+
+    // ============================================================
+    // Constructor
+    // ============================================================
+
     public RnJavaConnectorModule(ReactApplicationContext ctx) {
         super(ctx);
         reactContext = ctx;
@@ -39,43 +106,46 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
         Log.i("TTS", "Initializing TextToSpeech...");
 
         tts = new TextToSpeech(ctx, status -> {
+
             if (status == TextToSpeech.SUCCESS) {
 
                 Log.i("TTS", "TTS engine ready");
 
-                // Default language = English
                 tts.setLanguage(localeEn);
 
-                // Attach progress listener
-                tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                tts.setOnUtteranceProgressListener(
+                        new UtteranceProgressListener() {
 
-                    @Override
-                    public void onStart(String utteranceId) {
-                        Log.i("TTS", "Speech started: " + utteranceId);
-                    }
+                            @Override
+                            public void onStart(String utteranceId) {
+                                Log.i("TTS", "Speech started: " + utteranceId);
+                            }
 
-                    @Override
-                    public void onDone(String utteranceId) {
-                        WritableMap map = Arguments.createMap();
-                        map.putString("utteranceId", utteranceId);
+                            @Override
+                            public void onDone(String utteranceId) {
 
-                        reactContext
-                                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                                .emit("TtsFinished", map);
-                    }
+                                WritableMap map = Arguments.createMap();
+                                map.putString("utteranceId", utteranceId);
 
-                    @Override
-                    public void onError(String utteranceId) {
-                        WritableMap map = Arguments.createMap();
-                        map.putString("utteranceId", utteranceId);
+                                reactContext
+                                        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                                        .emit("TtsFinished", map);
+                            }
 
-                        reactContext
-                                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                                .emit("TtsError", map);
-                    }
-                });
+                            @Override
+                            public void onError(String utteranceId) {
+
+                                WritableMap map = Arguments.createMap();
+                                map.putString("utteranceId", utteranceId);
+
+                                reactContext
+                                        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                                        .emit("TtsError", map);
+                            }
+                        });
 
                 ttsReady = true;
+
                 WritableMap map = Arguments.createMap();
                 map.putBoolean("ready", true);
 
@@ -84,6 +154,7 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
                         .emit("TtsReady", map);
 
             } else {
+
                 Log.e("TTS", "TTS init failed");
                 ttsReady = false;
             }
@@ -95,61 +166,37 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
         return "RnJavaConnector";
     }
 
-    public static native boolean nativeInit();
-    public static native void nativeShutdown();
-    public static native boolean nativeIsInitialized();
-    public static native boolean nativeLoadModel(String path);
-    public static native boolean nativeStartRecognition();
-    public static native void nativeStopRecognition();
-    public static native String nativeGetEngineState();
-    public static native void nativePushAudio(short[] data, int frames);
-    private static ReactApplicationContext reactContext;
-    private Promise permissionPromise;
-    private PermissionListener permissionListener;
-    private AudioRecord audioRecord;
-    private Thread audioThread;
-    private volatile boolean audioRunning = false;
-    private static final int SAMPLE_RATE = 16000;
-    private int audioBufferSize = 0;
-    private TextToSpeech tts;
-    private boolean ttsReady = false;
-
-    private Locale localeEn = Locale.US;
-
-    private Locale localeRu = new Locale("ru", "RU");
-
-    private final AsrEngineManager asrManager = new AsrEngineManager();
-
-    private AsrEngine currentEngine = null;
-
-    private void emitEventToJS(String eventName, String payload) {
-        if (reactContext == null) return;
-
-        reactContext
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(eventName, payload);
-    }
+    // ============================================================
+    // Utils
+    // ============================================================
 
     private Locale detectLanguage(String text) {
+
         for (int i = 0; i < text.length(); i++) {
+
             char c = text.charAt(i);
 
-            // Cyrillic диапазон
             if (c >= 0x0400 && c <= 0x04FF) {
                 return localeRu;
             }
         }
+
         return localeEn;
     }
 
+    // ============================================================
+    // BASIC INIT / SHUTDOWN
+    // ============================================================
+
     @ReactMethod
     public void init(Promise p) {
+        Log.i("RnJavaConnector", "JS -> init()");
         p.resolve(nativeInit());
     }
 
     @ReactMethod
     public void shutdown(Promise p) {
-        Log.i("SpeechTrainerJNI", "JS -> shutdown()");
+        Log.i("RnJavaConnector", "JS -> shutdown()");
         nativeShutdown();
         p.resolve(null);
     }
@@ -159,173 +206,13 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
         p.resolve(nativeIsInitialized());
     }
 
-    @ReactMethod
-    public void loadModel(String path, Promise p) {
-        p.resolve(nativeLoadModel(path));
-    }
-
-    @ReactMethod
-    public void hasAudioPermission(Promise p) {
-        boolean granted =
-                ContextCompat.checkSelfPermission(
-                        getReactApplicationContext(),
-                        Manifest.permission.RECORD_AUDIO
-                ) == PackageManager.PERMISSION_GRANTED;
-
-        p.resolve(granted);
-    }
-
-    @ReactMethod
-    public void requestAudioPermission(Promise p) {
-        Activity activity = getCurrentActivity();
-        if (!(activity instanceof PermissionAwareActivity)) {
-            p.reject("NO_ACTIVITY", "Activity is not PermissionAware");
-            return;
-        }
-
-        if (ContextCompat.checkSelfPermission(
-                activity,
-                Manifest.permission.RECORD_AUDIO
-        ) == PackageManager.PERMISSION_GRANTED) {
-            p.resolve(true);
-            return;
-        }
-
-        permissionPromise = p;
-
-        permissionListener = (requestCode, permissions, grantResults) -> {
-            if (requestCode == 12345 && permissionPromise != null) {
-                boolean granted =
-                        grantResults.length > 0 &&
-                                grantResults[0] == PackageManager.PERMISSION_GRANTED;
-
-                permissionPromise.resolve(granted);
-                permissionPromise = null;
-                permissionListener = null;
-                return true;
-            }
-            return false;
-        };
-
-        ((PermissionAwareActivity) activity).requestPermissions(
-                new String[]{Manifest.permission.RECORD_AUDIO},
-                12345,
-                permissionListener
-        );
-    }
-
-
-    @ReactMethod
-    public void startRecognition(String engineId, Promise p) {
-
-        AsrEngine engine = asrManager.getEngine(engineId);
-
-        if (engine == null) {
-            p.reject("ENGINE_NOT_FOUND", "Unknown engine: " + engineId);
-            return;
-        }
-
-        currentEngine = engine;
-
-        // Guard: already running
-        if (audioRunning) {
-            Log.i("RnJavaConnector", "Audio already running");
-            p.resolve(true);
-            return;
-        }
-
-        // Permission check
-        if (ContextCompat.checkSelfPermission(
-                getReactApplicationContext(),
-                Manifest.permission.RECORD_AUDIO
-        ) != PackageManager.PERMISSION_GRANTED) {
-            p.reject("NO_PERMISSION", "RECORD_AUDIO not granted");
-            return;
-        }
-
-        // === AudioRecord init stays unchanged ===
-        audioBufferSize = AudioRecord.getMinBufferSize(
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT
-        );
-
-        if (audioBufferSize <= 0) {
-            p.reject("AUDIO_ERROR", "Invalid buffer size: " + audioBufferSize);
-            return;
-        }
-
-        audioRecord = new AudioRecord(
-                MediaRecorder.AudioSource.MIC,
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                audioBufferSize
-        );
-
-        if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
-            p.reject("AUDIO_ERROR", "AudioRecord not initialized");
-            return;
-        }
-
-        audioRunning = true;
-        audioRecord.startRecording();
-
-        audioThread = new Thread(() -> {
-
-            short[] buffer = new short[4000];
-
-            while (audioRunning) {
-                int read = audioRecord.read(buffer, 0, buffer.length);
-
-                if (read > 0) {
-                    nativePushAudio(buffer, read);
-                }
-            }
-
-        }, "AudioRecordThread");
-
-        audioThread.start();
-
-        // === теперь запускаем движок ===
-        boolean ok = engine.startRecognition();
-        p.resolve(ok);
-    }
-
-
-    @ReactMethod
-    public void stopRecognition(String engineId, Promise p) {
-
-        audioRunning = false;
-
-        if (audioThread != null) {
-            try { audioThread.join(); }
-            catch (InterruptedException ignored) {}
-            audioThread = null;
-        }
-
-        if (audioRecord != null) {
-            try { audioRecord.stop(); }
-            catch (Exception ignored) {}
-            audioRecord.release();
-            audioRecord = null;
-        }
-
-        if (currentEngine != null) {
-            currentEngine.stopRecognition();
-        }
-
-        p.resolve(null);
-    }
-
-
-    @ReactMethod
-    public void getEngineState(Promise p) {
-        p.resolve(nativeGetEngineState());
-    }
+    // ============================================================
+    // MODEL
+    // ============================================================
 
     @ReactMethod
     public void prepareModel(Promise p) {
+
         try {
             String installedPath =
                     ModelInstaller.installModelIfNeeded(
@@ -341,56 +228,319 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void initEngineWithBundledModel(Promise p) {
+    public void loadModel(String path, Promise p) {
+
+        currentModelPath = path;
+
+        if (currentEngine != null) {
+            currentEngine.loadModel(path);
+        } else {
+            nativeLoadModel(path);
+        }
+
+        p.resolve(true);
+    }
+
+    // ============================================================
+    // PERMISSIONS
+    // ============================================================
+
+    @ReactMethod
+    public void hasAudioPermission(Promise p) {
+
+        boolean granted =
+                ContextCompat.checkSelfPermission(
+                        getReactApplicationContext(),
+                        Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED;
+
+        p.resolve(granted);
+    }
+
+    @ReactMethod
+    public void requestAudioPermission(Promise p) {
+
+        Activity activity = getCurrentActivity();
+
+        if (!(activity instanceof PermissionAwareActivity)) {
+            p.reject("NO_ACTIVITY", "Activity is not PermissionAware");
+            return;
+        }
+
+        if (ContextCompat.checkSelfPermission(
+                activity,
+                Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED) {
+
+            p.resolve(true);
+            return;
+        }
+
+        permissionPromise = p;
+
+        permissionListener = (requestCode, permissions, grantResults) -> {
+
+            if (requestCode == 12345 && permissionPromise != null) {
+
+                boolean granted =
+                        grantResults.length > 0 &&
+                                grantResults[0] == PackageManager.PERMISSION_GRANTED;
+
+                permissionPromise.resolve(granted);
+
+                permissionPromise = null;
+                permissionListener = null;
+
+                return true;
+            }
+
+            return false;
+        };
+
+        ((PermissionAwareActivity) activity).requestPermissions(
+                new String[]{Manifest.permission.RECORD_AUDIO},
+                12345,
+                permissionListener
+        );
+    }
+
+    // ============================================================
+    // ENGINE SWITCH (FULL RESET)
+    // ============================================================
+
+    @ReactMethod
+    public void setCurrentEngine(String engineId, Promise p) {
+
+        AsrEngine next = asrManager.getEngine(engineId);
+
+        if (next == null) {
+            p.reject("ENGINE_NOT_FOUND", "Unknown engine: " + engineId);
+            return;
+        }
+
+        Log.i("RnJavaConnector", "🔄 Switching engine to: " + engineId);
+
         try {
-            nativeInit();
 
-            String installedPath =
-                    ModelInstaller.installModelIfNeeded(
-                            getReactApplicationContext(),
-                            "vosk-model-small-en-us-0.15"
-                    );
+            // ============================================================
+            // 1) Полностью остановить AudioRecord + thread
+            // ============================================================
+            fullStopAndRelease();
 
-            boolean ok = nativeLoadModel(installedPath);
+            // ============================================================
+            // 2) Полностью остановить и уничтожить старый движок
+            // ============================================================
+            if (currentEngine != null) {
+                Log.i("RnJavaConnector", "Shutting down previous engine: "
+                        + currentEngine.getId());
 
+                currentEngine.stopRecognition();
+                currentEngine.shutdown();
+            }
+
+            // ============================================================
+            // 3) Активируем новый движок
+            // ============================================================
+            currentEngine = next;
+
+            // ============================================================
+            // 4) Полная инициализация движка заново
+            // ============================================================
+            Log.i("RnJavaConnector", "Init engine: " + engineId);
+
+            boolean ok = currentEngine.init();
+
+            if (!ok) {
+                p.reject("ENGINE_INIT_FAILED", "Init failed: " + engineId);
+                return;
+            }
+
+            // ============================================================
+            // 5) Если модель уже установлена → загружаем заново
+            // ============================================================
+            if (currentModelPath != null) {
+
+                Log.i("RnJavaConnector", "Reloading model: " + currentModelPath);
+
+                boolean modelOk = currentEngine.loadModel(currentModelPath);
+
+                if (!modelOk) {
+                    p.reject("MODEL_LOAD_FAILED",
+                            "Model load failed: " + currentModelPath);
+                    return;
+                }
+            }
+
+            // ============================================================
+            // ✅ 6) ВАЖНО: Полный reset состояния Vosk (C++ layer)
+            // ============================================================
+            Log.i("RnJavaConnector", "Performing native FULL RESET");
+
+            nativeFullReset();
+
+            // ============================================================
+            // 7) Готово
+            // ============================================================
+            Log.i("RnJavaConnector", "✅ Engine switched successfully: " + engineId);
+
+            p.resolve(true);
+
+        } catch (Exception ex) {
+
+            Log.e("RnJavaConnector", "ENGINE_SWITCH_FAILED", ex);
+
+            p.reject("ENGINE_SWITCH_FAILED", ex.toString());
+        }
+    }
+
+
+    // ============================================================
+    // START / STOP RECOGNITION
+    // ============================================================
+
+    @ReactMethod
+    public void startRecognition(String engineId, Promise p) {
+
+        if (currentEngine == null) {
+            p.reject("NO_ENGINE", "Call setCurrentEngine() first");
+            return;
+        }
+
+        if (!currentEngine.getId().equals(engineId)) {
+            p.reject("ENGINE_MISMATCH", "Engine not active");
+            return;
+        }
+
+        if (audioRunning) {
+            p.resolve(true);
+            return;
+        }
+
+        try {
+
+            if (currentEngine.needsExternalAudio()) {
+                initAudioRecord();
+            }
+
+            boolean ok = currentEngine.startRecognition();
             p.resolve(ok);
 
         } catch (Exception ex) {
-            p.reject("ENGINE_INIT_ERROR", ex);
+
+            p.reject("START_FAILED", ex.toString());
         }
     }
 
     @ReactMethod
+    public void stopRecognition(String engineId, Promise p) {
+
+        fullStopAndRelease();
+
+        if (currentEngine != null) {
+            currentEngine.stopRecognition();
+        }
+
+        p.resolve(null);
+    }
+
+    // ============================================================
+    // AudioRecord init with permission check
+    // ============================================================
+
+    private void initAudioRecord() {
+
+        if (ContextCompat.checkSelfPermission(
+                getReactApplicationContext(),
+                Manifest.permission.RECORD_AUDIO
+        ) != PackageManager.PERMISSION_GRANTED) {
+
+            throw new SecurityException("RECORD_AUDIO permission not granted");
+        }
+
+        audioBufferSize = AudioRecord.getMinBufferSize(
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+        );
+
+        if (audioBufferSize <= 0) {
+            throw new IllegalStateException("Invalid buffer size");
+        }
+
+        audioRecord = new AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                audioBufferSize
+        );
+
+        if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
+            throw new IllegalStateException("AudioRecord not initialized");
+        }
+
+        audioRunning = true;
+        audioRecord.startRecording();
+
+        audioThread = new Thread(() -> {
+
+            short[] buffer = new short[4000];
+
+            while (audioRunning) {
+
+                int read = audioRecord.read(buffer, 0, buffer.length);
+
+                if (read > 0) {
+                    nativePushAudio(buffer, read);
+                }
+            }
+
+        }, "AudioRecordThread");
+
+        audioThread.start();
+    }
+
+    private void fullStopAndRelease() {
+
+        audioRunning = false;
+
+        if (audioThread != null) {
+            try {
+                audioThread.join();
+            } catch (InterruptedException ignored) {}
+            audioThread = null;
+        }
+
+        if (audioRecord != null) {
+            try {
+                audioRecord.stop();
+            } catch (Exception ignored) {}
+            audioRecord.release();
+            audioRecord = null;
+        }
+    }
+
+    // ============================================================
+    // TTS API
+    // ============================================================
+
+    @ReactMethod
     public void isTtsReady(Promise p) {
         p.resolve(ttsReady);
-    }    
+    }
 
     @ReactMethod
     public void speak(String text, Promise p) {
 
         if (!ttsReady || tts == null) {
-            p.reject("TTS_NOT_READY", "TextToSpeech not initialized yet");
-            return;
-        }
-
-        if (text == null || text.trim().isEmpty()) {
-            p.reject("EMPTY_TEXT", "Nothing to speak");
+            p.reject("TTS_NOT_READY", "TTS not ready");
             return;
         }
 
         Locale lang = detectLanguage(text);
-
-        int res = tts.setLanguage(lang);
-        if (res == TextToSpeech.LANG_MISSING_DATA ||
-                res == TextToSpeech.LANG_NOT_SUPPORTED) {
-
-            p.reject("LANG_NOT_SUPPORTED", "Language not supported: " + lang);
-            return;
-        }
+        tts.setLanguage(lang);
 
         String utteranceId = UUID.randomUUID().toString();
-
-        Log.i("TTS", "Speaking (" + lang + "): " + text);
 
         tts.speak(
                 text,
@@ -402,20 +552,12 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
         p.resolve(utteranceId);
     }
 
-
-    @Override
-    public void invalidate() {
-        super.invalidate();
-
-        if (tts != null) {
-            Log.i("TTS", "Shutting down TTS");
-            tts.stop();
-            tts.shutdown();
-            tts = null;
-        }
-    }
+    // ============================================================
+    // Native callback → JS
+    // ============================================================
 
     public static void onNativeResult(String text) {
+
         if (reactContext == null) return;
 
         reactContext
@@ -423,4 +565,14 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
                 .emit("SpeechResult", text);
     }
 
+    @Override
+    public void invalidate() {
+        super.invalidate();
+
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+            tts = null;
+        }
+    }
 }

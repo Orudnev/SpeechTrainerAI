@@ -57,6 +57,12 @@ Java_com_speechtrainerai_rn_1java_1connector_RnJavaConnectorModule_nativeShutdow
 SpeechEngine::instance().shutdown();
 }
 
+JNIEXPORT void JNICALL
+Java_com_speechtrainerai_rn_1java_1connector_RnJavaConnectorModule_nativeFullReset(
+        JNIEnv*, jclass) {
+    SpeechEngine::instance().fullReset();
+}
+
 JNIEXPORT jboolean JNICALL
 Java_com_speechtrainerai_rn_1java_1connector_RnJavaConnectorModule_nativeIsInitialized(
         JNIEnv*, jclass) {

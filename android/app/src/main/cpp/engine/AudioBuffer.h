@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <mutex>
+#include <algorithm>
 
 class AudioBuffer {
 public:
@@ -11,7 +12,6 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (buffer_.size() + frames > maxFrames_) {
-            // Drop oldest audio
             size_t overflow = (buffer_.size() + frames) - maxFrames_;
             buffer_.erase(buffer_.begin(), buffer_.begin() + overflow);
         }
@@ -21,10 +21,22 @@ public:
 
     size_t pop(int16_t* out, size_t maxFrames) {
         std::lock_guard<std::mutex> lock(mutex_);
+
         size_t n = std::min(maxFrames, buffer_.size());
+
         std::copy(buffer_.begin(), buffer_.begin() + n, out);
+
         buffer_.erase(buffer_.begin(), buffer_.begin() + n);
+
         return n;
+    }
+
+    // ============================================================
+    // ✅ NEW: Clear buffer safely
+    // ============================================================
+    void clear() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        buffer_.clear();
     }
 
 private:
