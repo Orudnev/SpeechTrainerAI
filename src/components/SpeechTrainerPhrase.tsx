@@ -97,6 +97,9 @@ export default function SpeechTrainerPhrase() {
     return () => sub.remove();
   }, []);
 
+
+
+
   // ============================================================
   // Current phrase
   // ============================================================
@@ -108,6 +111,8 @@ export default function SpeechTrainerPhrase() {
     return reverseMode ? toReverse(rawItem) : rawItem;
   }, [rawItem, reverseMode]);
 
+
+
   const currentQuestion = currentItem?.q ?? "";
   const currentAnswer = currentItem?.a ?? "";
   const currentUid = rawItem?.uid ?? "";
@@ -116,6 +121,31 @@ export default function SpeechTrainerPhrase() {
   const perAnswerVariants: Tvariant[] = useMemo(() => {
     return rawItem?.variants ?? [];
   }, [rawItem]);
+
+
+  // ============================================================
+  // Saved variants for currentWord (from DB)
+  // ============================================================
+  const savedVariantsForWord: string[] = useMemo(() => {
+    if (!currentWord) return [];
+
+    const entry = perAnswerVariants.find(
+      (v) => v.word === currentWord
+    );
+
+    return entry?.variants ?? [];
+  }, [perAnswerVariants, currentWord]);
+
+  // ============================================================
+  // When opening Variant Picker → preselect saved variants
+  // ============================================================
+  useEffect(() => {
+    if (!showVariants) return;
+
+    // auto-select saved variants
+    setSelected(new Set(savedVariantsForWord));
+  }, [showVariants, savedVariantsForWord]);
+
 
   // ============================================================
   // Collect ASR partial variants while listening
@@ -180,7 +210,7 @@ export default function SpeechTrainerPhrase() {
     console.log("✅ Phrase complete!");
 
     const id = await TtsService.speak("Correct!");
-    //await TtsService.waitFinish(id);
+    await TtsService.waitFinish(id);
 
     setPhraseIndex((prev) => (prev + 1) % items.length);
   }
@@ -257,6 +287,29 @@ export default function SpeechTrainerPhrase() {
   }
 
   // ============================================================
+  // Combined variant list for UI
+  // ============================================================
+  const combinedVariantList: VariantStat[] = useMemo(() => {
+    const map = new Map<string, VariantStat>();
+
+    // 1) from ASR buffer
+    for (const v of variants) {
+      map.set(v.text, v);
+    }
+
+    // 2) from saved variants (force include)
+    for (const sv of savedVariantsForWord) {
+      if (!map.has(sv)) {
+        map.set(sv, { text: sv, count: 999 });
+        // count=999 just to show it's saved
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [variants, savedVariantsForWord]);
+
+
+  // ============================================================
   // Render
   // ============================================================
   return (
@@ -320,9 +373,10 @@ export default function SpeechTrainerPhrase() {
                     Нет повторяющихся вариантов
                   </Text>
                 )}
-
-                {variants.map((v) => {
+                {combinedVariantList.map((v) => {
                   const checked = selected.has(v.text);
+
+                  const isSaved = savedVariantsForWord.includes(v.text);
 
                   return (
                     <Pressable
@@ -334,11 +388,17 @@ export default function SpeechTrainerPhrase() {
                       onPress={() => toggleVariant(v.text)}
                     >
                       <Text style={styles.variantText}>
-                        {checked ? "✅" : "⬜"} {v.text} ({v.count})
+                        {checked ? "✅" : "⬜"} {v.text}
+
+                        {isSaved && " ⭐"}
+
+                        {!isSaved && ` (${v.count})`}
                       </Text>
                     </Pressable>
                   );
                 })}
+
+
               </ScrollView>
 
               {/* ✅ кнопки всегда внизу */}
