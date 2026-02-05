@@ -26,6 +26,7 @@ import {
 import { AsrService } from "../speech/asr/AsrService";
 import { Appbar, Icon, Menu, PaperProvider, Portal, Button as RnpButton } from 'react-native-paper';
 import { AnchoredOverlay } from "./AnchoredOverlay";
+import { white } from "react-native-paper/lib/typescript/styles/themes/v2/colors";
 /**
  * Normalize ASR text
  */
@@ -60,16 +61,10 @@ export default function SpeechTrainerPhrase() {
 
   // Variant UI
   const [showVariants, setShowVariants] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // Current active etalon word (from SpeechCompare)
   const [currentWord, setCurrentWord] = useState("");
-
-  const variantAnchorRef = React.useRef<any>(null);
-  const [variantAnchorLayout, setVariantAnchorLayout] = useState<any>({ x: 0, y: 0, width: 0, height: 0 });
-  const [open, setOpen] = useState(false);
-
-
+ 
   // Variant buffer (partial ASR collector)
   const variantBuffer = useRef<Map<string, VariantStat>>(new Map());
 
@@ -145,12 +140,12 @@ export default function SpeechTrainerPhrase() {
   // ============================================================
   // When opening Variant Picker → preselect saved variants
   // ============================================================
-  useEffect(() => {
-    if (!showVariants) return;
+  // useEffect(() => {
+  //   if (!showVariants) return;
 
-    // auto-select saved variants
-    setSelected(new Set(savedVariantsForWord));
-  }, [showVariants, savedVariantsForWord]);
+  //   // auto-select saved variants
+  //   setSelected(new Set(savedVariantsForWord));
+  // }, [showVariants, savedVariantsForWord]);
 
 
   // ============================================================
@@ -191,7 +186,7 @@ export default function SpeechTrainerPhrase() {
 
     async function runStep() {
       variantBuffer.current.clear();
-      setSelected(new Set());
+      //setSelected(new Set());
 
       setPhase("speaking");
 
@@ -224,95 +219,88 @@ export default function SpeechTrainerPhrase() {
   // ============================================================
   // Variant list for UI
   // ============================================================
-  const variants: VariantStat[] = useMemo(() => {
-    return [...variantBuffer.current.values()]
-      .filter((v) => v.count >= 2)
-      .sort((a, b) => b.count - a.count);
-  }, [showVariants]);
+  // const variants: VariantStat[] = useMemo(() => {
+  //   return [...variantBuffer.current.values()]
+  //     .filter((v) => v.count >= 2)
+  //     .sort((a, b) => b.count - a.count);
+  // }, [showVariants]);
 
   // ============================================================
   // Toggle selection
   // ============================================================
-  function toggleVariant(text: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(text)) next.delete(text);
-      else next.add(text);
-      return next;
-    });
-  }
+
 
   // ============================================================
   // Save selected variants for currentWord
   // ============================================================
-  async function handleSaveVariants() {
-    if (!rawItem) return;
-    if (!currentWord) return;
+  // async function handleSaveVariants() {
+  //   if (!rawItem) return;
+  //   if (!currentWord) return;
 
-    const arr = Array.from(selected);
+  //   const arr = Array.from(selected);
 
-    console.log("💾 Saving variants for word:", currentWord, arr);
+  //   console.log("💾 Saving variants for word:", currentWord, arr);
 
-    const prevVariants: Tvariant[] = rawItem.variants ?? [];
+  //   const prevVariants: Tvariant[] = rawItem.variants ?? [];
 
-    let updated: Tvariant[];
+  //   let updated: Tvariant[];
 
-    const existing = prevVariants.find((v) => v.word === currentWord);
+  //   const existing = prevVariants.find((v) => v.word === currentWord);
 
-    if (existing) {
-      updated = prevVariants.map((v) =>
-        v.word === currentWord
-          ? {
-            ...v,
-            variants: Array.from(new Set([...v.variants, ...arr])),
-          }
-          : v
-      );
-    } else {
-      updated = [
-        ...prevVariants,
-        {
-          word: currentWord,
-          variants: arr,
-        },
-      ];
-    }
+  //   if (existing) {
+  //     updated = prevVariants.map((v) =>
+  //       v.word === currentWord
+  //         ? {
+  //           ...v,
+  //           variants: Array.from(new Set([...v.variants, ...arr])),
+  //         }
+  //         : v
+  //     );
+  //   } else {
+  //     updated = [
+  //       ...prevVariants,
+  //       {
+  //         word: currentWord,
+  //         variants: arr,
+  //       },
+  //     ];
+  //   }
 
-    // Save into DB
-    await saveVariantsToPhrase(rawItem.uid, updated);
+  //   // Save into DB
+  //   await saveVariantsToPhrase(rawItem.uid, updated);
 
-    // Update React state immediately
-    setItems((prev) =>
-      prev.map((it) =>
-        it.uid === rawItem.uid ? { ...it, variants: updated } : it
-      )
-    );
+  //   // Update React state immediately
+  //   setItems((prev) =>
+  //     prev.map((it) =>
+  //       it.uid === rawItem.uid ? { ...it, variants: updated } : it
+  //     )
+  //   );
 
-    setShowVariants(false);
-    setSelected(new Set());
-  }
+  //   setShowVariants(false);
+  //   setSelected(new Set());
+  // }
 
   // ============================================================
   // Combined variant list for UI
   // ============================================================
-  const combinedVariantList: VariantStat[] = useMemo(() => {
-    const map = new Map<string, VariantStat>();
+  // const combinedVariantList: VariantStat[] = useMemo(() => {
+  //   const map = new Map<string, VariantStat>();
 
-    // 1) from ASR buffer
-    for (const v of variants) {
-      map.set(v.text, v);
-    }
+  //   // 1) from ASR buffer
+  //   for (const v of variants) {
+  //     map.set(v.text, v);
+  //   }
 
-    // 2) from saved variants (force include)
-    for (const sv of savedVariantsForWord) {
-      if (!map.has(sv)) {
-        map.set(sv, { text: sv, count: 999 });
-        // count=999 just to show it's saved
-      }
-    }
+  //   // 2) from saved variants (force include)
+  //   for (const sv of savedVariantsForWord) {
+  //     if (!map.has(sv)) {
+  //       map.set(sv, { text: sv, count: 999 });
+  //       // count=999 just to show it's saved
+  //     }
+  //   }
 
-    return Array.from(map.values()).sort((a, b) => b.count - a.count);
-  }, [variants, savedVariantsForWord]);
+  //   return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  // }, [variants, savedVariantsForWord]);
 
   // ============================================================
   // Render
@@ -324,24 +312,15 @@ export default function SpeechTrainerPhrase() {
         <>
           <Appbar.Header dark={true}>
             <Appbar.Action icon="dots-vertical" onPress={() => { }} />
-            {/* <Appbar.Action ref={variantAnchorRef} icon="list-status" onPress={() => {
-                variantAnchorRef.current.measureInWindow((x: number, y: number, width: number, height: number) => {
-                  setVariantAnchorLayout({ x, y, width, height });
-                  setOpen(true);
-                });
-              }} /> */}
-            {currentItem && currentItem.variants && (
+            {savedVariantsForWord.length>0  && (
               <AnchoredOverlay
                 anchor={({ onPress }) => (
                   <Appbar.Action icon="list-status" onPress={onPress} />
                 )}>
-                <CustomMenu onClose={() => { }} />
+                <VariantPicker  savedVariants = {savedVariantsForWord} variantsFromASR={[...variantBuffer.current.values()]}/>
               </AnchoredOverlay>
             )}
           </Appbar.Header>
-
-
-
 
           <Button title="Show Variants" onPress={() => setShowVariants(true)} />
           <Text style={styles.title}>Current question:</Text>
@@ -380,25 +359,42 @@ export default function SpeechTrainerPhrase() {
             onCurrentWord={(w) => setCurrentWord(w)}
           />
 
-          {/* Variant picker */}
-          {showVariants && (
-            <View style={styles.variantBox}>
-              <Text style={styles.variantTitle}>
-                ASR варианты (повторяющиеся):
-              </Text>
 
-              {/* ✅ ScrollView всегда существует */}
+        </>
+      )}
+    </View>
+
+  );
+}
+
+
+type TVariantPickerProps = {
+  savedVariants:string[],
+  variantsFromASR:VariantStat[]
+  //saveHandler:(selectedItems:VariantStat[])=>void;
+  //cancelHandler:()=>void;
+}
+
+function VariantPicker(props:TVariantPickerProps) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  function toggleVariant(text: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(text)) next.delete(text);
+      else next.add(text);
+      return next;
+    });
+  }
+
+  const varOSR: VariantStat[] = props.variantsFromASR
+      .filter((v) => v.count >= 2)
+      .sort((a, b) => b.count - a.count);
+
+  return (
               <ScrollView style={styles.variantScroll}>
-                {variants.length === 0 && (
-                  <Text style={{ marginTop: 8 }}>
-                    Нет повторяющихся вариантов
-                  </Text>
-                )}
-                {combinedVariantList.map((v) => {
+                {variants.map((v) => {
                   const checked = selected.has(v.text);
-
-                  const isSaved = savedVariantsForWord.includes(v.text);
-
+                  const isSaved = props.savedVariants.includes(v.text);
                   return (
                     <Pressable
                       key={v.text}
@@ -421,36 +417,6 @@ export default function SpeechTrainerPhrase() {
 
 
               </ScrollView>
-
-              {/* ✅ кнопки всегда внизу */}
-              <View style={styles.variantButtons}>
-                <Button title="Cancel" onPress={() => setShowVariants(false)} />
-
-                <Button
-                  title="Save"
-                  onPress={handleSaveVariants}
-                  disabled={selected.size === 0}
-                />
-              </View>
-            </View>
-
-          )}
-        </>
-      )}
-    </View>
-
-  );
-}
-
-function CustomMenu({ onClose }: { onClose: () => void }) {
-  return (
-    <View style={styles.menu}>
-      <Text style={styles.menuitem}>Настройки</Text>
-      <Text style={styles.menuitem}>Помощь</Text>
-      <Text style={styles.menuitem} onPress={onClose}>
-        Закрыть
-      </Text>
-    </View>
   );
 }
 
@@ -517,8 +483,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   variantScroll: {
-    marginTop: 10,
-    flex: 1, // ✅ занимает всё свободное место
+    backgroundColor:"#000",
+    width:50,
+    height:50,
+    borderStyle:"solid",
+    borderWidth:1,
+    borderColor:"#fff"
   },
   variantRow: {
     paddingVertical: 8,
@@ -553,3 +523,62 @@ const styles = StyleSheet.create({
   },
 
 });
+
+
+
+
+          // {/* Variant picker */}
+          // {showVariants && (
+          //   <View style={styles.variantBox}>
+          //     <Text style={styles.variantTitle}>
+          //       ASR варианты (повторяющиеся):
+          //     </Text>
+
+          //     {/* ✅ ScrollView всегда существует */}
+          //     <ScrollView style={styles.variantScroll}>
+          //       {variants.length === 0 && (
+          //         <Text style={{ marginTop: 8 }}>
+          //           Нет повторяющихся вариантов
+          //         </Text>
+          //       )}
+          //       {combinedVariantList.map((v) => {
+          //         const checked = selected.has(v.text);
+
+          //         const isSaved = savedVariantsForWord.includes(v.text);
+
+          //         return (
+          //           <Pressable
+          //             key={v.text}
+          //             style={[
+          //               styles.variantRow,
+          //               checked && styles.variantRowSelected,
+          //             ]}
+          //             onPress={() => toggleVariant(v.text)}
+          //           >
+          //             <Text style={styles.variantText}>
+          //               {checked ? "✅" : "⬜"} {v.text}
+
+          //               {isSaved && " ⭐"}
+
+          //               {!isSaved && ` (${v.count})`}
+          //             </Text>
+          //           </Pressable>
+          //         );
+          //       })}
+
+
+          //     </ScrollView>
+
+          //     {/* ✅ кнопки всегда внизу */}
+          //     <View style={styles.variantButtons}>
+          //       <Button title="Cancel" onPress={() => setShowVariants(false)} />
+
+          //       <Button
+          //         title="Save"
+          //         onPress={handleSaveVariants}
+          //         disabled={selected.size === 0}
+          //       />
+          //     </View>
+          //   </View>
+
+          // )}
