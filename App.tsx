@@ -5,6 +5,7 @@ import SpeechTrainerPhrase from "./src/components/SpeechTrainerPhrase";
 import { speakAndListen } from "./src/speech/flow/speechOrchestrator";
 import { registerDebugApi } from "./src/debug/registerDebugApi";
 import { AsrService } from "./src/speech/asr/AsrService";
+import { MD3DarkTheme, PaperProvider } from 'react-native-paper';
 
 console.log("Hermes?", (global as any).HermesInternal != null);
 const { RnJavaConnector } = NativeModules;
@@ -19,6 +20,7 @@ export default function App() {
   }, []);
   useSpeechResults();
   return (
+    <PaperProvider theme={MD3DarkTheme}>
     <View
       style={{ 
         flex: 1,
@@ -35,5 +37,7 @@ export default function App() {
       </View>
       {/* <Button title="Speak" onPress={()=>speakAndListen("Hello! SpeechTrainerAI is working.")} /> */}
     </View>
+    </PaperProvider>
   );
 }
+

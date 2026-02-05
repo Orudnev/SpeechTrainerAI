@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { DeviceEventEmitter, StyleSheet, Text, View } from "react-native";
+import { DeviceEventEmitter, StyleSheet, Text, View, Button } from "react-native";
 import { Tvariant } from "../db/speechDb";
 
 /**
@@ -189,6 +189,11 @@ export default function SpeechCompare({
   // ============================================================
   return (
     <View style={styles.box}>
+      <Button title="Simulate answer" onPress={() => {
+          setAsrResult(etalonWords[currIndex.current]);
+          processCASRR(etalonWords[currIndex.current]);
+          //markWordMatched(etalonWords[currIndex.current]);
+      }} />
       <Text style={styles.title}>CASRR:</Text>
       <Text style={styles.etalon}>{asrResult}</Text>
 
@@ -211,8 +216,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 6,
   },
-  etalon: {
+  etalon: { 
     fontSize: 16,
+    width: 350,
+    height: 40,
   },
   matched: {
     fontSize: 18,

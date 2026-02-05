@@ -24,7 +24,8 @@ import {
 } from "../db/speechDb";
 
 import { AsrService } from "../speech/asr/AsrService";
-
+import { Appbar, Icon, Menu, PaperProvider, Portal, Button as RnpButton } from 'react-native-paper';
+import { AnchoredOverlay } from "./AnchoredOverlay";
 /**
  * Normalize ASR text
  */
@@ -63,6 +64,11 @@ export default function SpeechTrainerPhrase() {
 
   // Current active etalon word (from SpeechCompare)
   const [currentWord, setCurrentWord] = useState("");
+
+  const variantAnchorRef = React.useRef<any>(null);
+  const [variantAnchorLayout, setVariantAnchorLayout] = useState<any>({ x: 0, y: 0, width: 0, height: 0 });
+  const [open, setOpen] = useState(false);
+
 
   // Variant buffer (partial ASR collector)
   const variantBuffer = useRef<Map<string, VariantStat>>(new Map());
@@ -308,33 +314,50 @@ export default function SpeechTrainerPhrase() {
     return Array.from(map.values()).sort((a, b) => b.count - a.count);
   }, [variants, savedVariantsForWord]);
 
-
   // ============================================================
   // Render
   // ============================================================
   return (
     <View style={styles.root}>
-      <Text style={styles.header}>SpeechTrainer Loop</Text>
-
       {!hasData && <Text>Loading phrases...</Text>}
-
       {hasData && (
         <>
-          <Button title="Reload" onPress={() => AsrService.reloadCurrentEngine()} />
+          <Appbar.Header dark={true}>
+            <Appbar.Action icon="dots-vertical" onPress={() => { }} />
+            {/* <Appbar.Action ref={variantAnchorRef} icon="list-status" onPress={() => {
+                variantAnchorRef.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+                  setVariantAnchorLayout({ x, y, width, height });
+                  setOpen(true);
+                });
+              }} /> */}
+            {currentItem && currentItem.variants && (
+              <AnchoredOverlay
+                anchor={({ onPress }) => (
+                  <Appbar.Action icon="list-status" onPress={onPress} />
+                )}>
+                <CustomMenu onClose={() => { }} />
+              </AnchoredOverlay>
+            )}
+          </Appbar.Header>
+
+
+
+
+          <Button title="Show Variants" onPress={() => setShowVariants(true)} />
           <Text style={styles.title}>Current question:</Text>
           <Text style={styles.phrase}>{currentQuestion}</Text>
 
-          <Text style={styles.title}>Expected answer:</Text>
-          <Text style={styles.answer}>{currentAnswer}</Text>
+          {/* <Text style={styles.title}>Expected answer:</Text>
+          <Text style={styles.answer}>{currentAnswer}</Text> */}
 
           <Text style={styles.mode}>
             Mode: {reverseMode ? "Reverse" : "Forward"}
           </Text>
 
-          <Button
+          {/* <Button
             title="Toggle Reverse Mode"
             onPress={() => setReverseMode((p) => !p)}
-          />
+          /> */}
 
           <Text style={styles.currentWord}>
             Current word: {currentWord}
@@ -356,8 +379,6 @@ export default function SpeechTrainerPhrase() {
             onMatched={handleMatched}
             onCurrentWord={(w) => setCurrentWord(w)}
           />
-
-          <Button title="Show Variants" onPress={() => setShowVariants(true)} />
 
           {/* Variant picker */}
           {showVariants && (
@@ -417,19 +438,36 @@ export default function SpeechTrainerPhrase() {
         </>
       )}
     </View>
+
   );
 }
+
+function CustomMenu({ onClose }: { onClose: () => void }) {
+  return (
+    <View style={styles.menu}>
+      <Text style={styles.menuitem}>Настройки</Text>
+      <Text style={styles.menuitem}>Помощь</Text>
+      <Text style={styles.menuitem} onPress={onClose}>
+        Закрыть
+      </Text>
+    </View>
+  );
+}
+
 
 // ============================================================
 // Styles
 // ============================================================
 const styles = StyleSheet.create({
   root: {
+    flex: 1,
+    alignItems: "flex-start",
     padding: 20,
     width: "95%",
-    borderWidth: 2,
-    borderRadius: 16,
     marginTop: 20,
+  },
+  button: {
+    marginLeft: 15
   },
   header: {
     fontSize: 20,
@@ -438,11 +476,11 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: "700",
-    marginTop: 8,
+    marginLeft: 15,
   },
   phrase: {
     fontSize: 16,
-    marginBottom: 8,
+    marginLeft: 15,
   },
   answer: {
     fontSize: 15,
@@ -456,7 +494,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   mode: {
-    marginTop: 10,
+    marginLeft: 15,
     fontWeight: "700",
   },
   currentWord: {
@@ -498,4 +536,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 10,
   },
+  overlay: {
+    position: "absolute",
+    zIndex: 1000,
+  },
+  menu: {
+    width: 200,
+    backgroundColor: "#1e1e1e",
+    borderRadius: 8,
+    paddingVertical: 8,
+    elevation: 8, // Android
+  },
+  menuitem: {
+    padding: 12,
+    color: "white",
+  },
+
 });
