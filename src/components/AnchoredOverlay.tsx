@@ -3,78 +3,169 @@ import {
   View,
   StyleSheet,
   Pressable,
+  findNodeHandle,
+  UIManager,
   Dimensions,
 } from "react-native";
 import { Portal } from "react-native-paper";
 
-type Props = {
-  anchor: (props: { onPress: () => void }) => React.ReactNode;
-  children: React.ReactNode;
+type AnchorLayout = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
-// ============================================================
-// Layout constants
-// ============================================================
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const HORIZONTAL_MARGIN = 8;
-const OVERLAY_WIDTH = Math.min(320, SCREEN_WIDTH - HORIZONTAL_MARGIN * 2);
-const APPBAR_HEIGHT = 56; // стандарт Material AppBar
+type Props = {
+  anchor: (props: { onPress: () => void }) => React.ReactNode;
+  children: (api: { close: () => void }) => React.ReactNode;
+};
+
+const SCREEN_PADDING = 8;
+const ANCHOR_GAP = 4;
+const ESTIMATED_HEIGHT = 280;
 
 export function AnchoredOverlay({ anchor, children }: Props) {
+  const anchorRef = React.useRef<View>(null);
+
   const [open, setOpen] = React.useState(false);
+  const [anchorLayout, setAnchorLayout] =
+    React.useState<AnchorLayout | null>(null);
+
+  const [overlaySize, setOverlaySize] =
+    React.useState<{ width: number; height: number } | null>(null);
+
+  const close = React.useCallback(() => {
+    setOpen(false);
+    setOverlaySize(null);
+  }, []);
+
+  const measureAnchor = React.useCallback(() => {
+    const node = findNodeHandle(anchorRef.current);
+    if (!node) return;
+
+    UIManager.measureInWindow(
+      node,
+      (x, y, width, height) => {
+        setAnchorLayout({ x, y, width, height });
+        setOpen(true);
+      }
+    );
+  }, []);
+
+  const openOverlay = React.useCallback(() => {
+    requestAnimationFrame(measureAnchor);
+  }, [measureAnchor]);
+
+  const anchorNode = (
+    <View ref={anchorRef} collapsable={false}>
+      {anchor({ onPress: openOverlay })}
+    </View>
+  );
+
+  if (!open || !anchorLayout) {
+    return anchorNode;
+  }
+
+  const { width: screenW, height: screenH } =
+    Dimensions.get("window");
+
+  // ============================================================
+  // Vertical positioning (как раньше, корректно)
+  // ============================================================
+
+  const spaceBelow =
+    screenH -
+    (anchorLayout.y + anchorLayout.height) -
+    SCREEN_PADDING;
+
+  const spaceAbove =
+    anchorLayout.y - SCREEN_PADDING;
+
+  const overlayHeight =
+    overlaySize?.height ?? ESTIMATED_HEIGHT;
+
+  let top: number;
+
+  if (spaceBelow >= overlayHeight) {
+    top = anchorLayout.y + anchorLayout.height + ANCHOR_GAP;
+  } else if (spaceAbove >= overlayHeight) {
+    top = anchorLayout.y - overlayHeight - ANCHOR_GAP;
+  } else if (spaceBelow >= spaceAbove) {
+    top = anchorLayout.y + anchorLayout.height + ANCHOR_GAP;
+  } else {
+    top = anchorLayout.y - overlayHeight - ANCHOR_GAP;
+  }
+
+  if (top < SCREEN_PADDING) {
+    top = SCREEN_PADDING;
+  }
+
+  // ============================================================
+  // Horizontal positioning — ТЕПЕРЬ ПО РЕАЛЬНОЙ ШИРИНЕ
+  // ============================================================
+
+  let left = SCREEN_PADDING;
+
+  if (overlaySize) {
+    const anchorCenterX =
+      anchorLayout.x + anchorLayout.width / 2;
+
+    left = anchorCenterX - overlaySize.width / 2;
+
+    // clamp right
+    if (left + overlaySize.width > screenW - SCREEN_PADDING) {
+      left = screenW - overlaySize.width - SCREEN_PADDING;
+    }
+
+    // clamp left
+    if (left < SCREEN_PADDING) {
+      left = SCREEN_PADDING;
+    }
+  }
+
+  // ============================================================
 
   return (
     <>
-      {/* Anchor (only for triggering) */}
-      {anchor({ onPress: () => setOpen(true) })}
+      {anchorNode}
 
-      {open && (
-        <Portal>
-          {/* Backdrop */}
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setOpen(false)}
-          />
+      <Portal>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={close}
+        />
 
-          {/* Overlay — FIXED POSITION */}
-          <View
-            style={[
-              styles.overlay,
-              {
-                top: APPBAR_HEIGHT,
-                right: HORIZONTAL_MARGIN,
-                width: OVERLAY_WIDTH,
-              },
-            ]}
-          >
-            <View style={styles.overlayContainer}>
-              {children}
-            </View>
-          </View>
-        </Portal>
-      )}
+        <View
+          style={[
+            styles.overlay,
+            {
+              top,
+              left,
+              opacity: overlaySize ? 1 : 0,
+            },
+          ]}
+          onLayout={(e) => {
+            const { width, height } = e.nativeEvent.layout;
+            if (!overlaySize) {
+              setOverlaySize({ width, height });
+            }
+          }}
+        >
+          {children({ close })}
+        </View>
+      </Portal>
     </>
   );
 }
 
-// ============================================================
-// Styles
-// ============================================================
 const styles = StyleSheet.create({
   overlay: {
     position: "absolute",
     zIndex: 1000,
-    elevation: 12,
-  },
-
-  overlayContainer: {
-    backgroundColor: "#121212",
+    elevation: 8,
+    backgroundColor: "#1e1e1e",
     borderRadius: 12,
     padding: 8,
-
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
   },
 });

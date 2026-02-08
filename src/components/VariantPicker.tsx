@@ -98,8 +98,8 @@ export function VariantPicker({
       {/* Buttons */}
       <View style={styles.variantButtons}>
         <Button title="Cancel" onPress={onCancel} />
-        <Button
-          title="Save"
+        <Button 
+          title="Save" 
           onPress={() => onSave(Array.from(selected))}
           disabled={selected.size === 0}
         />
@@ -149,6 +149,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 10,
+    gap:12
   },
   overlay: {
     position: "absolute",

@@ -279,17 +279,19 @@ export default function SpeechTrainerPhrase() {
                   />
                 )}
               >
-                <VariantPicker
-                  variantsFromDatabase={savedVariantsForCurrentWord}
-                  variantsFromASR={variantStatsFromASR}
-                  onSave={(selected:any) => {
-                    handleSaveVariants(selected);
-                  }}
-                  onCancel={() => {
-                    /* просто закрывается overlay */
-                  }}
-                />
+                {({ close }) => (
+                  <VariantPicker
+                    variantsFromDatabase={savedVariantsForCurrentWord}
+                    variantsFromASR={variantStatsFromASR}
+                    onCancel={close}
+                    onSave={(selected) => {
+                      handleSaveVariants(selected);
+                      close();
+                    }}
+                  />
+                )}
               </AnchoredOverlay>
+
             )}
           </Appbar.Header>
 
