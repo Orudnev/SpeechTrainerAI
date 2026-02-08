@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { DeviceEventEmitter, StyleSheet, Text, View, Button } from "react-native";
+import { StyleSheet, Text, View, Button } from "react-native";
 import { Tvariant } from "../db/speechDb";
 
 /**
@@ -41,25 +41,23 @@ function checkVariants(
  * Props
  */
 type Props = {
-  inStr: string;
-  itemUid: string;
+  etalon: string;
+  asrText: string | null;
   variants: Tvariant[];
   onMatched: () => void;
-
-  /** ✅ NEW: сообщает текущее слово эталона */
   onCurrentWord?: (word: string) => void;
 };
 
 export default function SpeechCompare({
-  inStr,
-  itemUid,
+  etalon,
+  asrText,
   variants,
   onMatched,
   onCurrentWord,
 }: Props) {
   const etalonWords = useMemo(() => {
-    return normalizeText(inStr).split(" ").filter(Boolean);
-  }, [inStr]);
+    return normalizeText(etalon).split(" ").filter(Boolean);
+  }, [etalon]);
 
   const currIndex = useRef(0);
 
@@ -79,7 +77,15 @@ export default function SpeechCompare({
     if (etalonWords.length > 0 && onCurrentWord) {
       onCurrentWord(etalonWords[0]);
     }
-  }, [itemUid]);
+  }, [etalon]);
+
+
+  useEffect(() => {
+    if (!asrText) return;
+    setAsrResult(asrText);
+    processCASRR(asrText);
+  }, [asrText]);
+
 
   /**
    * Mark word matched
@@ -168,31 +174,14 @@ export default function SpeechCompare({
   }
 
   // ============================================================
-  // Listener
-  // ============================================================
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener(
-      "SpeechResult",
-      (msg: string) => {
-        const evt = JSON.parse(msg);
-
-        setAsrResult(evt.text);
-        processCASRR(evt.text);
-      }
-    );
-
-    return () => sub.remove();
-  }, [etalonWords, variants]);
-
-  // ============================================================
   // Render
   // ============================================================
   return (
     <View style={styles.box}>
       <Button title="Simulate answer" onPress={() => {
-          setAsrResult(etalonWords[currIndex.current]);
-          processCASRR(etalonWords[currIndex.current]);
-          //markWordMatched(etalonWords[currIndex.current]);
+        setAsrResult(etalonWords[currIndex.current]);
+        processCASRR(etalonWords[currIndex.current]);
+        //markWordMatched(etalonWords[currIndex.current]);
       }} />
       <Text style={styles.title}>CASRR:</Text>
       <Text style={styles.etalon}>{asrResult}</Text>
@@ -216,7 +205,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 6,
   },
-  etalon: { 
+  etalon: {
     fontSize: 16,
     width: 350,
     height: 40,
