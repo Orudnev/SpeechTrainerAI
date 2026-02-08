@@ -3,81 +3,53 @@ import {
   View,
   StyleSheet,
   Pressable,
-  findNodeHandle,
-  UIManager,
+  Dimensions,
 } from "react-native";
 import { Portal } from "react-native-paper";
-
-type AnchorLayout = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
 
 type Props = {
   anchor: (props: { onPress: () => void }) => React.ReactNode;
   children: React.ReactNode;
 };
 
+// ============================================================
+// Layout constants
+// ============================================================
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const HORIZONTAL_MARGIN = 8;
+const OVERLAY_WIDTH = Math.min(320, SCREEN_WIDTH - HORIZONTAL_MARGIN * 2);
+const APPBAR_HEIGHT = 56; // стандарт Material AppBar
+
 export function AnchoredOverlay({ anchor, children }: Props) {
-  const anchorRef = React.useRef<View>(null);
-
   const [open, setOpen] = React.useState(false);
-  const [layout, setLayout] = React.useState<AnchorLayout | null>(null);
-
-  const measureAnchor = React.useCallback(() => {
-    const node = findNodeHandle(anchorRef.current);
-    if (!node) return;
-
-    UIManager.measureInWindow(
-      node,
-      (x, y, width, height) => {
-        if (
-          Number.isFinite(x) &&
-          Number.isFinite(y) &&
-          Number.isFinite(width) &&
-          Number.isFinite(height)
-        ) {
-          setLayout({ x, y, width, height });
-          setOpen(true);
-        }
-      }
-    );
-  }, []);
-
-  const openOverlay = () => {
-    console.log("OPENING OVERLAY");
-    requestAnimationFrame(measureAnchor);
-  };
-
-  const closeOverlay = () => setOpen(false);
 
   return (
     <>
-      {/* Anchor wrapper — реальный native View */}
-      <View ref={anchorRef} collapsable={false}>
-        {anchor({ onPress: openOverlay })}
-      </View>
+      {/* Anchor (only for triggering) */}
+      {anchor({ onPress: () => setOpen(true) })}
 
-      {/* Overlay */}
-      {open && layout && (
+      {open && (
         <Portal>
+          {/* Backdrop */}
           <Pressable
             style={StyleSheet.absoluteFill}
-            onPress={closeOverlay}
+            onPress={() => setOpen(false)}
           />
 
+          {/* Overlay — FIXED POSITION */}
           <View
             style={[
               styles.overlay,
               {
-                top: layout.y + layout.height,
-                left: layout.x,
+                top: APPBAR_HEIGHT,
+                right: HORIZONTAL_MARGIN,
+                width: OVERLAY_WIDTH,
               },
             ]}
           >
-            {children}
+            <View style={styles.overlayContainer}>
+              {children}
+            </View>
           </View>
         </Portal>
       )}
@@ -85,10 +57,24 @@ export function AnchoredOverlay({ anchor, children }: Props) {
   );
 }
 
+// ============================================================
+// Styles
+// ============================================================
 const styles = StyleSheet.create({
   overlay: {
     position: "absolute",
     zIndex: 1000,
-    elevation: 8,
+    elevation: 12,
+  },
+
+  overlayContainer: {
+    backgroundColor: "#121212",
+    borderRadius: 12,
+    padding: 8,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
 });

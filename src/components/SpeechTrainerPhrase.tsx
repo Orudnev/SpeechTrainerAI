@@ -1,17 +1,16 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  DeviceEventEmitter,
   Button,
-  Pressable,
-  ScrollView,
 } from "react-native";
 
 import SpeechCompare from "./SpeechCompare";
 import { speakAndListen } from "../speech/flow/speechOrchestrator";
 import { TtsService } from "../speech/tts/TtsService";
+import { AsrService } from "../speech/asr/AsrService";
+import { AsrResultEvent } from "../speech/asr/types";
 
 import {
   initSpeechDb,
@@ -23,11 +22,10 @@ import {
   saveVariantsToPhrase,
 } from "../db/speechDb";
 
-import { AsrService } from "../speech/asr/AsrService";
-import { Appbar, Icon, Menu, PaperProvider, Portal, Button as RnpButton } from 'react-native-paper';
+import { Appbar } from "react-native-paper";
 import { AnchoredOverlay } from "./AnchoredOverlay";
-import { white } from "react-native-paper/lib/typescript/styles/themes/v2/colors";
-import { AsrResultEvent } from "../speech/asr/types";
+import { VariantPicker } from "./VariantPicker";
+
 /**
  * Normalize ASR text
  */
@@ -42,64 +40,42 @@ function normalizeText(input: string): string {
 /**
  * Variant statistics (UI only)
  */
-type VariantStat = {
+export type VariantStat = {
   text: string;
   count: number;
 };
 
 export default function SpeechTrainerPhrase() {
   // ============================================================
-  // State
+  // Core trainer state
   // ============================================================
   const [items, setItems] = useState<SpItem[]>([]);
   const [phraseIndex, setPhraseIndex] = useState(0);
 
-  const [phase, setPhase] = useState<"speaking" | "listening">("speaking");
+  const [phase, setPhase] =
+    useState<"speaking" | "listening">("speaking");
+
   const [ttsInitialized, setTtsInitialized] = useState(false);
 
-  // Reverse mode toggle
-  const [reverseMode, setReverseMode] = useState(false);
+  // Reverse mode (kept, but optional)
+  const [reverseMode] = useState(false);
 
-  // Variant UI
-  const [showVariants, setShowVariants] = useState(false);
+  // ============================================================
+  // ASR integration (SINGLE SOURCE)
+  // ============================================================
+  const [lastAsrResult, setLastAsrResult] =
+    useState<AsrResultEvent | null>(null);
 
-  // Current active etalon word (from SpeechCompare)
-  const [currentWord, setCurrentWord] = useState("");
-
-  // Last ASR result
-  const [lastAsrResult, setLastAsrResult] = useState<AsrResultEvent | null>(null);
-
-  // Variant buffer (partial ASR collector)
   const [variantBuffer, setVariantBuffer] =
     useState<Map<string, VariantStat>>(new Map());
 
   // ============================================================
-  //Subscribe to ASR Result
+  // Current word (reported by SpeechCompare)
   // ============================================================
-  useEffect(() => {
-    return AsrService.subscribeResults((evt) => {
-      setLastAsrResult(evt);
-
-      if (evt.type === "partial" && phase === "listening") {
-        const norm = normalizeText(evt.text);
-        if (!norm) return;
-
-        setVariantBuffer(prev => {
-          const next = new Map(prev);
-          const v = next.get(norm);
-          next.set(norm, {
-            text: norm,
-            count: v ? v.count + 1 : 1,
-          });
-          return next;
-        });
-      }
-    });
-  }, [phase]);
-
+  const [currentWord, setCurrentWord] = useState("");
 
   // ============================================================
-  // Load DB phrases
+  // Load DB
   // ============================================================
   useEffect(() => {
     async function load() {
@@ -116,20 +92,18 @@ export default function SpeechTrainerPhrase() {
   }, []);
 
   // ============================================================
-  // Wait for TTS ready
+  // TTS ready
   // ============================================================
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener("TtsReady", () => {
+    const sub = TtsService.waitReady().then(() => {
       console.log("✅ TTS Ready");
       setTtsInitialized(true);
-      sub.remove();
     });
 
-    return () => sub.remove();
+    return () => {
+      // no-op
+    };
   }, []);
-
-
-
 
   // ============================================================
   // Current phrase
@@ -142,72 +116,46 @@ export default function SpeechTrainerPhrase() {
     return reverseMode ? toReverse(rawItem) : rawItem;
   }, [rawItem, reverseMode]);
 
-
-
   const currentQuestion = currentItem?.q ?? "";
   const currentAnswer = currentItem?.a ?? "";
-  const currentUid = rawItem?.uid ?? "";
 
-  // Per-answer variants теперь Tvariant[]
-  const perAnswerVariants: Tvariant[] = useMemo(() => {
-    return rawItem?.variants ?? [];
-  }, [rawItem]);
-
+  const perAnswerVariants: Tvariant[] =
+    rawItem?.variants ?? [];
 
   // ============================================================
-  // Saved variants for currentWord (from DB)
+  // ASR subscription (THE ONLY ONE)
   // ============================================================
-  const savedVariantsForWord: string[] = useMemo(() => {
-    if (!currentWord) return [];
+  useEffect(() => {
+    return AsrService.subscribeResults((evt) => {
+      setLastAsrResult(evt);
 
-    const entry = perAnswerVariants.find(
-      (v) => v.word === currentWord
-    );
+      // Collect partials into variant buffer
+      if (evt.type === "partial" && phase === "listening") {
+        const norm = normalizeText(evt.text);
+        if (!norm) return;
 
-    return entry?.variants ?? [];
-  }, [perAnswerVariants, currentWord]);
+        setVariantBuffer((prev) => {
+          const next = new Map(prev);
+          const v = next.get(norm);
+
+          next.set(norm, {
+            text: norm,
+            count: v ? v.count + 1 : 1,
+          });
+
+          return next;
+        });
+      }
+    });
+  }, [phase]);
 
   // ============================================================
-  // When opening Variant Picker → preselect saved variants
+  // Reset variant buffer on new phrase
   // ============================================================
-  // useEffect(() => {
-  //   if (!showVariants) return;
-
-  //   // auto-select saved variants
-  //   setSelected(new Set(savedVariantsForWord));
-  // }, [showVariants, savedVariantsForWord]);
-
-
-  // ============================================================
-  // Collect ASR partial variants while listening
-  // ============================================================
-  // useEffect(() => {
-  //   if (!hasData) return;
-
-  //   const sub = DeviceEventEmitter.addListener("SpeechResult", (msg: string) => {
-  //     try {
-  //       const evt = JSON.parse(msg);
-
-  //       if (evt.type !== "partial") return;
-  //       if (phase !== "listening") return;
-
-  //       const norm = normalizeText(evt.text);
-  //       if (!norm) return;
-
-  //       const buf = variantBuffer.current;
-  //       const existing = buf.get(norm);
-
-  //       if (existing) existing.count++;
-  //       else buf.set(norm, { text: norm, count: 1 });
-  //       rerender();
-  //     }
-  //     catch (e) {
-  //     }
-
-  //   });
-
-  //   return () => sub.remove();
-  // }, [phase, hasData]);
+  useEffect(() => {
+    setVariantBuffer(new Map());
+    setLastAsrResult(null);
+  }, [phraseIndex]);
 
   // ============================================================
   // Trainer loop
@@ -219,13 +167,9 @@ export default function SpeechTrainerPhrase() {
     let cancelled = false;
 
     async function runStep() {
-      variantBuffer.current.clear();
-      //setSelected(new Set());
-
       setPhase("speaking");
 
       await speakAndListen(currentQuestion, "vosk-en");
-
       if (cancelled) return;
 
       setPhase("listening");
@@ -239,7 +183,7 @@ export default function SpeechTrainerPhrase() {
   }, [phraseIndex, ttsInitialized, hasData, currentQuestion]);
 
   // ============================================================
-  // PhraseMatched callback
+  // Phrase matched callback
   // ============================================================
   async function handleMatched() {
     console.log("✅ Phrase complete!");
@@ -250,234 +194,151 @@ export default function SpeechTrainerPhrase() {
     setPhraseIndex((prev) => (prev + 1) % items.length);
   }
 
-  // ============================================================
-  // Variant list for UI
-  // ============================================================
-  // const variants: VariantStat[] = useMemo(() => {
-  //   return [...variantBuffer.current.values()]
-  //     .filter((v) => v.count >= 2)
-  //     .sort((a, b) => b.count - a.count);
-  // }, [showVariants]);
+  async function handleSaveVariants(selected: string[]) {
+    if (!rawItem || !currentWord) return;
+
+    const prev = rawItem.variants ?? [];
+    let updated: Tvariant[];
+
+    const existing = prev.find((v) => v.word === currentWord);
+
+    if (existing) {
+      updated = prev.map((v) =>
+        v.word === currentWord
+          ? {
+            ...v,
+            variants: Array.from(
+              new Set([...v.variants, ...selected])
+            ),
+          }
+          : v
+      );
+    } else {
+      updated = [
+        ...prev,
+        { word: currentWord, variants: selected },
+      ];
+    }
+
+    // 1️⃣ DB
+    await saveVariantsToPhrase(rawItem.uid, updated);
+
+    // 2️⃣ React state (немедленно)
+    setItems((prevItems) =>
+      prevItems.map((it) =>
+        it.uid === rawItem.uid
+          ? { ...it, variants: updated }
+          : it
+      )
+    );
+  }
+
+
 
   // ============================================================
-  // Toggle selection
+  // Variant UI helpers
   // ============================================================
+  const savedVariantsForCurrentWord: string[] = useMemo(() => {
+    if (!currentWord) return [];
 
+    const entry = perAnswerVariants.find(
+      (v) => v.word === currentWord
+    );
 
-  // ============================================================
-  // Save selected variants for currentWord
-  // ============================================================
-  // async function handleSaveVariants() {
-  //   if (!rawItem) return;
-  //   if (!currentWord) return;
+    return entry?.variants ?? [];
+  }, [perAnswerVariants, currentWord]);
 
-  //   const arr = Array.from(selected);
+  const variantStatsFromASR: VariantStat[] = useMemo(() => {
+    return Array.from(variantBuffer.values())
+      .filter((v) => v.count >= 2)
+      .sort((a, b) => b.count - a.count);
+  }, [variantBuffer]);
 
-  //   console.log("💾 Saving variants for word:", currentWord, arr);
-
-  //   const prevVariants: Tvariant[] = rawItem.variants ?? [];
-
-  //   let updated: Tvariant[];
-
-  //   const existing = prevVariants.find((v) => v.word === currentWord);
-
-  //   if (existing) {
-  //     updated = prevVariants.map((v) =>
-  //       v.word === currentWord
-  //         ? {
-  //           ...v,
-  //           variants: Array.from(new Set([...v.variants, ...arr])),
-  //         }
-  //         : v
-  //     );
-  //   } else {
-  //     updated = [
-  //       ...prevVariants,
-  //       {
-  //         word: currentWord,
-  //         variants: arr,
-  //       },
-  //     ];
-  //   }
-
-  //   // Save into DB
-  //   await saveVariantsToPhrase(rawItem.uid, updated);
-
-  //   // Update React state immediately
-  //   setItems((prev) =>
-  //     prev.map((it) =>
-  //       it.uid === rawItem.uid ? { ...it, variants: updated } : it
-  //     )
-  //   );
-
-  //   setShowVariants(false);
-  //   setSelected(new Set());
-  // }
-
-  // ============================================================
-  // Combined variant list for UI
-  // ============================================================
-  // const combinedVariantList: VariantStat[] = useMemo(() => {
-  //   const map = new Map<string, VariantStat>();
-
-  //   // 1) from ASR buffer
-  //   for (const v of variants) {
-  //     map.set(v.text, v);
-  //   }
-
-  //   // 2) from saved variants (force include)
-  //   for (const sv of savedVariantsForWord) {
-  //     if (!map.has(sv)) {
-  //       map.set(sv, { text: sv, count: 999 });
-  //       // count=999 just to show it's saved
-  //     }
-  //   }
-
-  //   return Array.from(map.values()).sort((a, b) => b.count - a.count);
-  // }, [variants, savedVariantsForWord]);
+  const showVariantButton =
+    savedVariantsForCurrentWord.length > 0 ||
+    variantStatsFromASR.length > 0;
 
   // ============================================================
   // Render
   // ============================================================
-  const VPButtonVisibity = savedVariantsForWord.length > 0 || (variantBuffer.current && variantBuffer.current.size > 0);
   return (
     <View style={styles.root}>
       {!hasData && <Text>Loading phrases...</Text>}
+
       {hasData && (
         <>
-          <Appbar.Header dark={true}>
-            <Appbar.Action icon="dots-vertical" onPress={() => { }} />
-            {VPButtonVisibity && (
+          {/* Header */}
+          <Appbar.Header dark>
+            <Appbar.Content title="SpeechTrainer" />
+            {showVariantButton && (
               <AnchoredOverlay
                 anchor={({ onPress }) => (
-                  <Appbar.Action id="VPButton" icon="list-status" onPress={onPress} />
-                )}>
-                <VariantPicker variantsFromDatabase={savedVariantsForWord} variantsFromASR={Array.from(variantBuffer.current.values())} />
+                  <Appbar.Action
+                    icon="list-status"
+                    onPress={onPress}
+                  />
+                )}
+              >
+                <VariantPicker
+                  variantsFromDatabase={savedVariantsForCurrentWord}
+                  variantsFromASR={variantStatsFromASR}
+                  onSave={(selected:any) => {
+                    handleSaveVariants(selected);
+                  }}
+                  onCancel={() => {
+                    /* просто закрывается overlay */
+                  }}
+                />
               </AnchoredOverlay>
             )}
           </Appbar.Header>
 
-          <Button title="Show Variants" onPress={() => setShowVariants(true)} />
+          {/* Trainer UI */}
           <Text style={styles.title}>Current question:</Text>
           <Text style={styles.phrase}>{currentQuestion}</Text>
-
-          {/* <Text style={styles.title}>Expected answer:</Text>
-          <Text style={styles.answer}>{currentAnswer}</Text> */}
-
-          <Text style={styles.mode}>
-            Mode: {reverseMode ? "Reverse" : "Forward"}
-          </Text>
-
-          {/* <Button
-            title="Toggle Reverse Mode"
-            onPress={() => setReverseMode((p) => !p)}
-          /> */}
 
           <Text style={styles.currentWord}>
             Current word: {currentWord}
           </Text>
 
           {phase === "speaking" && (
-            <Text style={styles.phase}>🔊 Озвучивание...</Text>
+            <Text style={styles.phase}>
+              🔊 Озвучивание...
+            </Text>
           )}
 
           {phase === "listening" && (
-            <Text style={styles.phase}>🎤 Повторите фразу...</Text>
+            <Text style={styles.phase}>
+              🎤 Повторите фразу...
+            </Text>
           )}
 
-          {/* SpeechCompare */}
+          {/* Compare */}
           <SpeechCompare
-            inStr={currentAnswer}
-            itemUid={currentUid}
+            etalon={currentAnswer}
+            asrText={lastAsrResult?.text ?? null}
             variants={perAnswerVariants}
             onMatched={handleMatched}
-            onCurrentWord={(w) => setCurrentWord(w)}
+            onCurrentWord={setCurrentWord}
           />
 
-
+          {/* Debug helper */}
+          <Button
+            title="Simulate correct word"
+            onPress={() => {
+              if (!currentWord) return;
+              setLastAsrResult({
+                engine: "vosk-en",
+                type: "final",
+                text: currentWord,
+              });
+            }}
+          />
         </>
       )}
     </View>
-
   );
 }
-
-
-type TVariantPickerProps = {
-  variantsFromDatabase: string[],
-  variantsFromASR: VariantStat[]
-  //saveHandler:(selectedItems:VariantStat[])=>void;
-  //cancelHandler:()=>void;
-}
-
-function VariantPicker(props: TVariantPickerProps) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  function toggleVariant(text: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(text)) next.delete(text);
-      else next.add(text);
-      return next;
-    });
-  }
-
-  const varOSR: VariantStat[] = props.variantsFromASR
-    .filter((v) => v.count >= 2)
-    .sort((a, b) => b.count - a.count);
-
-  // ============================================================
-  // Combined variant list for UI
-  // ============================================================
-  const combinedVariantList: VariantStat[] = useMemo(() => {
-    const map = new Map<string, VariantStat>();
-
-    // 1) from ASR buffer
-    for (const v of props.variantsFromASR) {
-      map.set(v.text, v);
-    }
-
-    // 2) from saved variants (force include)
-    for (const sv of props.variantsFromDatabase) {
-      if (!map.has(sv)) {
-        map.set(sv, { text: sv, count: 999 });
-        // count=999 just to show it's saved
-      }
-    }
-
-    return Array.from(map.values()).sort((a, b) => b.count - a.count);
-  }, [props]);
-
-
-  return (
-    <View style={styles.variantBox}>
-      <ScrollView style={styles.variantScroll}>
-        {combinedVariantList.map((v) => {
-          const checked = selected.has(v.text);
-          const isSaved = props.variantsFromDatabase.includes(v.text);
-          return (
-            <Pressable
-              key={v.text}
-              style={[
-                styles.variantRow,
-                checked && styles.variantRowSelected,
-              ]}
-              onPress={() => toggleVariant(v.text)}
-            >
-              <Text style={styles.variantText}>
-                {checked ? "✅" : "⬜"} {v.text}
-
-                {isSaved && " ⭐"}
-
-                {!isSaved && ` (${v.count})`}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-}
-
 
 // ============================================================
 // Styles
@@ -485,31 +346,22 @@ function VariantPicker(props: TVariantPickerProps) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    alignItems: "flex-start",
     padding: 20,
     width: "95%",
     marginTop: 20,
   },
-  button: {
-    marginLeft: 15
-  },
-  header: {
-    fontSize: 20,
-    fontWeight: "800",
-    marginBottom: 10,
-  },
   title: {
     fontWeight: "700",
-    marginLeft: 15,
+    marginTop: 10,
   },
   phrase: {
     fontSize: 16,
-    marginLeft: 15,
-  },
-  answer: {
-    fontSize: 15,
-    fontStyle: "italic",
     marginBottom: 8,
+  },
+  currentWord: {
+    marginTop: 10,
+    fontWeight: "800",
+    fontSize: 16,
   },
   phase: {
     fontSize: 16,
@@ -517,123 +369,4 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontWeight: "600",
   },
-  mode: {
-    marginLeft: 15,
-    fontWeight: "700",
-  },
-  currentWord: {
-    marginTop: 10,
-    fontWeight: "800",
-    fontSize: 16,
-  },
-
-  // Variant picker styles
-  variantBox: {
-    marginTop: 20,
-    padding: 12,
-    // borderWidth: 1,
-    // borderRadius: 12,
-  },
-  variantTitle: {
-    fontWeight: "800",
-    fontSize: 16,
-  },
-  variantScroll: {
-    backgroundColor: "#000",
-    flexGrow: 1,
-    borderStyle: "solid",
-    borderWidth: 1,
-    borderColor: "#fff"
-  },
-  variantRow: {
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 8,
-  },
-  variantRowSelected: {
-    backgroundColor: "rgba(0,0,0,0.08)",
-  },
-  variantText: {
-    fontSize: 16,
-  },
-  variantButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  overlay: {
-    position: "absolute",
-    zIndex: 1000,
-  },
-  menu: {
-    width: 200,
-    backgroundColor: "#1e1e1e",
-    borderRadius: 8,
-    paddingVertical: 8,
-    elevation: 8, // Android
-  },
-  menuitem: {
-    padding: 12,
-    color: "white",
-  },
-
 });
-
-
-
-
-// {/* Variant picker */}
-// {showVariants && (
-//   <View style={styles.variantBox}>
-//     <Text style={styles.variantTitle}>
-//       ASR варианты (повторяющиеся):
-//     </Text>
-
-//     {/* ✅ ScrollView всегда существует */}
-//     <ScrollView style={styles.variantScroll}>
-//       {variants.length === 0 && (
-//         <Text style={{ marginTop: 8 }}>
-//           Нет повторяющихся вариантов
-//         </Text>
-//       )}
-//       {combinedVariantList.map((v) => {
-//         const checked = selected.has(v.text);
-
-//         const isSaved = savedVariantsForWord.includes(v.text);
-
-//         return (
-//           <Pressable
-//             key={v.text}
-//             style={[
-//               styles.variantRow,
-//               checked && styles.variantRowSelected,
-//             ]}
-//             onPress={() => toggleVariant(v.text)}
-//           >
-//             <Text style={styles.variantText}>
-//               {checked ? "✅" : "⬜"} {v.text}
-
-//               {isSaved && " ⭐"}
-
-//               {!isSaved && ` (${v.count})`}
-//             </Text>
-//           </Pressable>
-//         );
-//       })}
-
-
-//     </ScrollView>
-
-//     {/* ✅ кнопки всегда внизу */}
-//     <View style={styles.variantButtons}>
-//       <Button title="Cancel" onPress={() => setShowVariants(false)} />
-
-//       <Button
-//         title="Save"
-//         onPress={handleSaveVariants}
-//         disabled={selected.size === 0}
-//       />
-//     </View>
-//   </View>
-
-// )}
