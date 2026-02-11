@@ -77,7 +77,7 @@ export default function SpeechTrainerPhrase() {
   // ============================================================
   const [currentWord, setCurrentWord] = useState("");
 
-  const { setCurrPage } = useContext(AppContext);
+  const ctx = useContext(AppContext);
 
   // ============================================================
   // Load DB
@@ -295,47 +295,9 @@ export default function SpeechTrainerPhrase() {
             </AnchoredOverlay>
             <Appbar.Action
               icon="cog-outline"
-              onPress={() => {setCurrPage("settings")}}
+              onPress={() => {ctx?.setCurrPage("settings")}}
             />
           </Toolbar>
-          {/* Header */}
-          {/* <Appbar.Header dark>
-            <Appbar.Content
-              title={
-                <View style={styles.titleContainer}>
-                  <Image
-                    source={require("../assets/logo.png")}
-                    style={styles.logo}
-                    resizeMode="contain"
-                  />
-                  <Text style={styles.titleText}>SpeechTrainerAI</Text>
-                </View>
-              }
-            />
-            {showVariantButton && (
-              <AnchoredOverlay
-                anchor={({ onPress }) => (
-                  <Appbar.Action
-                    icon="list-status"
-                    onPress={onPress}
-                  />
-                )}
-              >
-                {({ close }) => (
-                  <VariantPicker
-                    variantsFromDatabase={savedVariantsForCurrentWord}
-                    variantsFromASR={variantStatsFromASR}
-                    onCancel={close}
-                    onSave={(selected) => {
-                      handleSaveVariants(selected);
-                      close();
-                    }}
-                  />
-                )}
-              </AnchoredOverlay>
-
-            )}
-          </Appbar.Header> */}
           <View style={styles.content}>
             {/* Trainer UI */}
             <Text style={styles.title}>Current question:</Text>
@@ -395,21 +357,7 @@ const styles = StyleSheet.create({
   content: {
     paddingLeft: 20,
   },
-  // titleContainer: {
-  //   flexDirection: "row",
-  //   alignItems: "center",
-  // },
-  // logo: {
-  //   width: 48,
-  //   height: 48,
-  //   resizeMode: "contain",
-  // },  
-  // titleText: {
-  //   marginLeft: 5,
-  //   color: "#15c45e",
-  //   fontSize: 20,
-  //   fontWeight: "700",  
-  // },
+
   title: {
     fontWeight: "700",
     marginTop: 10,

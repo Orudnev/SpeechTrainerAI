@@ -6,6 +6,7 @@ import { speakAndListen } from "./src/speech/flow/speechOrchestrator";
 import { registerDebugApi } from "./src/debug/registerDebugApi";
 import { AsrService } from "./src/speech/asr/AsrService";
 import { MD3DarkTheme, PaperProvider } from 'react-native-paper';
+import { Settings } from './src/components/Settings';
 
 
 console.log("Hermes?", (global as any).HermesInternal != null);
@@ -43,7 +44,7 @@ export default function App() {
         >
           <View style={{ flex: 1 }}>
             {currPage === "main" && <SpeechTrainerPhrase />}
-            {currPage === "settings" && (<View>Гыр гыр гыр</View>)}
+            {currPage === "settings" && <Settings />}
           </View>
         </View>
       </AppContext.Provider>
