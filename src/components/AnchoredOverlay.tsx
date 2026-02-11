@@ -58,7 +58,7 @@ export function AnchoredOverlay({ anchor, children }: Props) {
   }, [measureAnchor]);
 
   const anchorNode = (
-    <View ref={anchorRef} collapsable={false}>
+    <View ref={anchorRef} collapsable={false} >
       {anchor({ onPress: openOverlay })}
     </View>
   );
@@ -130,7 +130,7 @@ export function AnchoredOverlay({ anchor, children }: Props) {
     <>
       {anchorNode}
 
-      <Portal>
+      <Portal >
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={close}
@@ -164,8 +164,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     zIndex: 1000,
     elevation: 8,
-    backgroundColor: "#1e1e1e",
     borderRadius: 12,
+    borderColor: "gray",
+    borderWidth: 1,
     padding: 8,
   },
 });

@@ -118,8 +118,8 @@ const styles = StyleSheet.create({
 
   // Variant picker styles
   variantBox: {
-    marginTop: 20,
-    padding: 12,
+    // marginTop: 20,
+    // padding: 12,
     // borderWidth: 1,
     // borderRadius: 12,
   },
@@ -132,8 +132,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     borderStyle: "solid",
     borderWidth: 1,
-    borderColor: "#fff"
-  },
+    borderColor: "gray",
+    borderRadius: 8,},
   variantRow: {
     paddingVertical: 8,
     paddingHorizontal: 6,

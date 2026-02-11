@@ -178,11 +178,6 @@ export default function SpeechCompare({
   // ============================================================
   return (
     <View style={styles.box}>
-      <Button title="Simulate answer" onPress={() => {
-        setAsrResult(etalonWords[currIndex.current]);
-        processCASRR(etalonWords[currIndex.current]);
-        //markWordMatched(etalonWords[currIndex.current]);
-      }} />
       <Text style={styles.title}>CASRR:</Text>
       <Text style={styles.etalon}>{asrResult}</Text>
 

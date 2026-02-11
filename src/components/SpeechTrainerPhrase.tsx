@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useContext } from "react";
 import {
   View,
   Text,
   StyleSheet,
   Button,
+  Image
 } from "react-native";
 
 import SpeechCompare from "./SpeechCompare";
@@ -22,9 +23,11 @@ import {
   saveVariantsToPhrase,
 } from "../db/speechDb";
 
-import { Appbar } from "react-native-paper";
 import { AnchoredOverlay } from "./AnchoredOverlay";
 import { VariantPicker } from "./VariantPicker";
+import Toolbar from "./Toolbar";
+import { Appbar } from "react-native-paper";
+import { AppContext } from "../../App";
 
 /**
  * Normalize ASR text
@@ -73,6 +76,8 @@ export default function SpeechTrainerPhrase() {
   // Current word (reported by SpeechCompare)
   // ============================================================
   const [currentWord, setCurrentWord] = useState("");
+
+  const { setCurrPage } = useContext(AppContext);
 
   // ============================================================
   // Load DB
@@ -267,9 +272,46 @@ export default function SpeechTrainerPhrase() {
 
       {hasData && (
         <>
+          <Toolbar>
+            <AnchoredOverlay 
+              anchor={({ onPress }) => (
+                <Appbar.Action
+                  icon="list-status"
+                  onPress={onPress}
+                />
+              )}
+            >
+              {({ close }) => (
+                <VariantPicker
+                  variantsFromDatabase={savedVariantsForCurrentWord}
+                  variantsFromASR={variantStatsFromASR}
+                  onCancel={close}
+                  onSave={(selected) => {
+                    handleSaveVariants(selected);
+                    close();
+                  }}
+                />
+              )}
+            </AnchoredOverlay>
+            <Appbar.Action
+              icon="cog-outline"
+              onPress={() => {setCurrPage("settings")}}
+            />
+          </Toolbar>
           {/* Header */}
-          <Appbar.Header dark>
-            <Appbar.Content title="SpeechTrainer" />
+          {/* <Appbar.Header dark>
+            <Appbar.Content
+              title={
+                <View style={styles.titleContainer}>
+                  <Image
+                    source={require("../assets/logo.png")}
+                    style={styles.logo}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.titleText}>SpeechTrainerAI</Text>
+                </View>
+              }
+            />
             {showVariantButton && (
               <AnchoredOverlay
                 anchor={({ onPress }) => (
@@ -293,49 +335,50 @@ export default function SpeechTrainerPhrase() {
               </AnchoredOverlay>
 
             )}
-          </Appbar.Header>
+          </Appbar.Header> */}
+          <View style={styles.content}>
+            {/* Trainer UI */}
+            <Text style={styles.title}>Current question:</Text>
+            <Text style={styles.phrase}>{currentQuestion}</Text>
 
-          {/* Trainer UI */}
-          <Text style={styles.title}>Current question:</Text>
-          <Text style={styles.phrase}>{currentQuestion}</Text>
-
-          <Text style={styles.currentWord}>
-            Current word: {currentWord}
-          </Text>
-
-          {phase === "speaking" && (
-            <Text style={styles.phase}>
-              🔊 Озвучивание...
+            <Text style={styles.currentWord}>
+              Current word: {currentWord}
             </Text>
-          )}
 
-          {phase === "listening" && (
-            <Text style={styles.phase}>
-              🎤 Повторите фразу...
-            </Text>
-          )}
+            {phase === "speaking" && (
+              <Text style={styles.phase}>
+                🔊 Озвучивание...
+              </Text>
+            )}
 
-          {/* Compare */}
-          <SpeechCompare
-            etalon={currentAnswer}
-            asrText={lastAsrResult?.text ?? null}
-            variants={perAnswerVariants}
-            onMatched={handleMatched}
-            onCurrentWord={setCurrentWord}
-          />
+            {phase === "listening" && (
+              <Text style={styles.phase}>
+                🎤 Повторите фразу...
+              </Text>
+            )}
 
-          {/* Debug helper */}
-          <Button
-            title="Simulate correct word"
-            onPress={() => {
-              if (!currentWord) return;
-              setLastAsrResult({
-                engine: "vosk-en",
-                type: "final",
-                text: currentWord,
-              });
-            }}
-          />
+            {/* Compare */}
+            <SpeechCompare
+              etalon={currentAnswer}
+              asrText={lastAsrResult?.text ?? null}
+              variants={perAnswerVariants}
+              onMatched={handleMatched}
+              onCurrentWord={setCurrentWord}
+            />
+
+            {/* Debug helper */}
+            <Button
+              title="Simulate correct word"
+              onPress={() => {
+                if (!currentWord) return;
+                setLastAsrResult({
+                  engine: "vosk-en",
+                  type: "final",
+                  text: currentWord,
+                });
+              }}
+            />
+          </View>
         </>
       )}
     </View>
@@ -348,10 +391,25 @@ export default function SpeechTrainerPhrase() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    padding: 20,
-    width: "95%",
-    marginTop: 20,
   },
+  content: {
+    paddingLeft: 20,
+  },
+  // titleContainer: {
+  //   flexDirection: "row",
+  //   alignItems: "center",
+  // },
+  // logo: {
+  //   width: 48,
+  //   height: 48,
+  //   resizeMode: "contain",
+  // },  
+  // titleText: {
+  //   marginLeft: 5,
+  //   color: "#15c45e",
+  //   fontSize: 20,
+  //   fontWeight: "700",  
+  // },
   title: {
     fontWeight: "700",
     marginTop: 10,
