@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   Button,
+  useWindowDimensions,
   Image
 } from "react-native";
 
@@ -49,6 +50,8 @@ export type VariantStat = {
 };
 
 export default function SpeechTrainerPhrase() {
+  const screenSize = useWindowDimensions();
+  
   // ============================================================
   // Core trainer state
   // ============================================================
@@ -267,7 +270,7 @@ export default function SpeechTrainerPhrase() {
   // Render
   // ============================================================
   return (
-    <View style={styles.root}>
+    <View style={[styles.root,{width:screenSize.width}]}>
       {!hasData && <Text>Loading phrases...</Text>}
 
       {hasData && (

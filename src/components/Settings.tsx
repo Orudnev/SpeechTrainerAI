@@ -12,12 +12,11 @@ import { Appbar } from "react-native-paper";
 import { AppContext } from "../../App";
 
 export function Settings() {
-    const { width, height } = useWindowDimensions();
-    const isLandscape = width > height;
+    const screenSize = useWindowDimensions();
     const ctx = useContext(AppContext);
     let hasData = true;
     return (
-        <View style={[styles.settingsRoot,{width}]}>
+        <View style={[styles.settingsRoot,{width:screenSize.width}]}>
             {!hasData && <Text>Loading settings...</Text>}
 
             {hasData && (

@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   },
   variantScroll: {
     backgroundColor: "#000",
-    flexGrow: 1,
+    maxHeight:400,
     borderStyle: "solid",
     borderWidth: 1,
     borderColor: "gray",
