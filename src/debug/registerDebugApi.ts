@@ -1,3 +1,4 @@
+import { SendDatabaseToCloud_test } from "../helpers/webApiWrapper";
 import { clearDb, reseedDb, listAllRows, asrinit, asrshutdown } from "./debugCommands";
 
 export const testReg = ()=>{
@@ -14,8 +15,11 @@ export function registerDebugApi() {
     listAllRows,
     testReg,
     asrinit,
-    asrshutdown
+    asrshutdown,
+    SendDatabaseToCloud_test
   };
 
   console.log("✅ Debug API registered: globalThis.dbg");
 }
+
+
