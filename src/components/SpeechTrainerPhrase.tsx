@@ -306,9 +306,9 @@ export default function SpeechTrainerPhrase() {
             <Text style={styles.title}>Current question:</Text>
             <Text style={styles.phrase}>{currentQuestion}</Text>
 
-            <Text style={styles.currentWord}>
+            {/* <Text style={styles.currentWord}>
               Current word: {currentWord}
-            </Text>
+            </Text> */}
 
             {phase === "speaking" && (
               <Text style={styles.phase}>

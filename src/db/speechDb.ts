@@ -78,7 +78,14 @@ export async function initSpeechDb() {
       variants TEXT DEFAULT NULL
     );
   `);
+
+  await db.executeSql(`
+    CREATE TABLE IF NOT EXISTS appSettings (
+      settings TEXT DEFAULT NULL
+    );
+  `);   
 }
+
 
 /**
  * Load all phrases

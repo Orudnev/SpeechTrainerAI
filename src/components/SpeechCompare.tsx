@@ -178,8 +178,8 @@ export default function SpeechCompare({
   // ============================================================
   return (
     <View style={styles.box}>
-      <Text style={styles.title}>CASRR:</Text>
-      <Text style={styles.etalon}>{asrResult}</Text>
+      {/* <Text style={styles.title}>CASRR:</Text>
+      <Text style={styles.etalon}>{asrResult}</Text> */}
 
       <Text style={styles.title}>Matched:</Text>
       <Text style={styles.matched}>{matchedWords.join(" ")}</Text>
