@@ -22,6 +22,8 @@ import {
   Tvariant,
   toReverse,
   saveVariantsToPhrase,
+  saveResultToPhrase,
+  SpItemResult,
 } from "../db/speechDb";
 
 import { AnchoredOverlay } from "./AnchoredOverlay";
@@ -49,6 +51,71 @@ export type VariantStat = {
   count: number;
 };
 
+
+
+type ResultUpdate = {
+  patch: Partial<SpItem>;
+  resultToPersist: SpItemResult;
+};
+
+function buildResultUpdate(
+  rawItem: SpItem,
+  currentAnswer: string,
+  listeningStartedAt: number | null,
+  reverseMode: boolean
+): ResultUpdate {
+  const now = Date.now();
+  const durationMs = listeningStartedAt
+    ? Math.max(0, now - listeningStartedAt)
+    : 0;
+
+  const answerWordCount = Math.max(
+    1,
+    normalizeText(currentAnswer).split(" ").filter(Boolean).length
+  );
+  const durationPerWord = durationMs / answerWordCount;
+
+  const prevCount = reverseMode ? rawItem.cntr ?? 0 : rawItem.cntf ?? 0;
+  const nextCount = prevCount + 1;
+
+  const prevDurationAvg = reverseMode ? rawItem.dr ?? 0 : rawItem.df ?? 0;
+  const prevWordAvg = reverseMode ? rawItem.dwr ?? 0 : rawItem.dwf ?? 0;
+
+  const nextDurationAvg =
+    nextCount === 1
+      ? durationMs
+      : (prevDurationAvg * prevCount + durationMs) / nextCount;
+
+  const nextWordAvg =
+    nextCount === 1
+      ? durationPerWord
+      : (prevWordAvg * prevCount + durationPerWord) / nextCount;
+
+  const patch: Partial<SpItem> = reverseMode
+    ? {
+        cntr: nextCount,
+        dr: nextDurationAvg,
+        dwr: nextWordAvg,
+      }
+    : {
+        cntf: nextCount,
+        df: nextDurationAvg,
+        dwf: nextWordAvg,
+      };
+
+  return {
+    patch,
+    resultToPersist: {
+      cntf: patch.cntf ?? rawItem.cntf ?? 0,
+      cntr: patch.cntr ?? rawItem.cntr ?? 0,
+      df: patch.df ?? rawItem.df ?? 0,
+      dr: patch.dr ?? rawItem.dr ?? 0,
+      dwf: patch.dwf ?? rawItem.dwf ?? 0,
+      dwr: patch.dwr ?? rawItem.dwr ?? 0,
+    },
+  };
+}
+
 export default function SpeechTrainerPhrase() {
   const screenSize = useWindowDimensions();
   const ctx = useContext(AppContext);
@@ -70,6 +137,7 @@ export default function SpeechTrainerPhrase() {
         // Current word (reported by SpeechCompare)
         // ============================================================
   const [currentWord, setCurrentWord] = useState("");
+  const [listeningStartedAt, setListeningStartedAt] = useState<number | null>(null);
 
   // ============================================================
   // Current phrase
@@ -163,6 +231,7 @@ export default function SpeechTrainerPhrase() {
       setPhase("speaking");
       await speakAndListen(currentQuestion, "vosk-en");
       if (cancelled) return;
+      setListeningStartedAt(Date.now());
       setPhase("listening");
     }
 
@@ -190,9 +259,29 @@ export default function SpeechTrainerPhrase() {
   // Phrase matched callback
   // ============================================================
   async function handleMatched() {
+    if (!rawItem) return;
+
+    const { patch, resultToPersist } = buildResultUpdate(
+      rawItem,
+      currentAnswer,
+      listeningStartedAt,
+      reverseMode
+    );
+
+    await saveResultToPhrase(rawItem.uid, resultToPersist);
+
+    setItems((prevItems) =>
+      prevItems.map((it) =>
+        it.uid === rawItem.uid
+          ? { ...it, ...patch }
+          : it
+      )
+    );
+
     console.log("✅ Phrase complete!");
     const id = await TtsService.speak("Correct!");
     await TtsService.waitFinish(id);
+    setListeningStartedAt(null);
     setPhraseIndex((prev) => (prev + 1) % items.length);
   }
 

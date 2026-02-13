@@ -44,6 +44,11 @@ export type SpItem = {
   dwr?: number; // Среднее количество миллисекунд приходящаяся на одно слово ответа п в обратном режиме
 };
 
+export type SpItemResult = Pick<
+  SpItem,
+  "cntf" | "cntr" | "df" | "dr" | "dwf" | "dwr"
+>;
+
 let db: SQLiteDatabase | null = null;
 
 /**
@@ -131,6 +136,31 @@ export async function saveVariantsToPhrase(
 }
 
 /**
+ * Save learning result into DB
+ */
+export async function saveResultToPhrase(
+  uid: string,
+  result: SpItemResult
+) {
+  const db = await openSpeechDb();
+
+  await db.executeSql(
+    `UPDATE phrases
+      SET cntf=?, cntr=?, df=?, dr=?, dwf=?, dwr=?
+      WHERE uid=?`,
+    [
+      result.cntf ?? 0,
+      result.cntr ?? 0,
+      result.df ?? 0,
+      result.dr ?? 0,
+      result.dwf ?? 0,
+      result.dwr ?? 0,
+      uid,
+    ]
+  );
+}
+
+/**
  * Reverse mode helper
  */
 export function toReverse(item: SpItem): SpItem {
@@ -174,4 +204,3 @@ export async function seedSpeechDbIfEmpty() {
     );
   }
 }
-
