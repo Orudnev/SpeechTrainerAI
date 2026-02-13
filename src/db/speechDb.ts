@@ -35,16 +35,13 @@ export type SpItem = {
   topic: string;
   q: string;
   a: string;
-
-  fcnt?: number;
-  rcnt?: number;
-  faccTS?: number;
-  raccTS?: number;
-  fcorCnt?: number;
-  rcorCnt?: number;
-
-  /** ✅ word-level ASR variants */
-  variants?: Tvariant[];
+  variants?: Tvariant[]; //"фонетические" синонимы
+  cntf?: number; //количество показов в прямом режиме
+  cntr?: number; //количество показов в обратном режиме
+  df?: number; // Средняя продолжительность ответа в миллисекундах в прямом режиме
+  dr?: number; // Средняя продолжительность ответа в миллисекундах в обратном режиме
+  dwf?: number; // Среднее количество миллисекунд приходящаяся на одно слово ответа п в прямом режиме
+  dwr?: number; // Среднее количество миллисекунд приходящаяся на одно слово ответа п в обратном режиме
 };
 
 let db: SQLiteDatabase | null = null;
