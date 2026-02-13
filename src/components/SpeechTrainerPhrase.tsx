@@ -51,36 +51,38 @@ export type VariantStat = {
 
 export default function SpeechTrainerPhrase() {
   const screenSize = useWindowDimensions();
+  const ctx = useContext(AppContext);
   
   // ============================================================
   // Core trainer state
   // ============================================================
   const [items, setItems] = useState<SpItem[]>([]);
   const [phraseIndex, setPhraseIndex] = useState(0);
-
-  const [phase, setPhase] =
-    useState<"speaking" | "listening">("speaking");
-
+  const [phase, setPhase] = useState<"speaking" | "listening">("speaking");
   const [ttsInitialized, setTtsInitialized] = useState(false);
-
-  // Reverse mode (kept, but optional)
   const [reverseMode] = useState(false);
-
-  // ============================================================
-  // ASR integration (SINGLE SOURCE)
-  // ============================================================
-  const [lastAsrResult, setLastAsrResult] =
-    useState<AsrResultEvent | null>(null);
-
-  const [variantBuffer, setVariantBuffer] =
-    useState<Map<string, VariantStat>>(new Map());
-
-  // ============================================================
-  // Current word (reported by SpeechCompare)
-  // ============================================================
+        // ============================================================
+        // ASR integration (SINGLE SOURCE)
+        // ============================================================
+  const [lastAsrResult, setLastAsrResult] = useState<AsrResultEvent | null>(null);
+  const [variantBuffer, setVariantBuffer] = useState<Map<string, VariantStat>>(new Map());
+        // ============================================================
+        // Current word (reported by SpeechCompare)
+        // ============================================================
   const [currentWord, setCurrentWord] = useState("");
 
-  const ctx = useContext(AppContext);
+  // ============================================================
+  // Current phrase
+  // ============================================================
+  const hasData = items.length > 0;
+  const rawItem = hasData ? items[phraseIndex] : null;
+  const currentItem = useMemo(() => {
+    if (!rawItem) return null;
+    return reverseMode ? toReverse(rawItem) : rawItem;
+  }, [rawItem, reverseMode]);
+  const currentQuestion = currentItem?.q ?? "";
+  const currentAnswer = currentItem?.a ?? "";
+  const perAnswerVariants: Tvariant[] = rawItem?.variants ?? [];
 
   // ============================================================
   // Load DB
@@ -114,23 +116,6 @@ export default function SpeechTrainerPhrase() {
   }, []);
 
   // ============================================================
-  // Current phrase
-  // ============================================================
-  const hasData = items.length > 0;
-  const rawItem = hasData ? items[phraseIndex] : null;
-
-  const currentItem = useMemo(() => {
-    if (!rawItem) return null;
-    return reverseMode ? toReverse(rawItem) : rawItem;
-  }, [rawItem, reverseMode]);
-
-  const currentQuestion = currentItem?.q ?? "";
-  const currentAnswer = currentItem?.a ?? "";
-
-  const perAnswerVariants: Tvariant[] =
-    rawItem?.variants ?? [];
-
-  // ============================================================
   // ASR subscription (THE ONLY ONE)
   // ============================================================
   useEffect(() => {
@@ -156,7 +141,7 @@ export default function SpeechTrainerPhrase() {
       }
     });
   }, [phase]);
-
+  
   // ============================================================
   // Reset variant buffer on new phrase
   // ============================================================
@@ -176,29 +161,38 @@ export default function SpeechTrainerPhrase() {
 
     async function runStep() {
       setPhase("speaking");
-
       await speakAndListen(currentQuestion, "vosk-en");
       if (cancelled) return;
-
       setPhase("listening");
     }
 
     setTimeout(runStep, 300);
-
     return () => {
       cancelled = true;
     };
   }, [phraseIndex, ttsInitialized, hasData, currentQuestion]);
 
   // ============================================================
+  // Variant UI helpers
+  // ============================================================
+  const savedVariantsForCurrentWord: string[] = useMemo(() => {
+    if (!currentWord) return [];
+
+    const entry = perAnswerVariants.find(
+      (v) => v.word === currentWord
+    );
+
+    return entry?.variants ?? [];
+  }, [perAnswerVariants, currentWord]);
+
+
+  // ============================================================
   // Phrase matched callback
   // ============================================================
   async function handleMatched() {
     console.log("✅ Phrase complete!");
-
     const id = await TtsService.speak("Correct!");
     await TtsService.waitFinish(id);
-
     setPhraseIndex((prev) => (prev + 1) % items.length);
   }
 
@@ -240,21 +234,6 @@ export default function SpeechTrainerPhrase() {
       )
     );
   }
-
-
-
-  // ============================================================
-  // Variant UI helpers
-  // ============================================================
-  const savedVariantsForCurrentWord: string[] = useMemo(() => {
-    if (!currentWord) return [];
-
-    const entry = perAnswerVariants.find(
-      (v) => v.word === currentWord
-    );
-
-    return entry?.variants ?? [];
-  }, [perAnswerVariants, currentWord]);
 
   const variantStatsFromASR: VariantStat[] = useMemo(() => {
     return Array.from(variantBuffer.values())
