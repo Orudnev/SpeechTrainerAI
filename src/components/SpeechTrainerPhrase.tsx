@@ -114,8 +114,8 @@ function buildResultUpdate(
       dr: patch.dr ?? rawItem.dr ?? 0,
       dwf: patch.dwf ?? rawItem.dwf ?? 0,
       dwr: patch.dwr ?? rawItem.dwr ?? 0,
-      tsf: patch.tsf ?? rawItem.tsf ?? null,
-      tsr: patch.tsr ?? rawItem.tsr ?? null,
+      tsf: patch.tsf ?? rawItem.tsf ?? 0,
+      tsr: patch.tsr ?? rawItem.tsr ?? 0,
     },
   };
 }
