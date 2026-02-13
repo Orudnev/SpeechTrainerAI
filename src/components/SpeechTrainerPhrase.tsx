@@ -29,6 +29,7 @@ import {
 import { AnchoredOverlay } from "./AnchoredOverlay";
 import { VariantPicker } from "./VariantPicker";
 import Toolbar from "./Toolbar";
+import { pickNextPhraseIndex } from "./phraseSelection";
 import { Appbar } from "react-native-paper";
 import { AppContext } from "../../App";
 
@@ -57,74 +58,6 @@ type ResultUpdate = {
   patch: Partial<SpItem>;
   resultToPersist: SpItemResult;
 };
-
-const TARGET_WORD_DURATION_MS = 2500;
-
-function clamp(value: number, min = 0, max = 1): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function getWeaknessScore(item: SpItem, reverseMode: boolean): number {
-  const count = reverseMode ? item.cntr ?? 0 : item.cntf ?? 0;
-  const avgWordDuration = reverseMode ? item.dwr ?? 0 : item.dwf ?? 0;
-
-  // Чем меньше count и чем больше задержка ответа, тем хуже изучено слово.
-  const noveltyPart = 1 / (1 + count);
-  const speedPart = clamp(avgWordDuration / TARGET_WORD_DURATION_MS);
-
-  return noveltyPart * 0.7 + speedPart * 0.3;
-}
-
-function getRecencyFactor(uid: string, recentHistory: string[]): number {
-  const index = recentHistory.lastIndexOf(uid);
-  if (index === -1) return 1;
-
-  const stepsAgo = recentHistory.length - index;
-
-  if (stepsAgo <= 1) return 0.05;
-  if (stepsAgo <= 2) return 0.2;
-  if (stepsAgo <= 4) return 0.5;
-  return 0.8;
-}
-
-function pickNextPhraseIndex(
-  allItems: SpItem[],
-  currentUid: string,
-  reverseMode: boolean,
-  recentHistory: string[]
-): number {
-  if (allItems.length <= 1) return 0;
-
-  const weighted = allItems.map((item, index) => {
-    const weakness = getWeaknessScore(item, reverseMode);
-    const recencyFactor = getRecencyFactor(item.uid, recentHistory);
-    const sameAsCurrentFactor = item.uid === currentUid ? 0.01 : 1;
-
-    return {
-      index,
-      weight: weakness * recencyFactor * sameAsCurrentFactor,
-    };
-  });
-
-  const sorted = [...weighted].sort((a, b) => b.weight - a.weight);
-  const topLimit = Math.max(3, Math.ceil(allItems.length * 0.35));
-  const pool = sorted.slice(0, Math.min(topLimit, sorted.length));
-
-  const total = pool.reduce((sum, x) => sum + x.weight, 0);
-  if (total <= 0) {
-    const fallback = weighted.find((x) => allItems[x.index].uid !== currentUid);
-    return fallback?.index ?? 0;
-  }
-
-  let threshold = Math.random() * total;
-
-  for (const candidate of pool) {
-    threshold -= candidate.weight;
-    if (threshold <= 0) return candidate.index;
-  }
-
-  return pool[pool.length - 1].index;
-}
 
 function buildResultUpdate(
   rawItem: SpItem,
