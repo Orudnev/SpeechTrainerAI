@@ -48,7 +48,7 @@ export type SpItem = {
 
 export type SpItemResult = Pick<
   SpItem,
-  "cntf" | "cntr" | "df" | "dr" | "dwf" | "dwr"
+  "cntf" | "cntr" | "df" | "dr" | "dwf" | "dwr" | "tsf" | "tsr"
 >;
 
 let db: SQLiteDatabase | null = null;
@@ -150,7 +150,7 @@ export async function saveResultToPhrase(
 
   await db.executeSql(
     `UPDATE phrases
-      SET cntf=?, cntr=?, df=?, dr=?, dwf=?, dwr=?
+      SET cntf=?, cntr=?, df=?, dr=?, dwf=?, dwr=?, tsf=?, tsr=?
       WHERE uid=?`,
     [
       result.cntf ?? 0,
@@ -159,6 +159,8 @@ export async function saveResultToPhrase(
       result.dr ?? 0,
       result.dwf ?? 0,
       result.dwr ?? 0,
+      result.tsf ?? null,
+      result.tsr ?? null,
       uid,
     ]
   );
