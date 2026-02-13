@@ -169,7 +169,23 @@ export default function SpeechTrainerPhrase() {
       await seedSpeechDbIfEmpty();
 
       const data = await loadAllPhrases();
+      if (data.length === 0) {
+        setItems(data);
+        setPhraseIndex(0);
+        setRecentHistory([]);
+        return;
+      }
+
+      const initialIndex = pickNextPhraseIndex(
+        data,
+        "__initial__",
+        reverseMode,
+        []
+      );
+
       setItems(data);
+      setPhraseIndex(initialIndex);
+      setRecentHistory([data[initialIndex].uid]);
     }
 
     load();
