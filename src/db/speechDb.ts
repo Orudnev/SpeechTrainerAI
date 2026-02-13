@@ -72,7 +72,13 @@ export async function initSpeechDb() {
       topic TEXT NOT NULL,
       q TEXT NOT NULL,
       a TEXT NOT NULL,
-      variants TEXT DEFAULT NULL
+      variants TEXT DEFAULT NULL,
+      cntf INTEGER DEFAULT 0,
+      cntr INTEGER DEFAULT 0,
+      df REAL DEFAULT 0,
+      dr REAL DEFAULT 0,
+      dwf REAL DEFAULT 0,
+      dwr REAL DEFAULT 0
     );
   `);
 
