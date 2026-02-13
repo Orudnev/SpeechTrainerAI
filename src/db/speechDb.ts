@@ -42,6 +42,8 @@ export type SpItem = {
   dr?: number; // Средняя продолжительность ответа в миллисекундах в обратном режиме
   dwf?: number; // Среднее количество миллисекунд приходящаяся на одно слово ответа п в прямом режиме
   dwr?: number; // Среднее количество миллисекунд приходящаяся на одно слово ответа п в обратном режиме
+  tsf?: number; //timestamp последнего показа в прямом режиме
+  tsr?: number; //timestamp последнего показа в обратном режиме
 };
 
 export type SpItemResult = Pick<
@@ -83,7 +85,9 @@ export async function initSpeechDb() {
       df REAL DEFAULT 0,
       dr REAL DEFAULT 0,
       dwf REAL DEFAULT 0,
-      dwr REAL DEFAULT 0
+      dwr REAL DEFAULT 0,
+      tsf INTEGER DEFAULT NULL,
+      tsr INTEGER DEFAULT NULL
     );
   `);
 

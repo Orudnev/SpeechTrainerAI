@@ -50,8 +50,8 @@ export async function listAllRows(): Promise<void> {
 
   for (let i = 0; i < rows.length; i++) {
     let r = rows.item(i);
-    let str1 = `${i}\t${r.uid}\tfcnt:${r.fcnt} \tfcorCnt:${r.fcorCnt} \tfaccTS:${r.faccTS} \t${r.q}`;
-    let str2 = `\t${r.topic}\t\trcnt:${r.fcnt} \trcorCnt:${r.fcorCnt} \traccTS:${r.faccTS} \t${r.a} variants:${r.variants}`;
+    let str1 = `${i}\t${r.uid}\tcntf:${r.cntf} \tdf:${r.df} \tdwf:${r.dwf} \t${r.q}`;
+    let str2 = `\t${r.topic}\t\tcntr:${r.cntr} \tdr:${r.dr} \tdwr:${r.dwr} \t${r.a} variants:${r.variants}`;
     console.log(`${str1}\n${str2}`);
   }
 }
