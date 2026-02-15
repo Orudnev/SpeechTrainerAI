@@ -14,6 +14,7 @@ import { VariantStat } from "./SpeechTrainerPhrase";
 type TVariantPickerProps = {
   variantsFromDatabase: string[];
   variantsFromASR: VariantStat[];
+  currentWord:string;  
   onSave: (selected: string[]) => void;
   onCancel: () => void;
 };
@@ -21,6 +22,7 @@ type TVariantPickerProps = {
 export function VariantPicker({
   variantsFromDatabase,
   variantsFromASR,
+  currentWord,
   onSave,
   onCancel,
 }: TVariantPickerProps) {
@@ -65,6 +67,7 @@ export function VariantPicker({
   // --------------------------------------------
   return (
     <View style={styles.variantBox}>
+      <Text style={styles.currWord}>{currentWord}</Text>
       <ScrollView style={styles.variantScroll}>
         {combinedVariantList.length === 0 && (
           <Text style={{ padding: 8 }}>
@@ -122,6 +125,10 @@ const styles = StyleSheet.create({
     // padding: 12,
     // borderWidth: 1,
     // borderRadius: 12,
+  },
+  currWord:{
+    color:"#46bfed",
+    marginBottom:8
   },
   variantTitle: {
     fontWeight: "800",

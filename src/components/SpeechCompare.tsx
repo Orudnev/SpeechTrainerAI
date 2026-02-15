@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View, Button } from "react-native";
 import { Tvariant } from "../db/speechDb";
+import { Fieldstyles } from "./SpeechTrainerPhrase";
+import LinearGradient from "react-native-linear-gradient";
 
 /**
  * Normalize text
@@ -177,14 +179,34 @@ export default function SpeechCompare({
   // Render
   // ============================================================
   return (
-    <View style={styles.box}>
-      {/* <Text style={styles.title}>CASRR:</Text>
-      <Text style={styles.etalon}>{asrResult}</Text> */}
-
-      <Text style={styles.title}>Matched:</Text>
-      <Text style={styles.matched}>{matchedWords.join(" ")}</Text>
-
-      {status.length > 0 && <Text style={styles.status}>{status}</Text>}
+    <View>
+      <LinearGradient style={Fieldstyles.fieldCard}
+        colors={[
+          "rgba(20,30,48,1)",
+          "rgba(36,59,85,0.95)",
+        ]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={Fieldstyles.fieldCardInner}>
+          <Text style={Fieldstyles.fieldCaption}>Current ASR result:</Text>
+          <Text style={Fieldstyles.fieldValue}>{asrResult}</Text>
+        </View>
+      </LinearGradient>
+      <LinearGradient style={[Fieldstyles.fieldCard,{height:200}]}
+        colors={[
+          "rgba(20,30,48,1)",
+          "rgba(36,59,85,0.95)",
+        ]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={Fieldstyles.fieldCardInner}>
+          <Text style={Fieldstyles.fieldCaption}>Matched:</Text>
+          <Text style={Fieldstyles.fieldValue}>{matchedWords.join(" ")}</Text>
+        </View>
+        {status.length > 0 && <Text style={styles.status}>{status}</Text>}
+      </LinearGradient>
     </View>
   );
 }

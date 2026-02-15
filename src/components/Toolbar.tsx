@@ -13,7 +13,6 @@ export default function Toolbar({children}: {children?: React.ReactNode}) {
                   style={styles.logo}
                   resizeMode="contain"
                 />
-                <Text style={styles.titleText}>SpeechTrainerAI</Text>
               </View>
             }
           />
@@ -29,9 +28,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logo: {
-    width: 48,
-    height: 48,
-    resizeMode: "contain",
+    width: 200,
   },  
   titleText: {
     marginLeft: 5,

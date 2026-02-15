@@ -5,8 +5,10 @@ import {
   StyleSheet,
   Button,
   useWindowDimensions,
-  Image
+  Image,
+  TouchableOpacity
 } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 
 import SpeechCompare from "./SpeechCompare";
 import { speakAndListen } from "../speech/flow/speechOrchestrator";
@@ -94,17 +96,17 @@ function buildResultUpdate(
 
   const patch: Partial<SpItem> = reverseMode
     ? {
-        cntr: nextCount,
-        dr: nextDurationAvg,
-        dwr: nextWordAvg,
-        tsr: now,
-      }
+      cntr: nextCount,
+      dr: nextDurationAvg,
+      dwr: nextWordAvg,
+      tsr: now,
+    }
     : {
-        cntf: nextCount,
-        df: nextDurationAvg,
-        dwf: nextWordAvg,
-        tsf: now,
-      };
+      cntf: nextCount,
+      df: nextDurationAvg,
+      dwf: nextWordAvg,
+      tsf: now,
+    };
 
   return {
     patch,
@@ -121,10 +123,15 @@ function buildResultUpdate(
   };
 }
 
+
 export default function SpeechTrainerPhrase() {
-  const screenSize = useWindowDimensions();
   const ctx = useContext(AppContext);
-  
+  const screenSize = useWindowDimensions();
+  const scw = (scwUnits: number) => (screenSize.width / 100) * scwUnits;
+  const sch = (scwUnits: number) => (screenSize.height / 100) * scwUnits;
+  const lstyles = StyleSheet.create({
+  });
+
   // ============================================================
   // Core trainer state
   // ============================================================
@@ -133,14 +140,14 @@ export default function SpeechTrainerPhrase() {
   const [phase, setPhase] = useState<"speaking" | "listening">("speaking");
   const [ttsInitialized, setTtsInitialized] = useState(false);
   const [reverseMode] = useState(false);
-        // ============================================================
-        // ASR integration (SINGLE SOURCE)
-        // ============================================================
+  // ============================================================
+  // ASR integration (SINGLE SOURCE)
+  // ============================================================
   const [lastAsrResult, setLastAsrResult] = useState<AsrResultEvent | null>(null);
   const [variantBuffer, setVariantBuffer] = useState<Map<string, VariantStat>>(new Map());
-        // ============================================================
-        // Current word (reported by SpeechCompare)
-        // ============================================================
+  // ============================================================
+  // Current word (reported by SpeechCompare)
+  // ============================================================
   const [currentWord, setCurrentWord] = useState("");
   const [listeningStartedAt, setListeningStartedAt] = useState<number | null>(null);
   const [recentHistory, setRecentHistory] = useState<string[]>([]);
@@ -231,7 +238,7 @@ export default function SpeechTrainerPhrase() {
       }
     });
   }, [phase]);
-  
+
   // ============================================================
   // Reset variant buffer on new phrase
   // ============================================================
@@ -371,13 +378,13 @@ export default function SpeechTrainerPhrase() {
   // Render
   // ============================================================
   return (
-    <View style={[styles.root,{width:screenSize.width}]}>
+    <View style={[styles.root, { width: screenSize.width }]}>
       {!hasData && <Text>Loading phrases...</Text>}
 
       {hasData && (
         <>
           <Toolbar>
-            <AnchoredOverlay 
+            <AnchoredOverlay
               anchor={({ onPress }) => (
                 <Appbar.Action
                   icon="list-status"
@@ -389,6 +396,7 @@ export default function SpeechTrainerPhrase() {
                 <VariantPicker
                   variantsFromDatabase={savedVariantsForCurrentWord}
                   variantsFromASR={variantStatsFromASR}
+                  currentWord={currentWord}
                   onCancel={close}
                   onSave={(selected) => {
                     handleSaveVariants(selected);
@@ -399,76 +407,129 @@ export default function SpeechTrainerPhrase() {
             </AnchoredOverlay>
             <Appbar.Action
               icon="cog-outline"
-              onPress={() => {ctx?.setCurrPage("settings")}}
+              onPress={() => { ctx?.setCurrPage("settings") }}
             />
           </Toolbar>
-          <View style={styles.content}>
-            {/* Trainer UI */}
-            <Text style={styles.title}>Current question:</Text>
-            <Text style={styles.phrase}>{currentQuestion}</Text>
+          <View style={styles.questionSection}>
+            <LinearGradient style={[Fieldstyles.fieldCard, { height: 200 }]}
+              colors={[
+                "rgba(20,30,48,1)",
+                "rgba(36,59,85,0.95)",
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={Fieldstyles.fieldCardInner}>
+                <Text style={Fieldstyles.fieldCaption} >Current question:</Text>
+                <Text style={Fieldstyles.fieldValue}>{currentQuestion}</Text>
+              </View>
+            </LinearGradient>
+          </View >
 
-            {/* <Text style={styles.currentWord}>
+          {/* <Text style={styles.currentWord}>
               Current word: {currentWord}
             </Text> */}
 
-            {phase === "speaking" && (
+
+          {/* {phase === "speaking" && (
               <Text style={styles.phase}>
                 🔊 Озвучивание...
               </Text>
-            )}
+            )} */}
 
-            {phase === "listening" && (
-              <Text style={styles.phase}>
-                🎤 Повторите фразу...
-              </Text>
-            )}
 
-            {/* Compare */}
-            <SpeechCompare
-              etalon={currentAnswer}
-              asrText={lastAsrResult?.text ?? null}
-              variants={perAnswerVariants}
-              onMatched={handleMatched}
-              onCurrentWord={setCurrentWord}
-            />
-
-            {/* Debug helper */}
-            <Button
-              title="Simulate correct word"
-              onPress={() => {
-                if (!currentWord) return;
-                setLastAsrResult({
-                  engine: "vosk-en",
-                  type: "final",
-                  text: currentWord,
-                });
-              }}
-            />
-          </View>
         </>
-      )}
-    </View>
+      )
+      }
+
+      <View style={styles.asrResultSection}>
+        <SpeechCompare
+          etalon={currentAnswer}
+          asrText={lastAsrResult?.text ?? null}
+          variants={perAnswerVariants}
+          onMatched={handleMatched}
+          onCurrentWord={setCurrentWord}
+        />
+      </View>
+      <View style={styles.bottomSection}>
+        <TouchableOpacity onPress={() => {
+          if (!currentWord) return;
+          setLastAsrResult({
+            engine: "vosk-en",
+            type: "final",
+            text: currentWord
+          });
+        }} style={{ position: "absolute", left: 20 }}>
+          <Image
+            style={{ width: 150 }}
+            source={require("../assets/NextWord.png")}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+        <TouchableOpacity style={{ position: "absolute", right: 20 }}>
+          <Image
+            style={{ width: 150 }}
+            source={require("../assets/NextPhrase.png")}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+      </View>
+    </View >
   );
 }
 
 // ============================================================
 // Styles
 // ============================================================
+export const Fieldstyles = StyleSheet.create({
+  fieldCard: {
+    borderRadius: 18,
+    overflow: "hidden",
+
+    // glass / modern look
+    borderWidth: 3,
+    borderColor: "rgba(255,255,255,0.08)",
+
+    // тень (Android + iOS)
+    elevation: 8,
+    shadowColor: "#00E5FF",
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    marginTop: 15,
+    marginLeft: 15,
+    marginRight: 15,
+  },
+  fieldCardInner: {
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  fieldCaption: {
+    fontSize: 13,
+    color: "#9AA3B2",
+    marginBottom: 6,
+    backgroundColor: "transparent"
+  },
+  fieldValue: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#E6F1FF",
+    lineHeight: 24,
+  },
+});
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  content: {
-    paddingLeft: 20,
+  questionSection: {
+    flex: 3,
   },
-
-  title: {
-    fontWeight: "700",
-    marginTop: 10,
+  asrResultSection: {
+    flex: 5,
   },
-  phrase: {
-    fontSize: 16,
-    marginBottom: 8,
+  bottomSection: {
+    flex: 2,
   },
   currentWord: {
     marginTop: 10,
