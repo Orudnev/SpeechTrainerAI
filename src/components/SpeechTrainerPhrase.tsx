@@ -378,7 +378,6 @@ export default function SpeechTrainerPhrase() {
     if (!hasData) return;
 
     if (!rawItem) {
-      setPhraseIndex((prev) => (prev + 1) % items.length);
       return;
     }
 
@@ -406,27 +405,29 @@ export default function SpeechTrainerPhrase() {
       {hasData && (
         <>
           <Toolbar>
-            <AnchoredOverlay
-              anchor={({ onPress }) => (
-                <Appbar.Action
-                  icon="list-status"
-                  onPress={onPress}
-                />
-              )}
-            >
-              {({ close }) => (
-                <VariantPicker
-                  variantsFromDatabase={savedVariantsForCurrentWord}
-                  variantsFromASR={variantStatsFromASR}
-                  currentWord={currentWord}
-                  onCancel={close}
-                  onSave={(selected) => {
-                    handleSaveVariants(selected);
-                    close();
-                  }}
-                />
-              )}
-            </AnchoredOverlay>
+            {(savedVariantsForCurrentWord.length > 0 || variantStatsFromASR.length > 0) && (
+              <AnchoredOverlay
+                anchor={({ onPress }) => (
+                  <Appbar.Action
+                    icon="list-status"
+                    onPress={onPress}
+                  />
+                )}
+              >
+                {({ close }) => (
+                  <VariantPicker
+                    variantsFromDatabase={savedVariantsForCurrentWord}
+                    variantsFromASR={variantStatsFromASR}
+                    currentWord={currentWord}
+                    onCancel={close}
+                    onSave={(selected) => {
+                      handleSaveVariants(selected);
+                      close();
+                    }}
+                  />
+                )}
+              </AnchoredOverlay>
+            )}
             <Appbar.Action
               icon="cog-outline"
               onPress={() => { ctx?.setCurrPage("settings") }}
