@@ -34,35 +34,70 @@ export const AppSettings: TsettingsItem[] = [
   },
 ];
 
-type TappSettingsPayload = Record<TSettingName, any>;
+function getAppSettingOrFail(name: TSettingName): TsettingsItem {
+  const found = AppSettings.find(setting => setting.name === name);
+  if (!found) {
+    throw new Error(`Unknown setting: ${name}`);
+  }
 
-function getDefaultsPayload(): TappSettingsPayload {
-  return {
-    fullAccess: false,
-    reverseMode: false,
-    selectedTopics: [],
-    rowsCloudDataSource: '',
-  };
+  return found;
 }
 
-function applySettingsPayload(payload: TappSettingsPayload) {
+function applySettingsFromObject(payload: Record<string, any>) {
   for (const item of AppSettings) {
     item.value = payload[item.name] ?? item.defaultValue;
   }
 }
 
 export function getAppSettingValue<T = any>(name: TSettingName): T {
-  const found = AppSettings.find(setting => setting.name === name);
-  if (!found) {
-    throw new Error(`Unknown setting: ${name}`);
-  }
-
-  return (found.value ?? found.defaultValue) as T;
+  const setting = getAppSettingOrFail(name);
+  return (setting.value ?? setting.defaultValue) as T;
 }
 
-export function buildSettingsPayloadFromMemory(): TappSettingsPayload {
-  const defaults = getDefaultsPayload();
-  const nextPayload: TappSettingsPayload = {...defaults};
+export function setAppSettingValue(name: TSettingName, value: any) {
+  const setting = getAppSettingOrFail(name);
+  setting.value = value;
+}
+
+export function getArraySettingValue<T = any>(name: TSettingName): T[] {
+  const value = getAppSettingValue<any>(name);
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+export function isArraySettingItemSelected<T = any>(
+  name: TSettingName,
+  item: T,
+): boolean {
+  return getArraySettingValue<T>(name).includes(item);
+}
+
+export function setArraySettingValues<T = any>(name: TSettingName, items: T[]) {
+  setAppSettingValue(name, [...items]);
+}
+
+export function setArraySettingItem<T = any>(
+  name: TSettingName,
+  item: T,
+  isSelected: boolean,
+) {
+  const current = getArraySettingValue<T>(name);
+  const exists = current.includes(item);
+
+  if (isSelected && !exists) {
+    setAppSettingValue(name, [...current, item]);
+    return;
+  }
+
+  if (!isSelected && exists) {
+    setAppSettingValue(
+      name,
+      current.filter(currItem => currItem !== item),
+    );
+  }
+}
+
+export function buildSettingsObjectFromMemory(): Record<TSettingName, any> {
+  const nextPayload = {} as Record<TSettingName, any>;
 
   for (const item of AppSettings) {
     nextPayload[item.name] = item.value ?? item.defaultValue;
@@ -75,17 +110,16 @@ export async function loadAppSettingsFromDb() {
   await initSpeechDb();
   const db = await openSpeechDb();
 
-  const defaults = getDefaultsPayload();
   const res = await db.executeSql(
     `SELECT settings FROM appSettings ORDER BY rowid DESC LIMIT 1;`,
   );
 
   if (res[0].rows.length === 0) {
-    applySettingsPayload(defaults);
+    applySettingsFromObject({});
     return;
   }
 
-  let parsed: Partial<TappSettingsPayload> = {};
+  let parsed: Record<string, any> = {};
   const row = res[0].rows.item(0);
 
   if (row?.settings) {
@@ -96,17 +130,14 @@ export async function loadAppSettingsFromDb() {
     }
   }
 
-  applySettingsPayload({
-    ...defaults,
-    ...parsed,
-  });
+  applySettingsFromObject(parsed);
 }
 
 export async function saveAppSettingsToDb() {
   await initSpeechDb();
   const db = await openSpeechDb();
 
-  const payload = buildSettingsPayloadFromMemory();
+  const payload = buildSettingsObjectFromMemory();
   await db.executeSql(`DELETE FROM appSettings;`);
   await db.executeSql(`INSERT INTO appSettings(settings) VALUES(?);`, [
     JSON.stringify(payload),
