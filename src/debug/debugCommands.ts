@@ -1,3 +1,4 @@
+import { saveAppSettingsToDb, setAppSettingValue } from "../db/settings";
 import {
   initSpeechDb,
   seedSpeechDbIfEmpty,
@@ -65,3 +66,8 @@ export async function asrshutdown(){
   await AsrService.shutdownAllEngines();
 }
 
+export function grantFullAccess() {
+  setAppSettingValue("fullAccess", true);
+  saveAppSettingsToDb();
+  console.log("Full access granted");
+}

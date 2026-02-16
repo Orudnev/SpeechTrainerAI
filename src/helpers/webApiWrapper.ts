@@ -1,5 +1,4 @@
 import { loadAllPhrases, SpItem } from "../db/speechDb";
-
 const API_URL = "https://script.google.com/macros/s/AKfycbwS8blQc2ycTE2m4bLFKFmlEbHBmTRlWTXPWcvZCwcMOBobTFjG6ERxDtlolrw6Nrv3Cg/exec";
 
 

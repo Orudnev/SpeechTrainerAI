@@ -86,7 +86,7 @@ export function setAppSettingValue(name: TSettingName, value: any) {
   setting.value = value;
 }
 
-export function buildSettingsObjectFromMemory(): Record<TSettingName, any> {
+function buildSettingsObjectFromMemory(): Record<TSettingName, any> {
   const nextPayload = {} as Record<TSettingName, any>;
 
   for (const item of AppSettings) {
