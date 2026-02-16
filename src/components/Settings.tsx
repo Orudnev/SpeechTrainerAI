@@ -19,21 +19,6 @@ import {
 } from '../db/settings';
 import {initSpeechDb, openSpeechDb} from '../db/speechDb';
 
-function toBool(value: any, fallback: boolean) {
-  if (typeof value === 'boolean') return value;
-  return fallback;
-}
-
-function toStringArray(value: any): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter(item => typeof item === 'string');
-}
-
-function toStringValue(value: any, fallback: string) {
-  if (typeof value === 'string') return value;
-  return fallback;
-}
-
 export function Settings() {
   const screenSize = useWindowDimensions();
   const ctx = useContext(AppContext);
@@ -68,15 +53,11 @@ export function Settings() {
     load();
   }, []);
 
-  const reverseMode = toBool(getAppSettingValue('reverseMode'), false);
-  const fullAccess = toBool(getAppSettingValue('fullAccess'), false);
-  const rowsCloudDataSource = toStringValue(
-    getAppSettingValue('rowsCloudDataSource'),
-    '',
-  );
-
+  const reverseMode = getAppSettingValue<boolean>('reverseMode');
+  const fullAccess = getAppSettingValue<boolean>('fullAccess');
+  const rowsCloudDataSource = getAppSettingValue<string>('rowsCloudDataSource');
   const selectedTopicsSet = new Set(
-    toStringArray(getArraySettingValue('selectedTopics')),
+    getArraySettingValue<string>('selectedTopics'),
   );
 
   function toggleTopic(topic: string) {
