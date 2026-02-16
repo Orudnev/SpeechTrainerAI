@@ -86,43 +86,6 @@ export function setAppSettingValue(name: TSettingName, value: any) {
   setting.value = value;
 }
 
-export function getArraySettingValue<T = any>(name: TSettingName): T[] {
-  const value = getAppSettingValue<any>(name);
-  return Array.isArray(value) ? (value as T[]) : [];
-}
-
-export function isArraySettingItemSelected<T = any>(
-  name: TSettingName,
-  item: T,
-): boolean {
-  return getArraySettingValue<T>(name).includes(item);
-}
-
-export function setArraySettingValues<T = any>(name: TSettingName, items: T[]) {
-  setAppSettingValue(name, [...items]);
-}
-
-export function setArraySettingItem<T = any>(
-  name: TSettingName,
-  item: T,
-  isSelected: boolean,
-) {
-  const current = getArraySettingValue<T>(name);
-  const exists = current.includes(item);
-
-  if (isSelected && !exists) {
-    setAppSettingValue(name, [...current, item]);
-    return;
-  }
-
-  if (!isSelected && exists) {
-    setAppSettingValue(
-      name,
-      current.filter(currItem => currItem !== item),
-    );
-  }
-}
-
 export function buildSettingsObjectFromMemory(): Record<TSettingName, any> {
   const nextPayload = {} as Record<TSettingName, any>;
 
