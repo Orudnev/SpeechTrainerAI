@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState, useContext} from 'react';
+import React, {useEffect, useState, useContext} from 'react';
 import {
   View,
   Text,
@@ -10,19 +10,14 @@ import Toolbar from './Toolbar';
 import {Appbar, Button, Chip, Switch, TextInput} from 'react-native-paper';
 import {AppContext} from '../../App';
 import {
-  AppSettings,
-  buildSettingsPayloadFromMemory,
+  getAppSettingValue,
+  getArraySettingValue,
   loadAppSettingsFromDb,
   saveAppSettingsToDb,
+  setAppSettingValue,
+  setArraySettingItem,
 } from '../db/settings';
 import {initSpeechDb, openSpeechDb} from '../db/speechDb';
-
-type TsettingsState = {
-  fullAccess: boolean;
-  reverseMode: boolean;
-  selectedTopics: string[];
-  rowsCloudDataSource: string;
-};
 
 function toBool(value: any, fallback: boolean) {
   if (typeof value === 'boolean') return value;
@@ -39,25 +34,13 @@ function toStringValue(value: any, fallback: string) {
   return fallback;
 }
 
-function getInitialSettingsState(): TsettingsState {
-  const map = buildSettingsPayloadFromMemory();
-  return {
-    fullAccess: toBool(map.fullAccess, false),
-    reverseMode: toBool(map.reverseMode, false),
-    selectedTopics: toStringArray(map.selectedTopics),
-    rowsCloudDataSource: toStringValue(map.rowsCloudDataSource, ''),
-  };
-}
-
 export function Settings() {
   const screenSize = useWindowDimensions();
   const ctx = useContext(AppContext);
 
   const [hasData, setHasData] = useState(false);
   const [topics, setTopics] = useState<string[]>([]);
-  const [settingsState, setSettingsState] = useState<TsettingsState>(
-    getInitialSettingsState(),
-  );
+  const [, setSettingsVersion] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -78,46 +61,30 @@ export function Settings() {
       }
 
       setTopics(dbTopics);
-      setSettingsState(getInitialSettingsState());
       setHasData(true);
+      setSettingsVersion(prev => prev + 1);
     }
 
     load();
   }, []);
 
-  const canUseAdvancedActions = settingsState.fullAccess;
+  const reverseMode = toBool(getAppSettingValue('reverseMode'), false);
+  const fullAccess = toBool(getAppSettingValue('fullAccess'), false);
+  const rowsCloudDataSource = toStringValue(
+    getAppSettingValue('rowsCloudDataSource'),
+    '',
+  );
 
-  const selectedTopicsSet = useMemo(
-    () => new Set(settingsState.selectedTopics),
-    [settingsState.selectedTopics],
+  const selectedTopicsSet = new Set(
+    toStringArray(getArraySettingValue('selectedTopics')),
   );
 
   function toggleTopic(topic: string) {
-    setSettingsState(prev => {
-      const exists = prev.selectedTopics.includes(topic);
-      const nextTopics = exists
-        ? prev.selectedTopics.filter(item => item !== topic)
-        : [...prev.selectedTopics, topic];
-
-      return {
-        ...prev,
-        selectedTopics: nextTopics,
-      };
-    });
+    setArraySettingItem('selectedTopics', topic, !selectedTopicsSet.has(topic));
+    setSettingsVersion(prev => prev + 1);
   }
 
   async function persistSettingsAndExit() {
-    for (const setting of AppSettings) {
-      if (setting.name === 'fullAccess')
-        setting.value = settingsState.fullAccess;
-      if (setting.name === 'reverseMode')
-        setting.value = settingsState.reverseMode;
-      if (setting.name === 'selectedTopics')
-        setting.value = settingsState.selectedTopics;
-      if (setting.name === 'rowsCloudDataSource')
-        setting.value = settingsState.rowsCloudDataSource;
-    }
-
     await saveAppSettingsToDb();
     ctx?.setCurrPage('main');
   }
@@ -142,9 +109,10 @@ export function Settings() {
             <View style={styles.rowBetween}>
               <Text style={styles.label}>reverseMode</Text>
               <Switch
-                value={settingsState.reverseMode}
+                value={reverseMode}
                 onValueChange={value => {
-                  setSettingsState(prev => ({...prev, reverseMode: value}));
+                  setAppSettingValue('reverseMode', value);
+                  setSettingsVersion(prev => prev + 1);
                 }}
               />
             </View>
@@ -162,17 +130,15 @@ export function Settings() {
               ))}
             </View>
 
-            {canUseAdvancedActions && (
+            {fullAccess && (
               <>
                 <Text style={styles.sectionTitle}>rowsCloudDataSource</Text>
                 <TextInput
                   mode="outlined"
-                  value={settingsState.rowsCloudDataSource}
+                  value={rowsCloudDataSource}
                   onChangeText={text => {
-                    setSettingsState(prev => ({
-                      ...prev,
-                      rowsCloudDataSource: text,
-                    }));
+                    setAppSettingValue('rowsCloudDataSource', text);
+                    setSettingsVersion(prev => prev + 1);
                   }}
                   placeholder="https://example.com/source.json"
                 />
