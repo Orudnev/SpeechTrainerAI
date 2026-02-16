@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useContext } from "react";
+import React, {useEffect, useMemo, useState, useContext} from 'react';
 import {
   View,
   Text,
@@ -6,15 +6,15 @@ import {
   Button,
   useWindowDimensions,
   Image,
-  TouchableOpacity
-} from "react-native";
-import LinearGradient from "react-native-linear-gradient";
+  TouchableOpacity,
+} from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 
-import SpeechCompare from "./SpeechCompare";
-import { speakAndListen } from "../speech/flow/speechOrchestrator";
-import { TtsService } from "../speech/tts/TtsService";
-import { AsrService } from "../speech/asr/AsrService";
-import { AsrResultEvent } from "../speech/asr/types";
+import SpeechCompare from './SpeechCompare';
+import {speakAndListen} from '../speech/flow/speechOrchestrator';
+import {TtsService} from '../speech/tts/TtsService';
+import {AsrService} from '../speech/asr/AsrService';
+import {AsrResultEvent} from '../speech/asr/types';
 
 import {
   initSpeechDb,
@@ -26,14 +26,15 @@ import {
   saveVariantsToPhrase,
   saveResultToPhrase,
   SpItemResult,
-} from "../db/speechDb";
+} from '../db/speechDb';
 
-import { AnchoredOverlay } from "./AnchoredOverlay";
-import { VariantPicker } from "./VariantPicker";
-import Toolbar from "./Toolbar";
-import { pickNextPhraseIndex } from "./phraseSelection";
-import { Appbar } from "react-native-paper";
-import { AppContext } from "../../App";
+import {AnchoredOverlay} from './AnchoredOverlay';
+import {VariantPicker} from './VariantPicker';
+import Toolbar from './Toolbar';
+import {pickNextPhraseIndex} from './phraseSelection';
+import {Appbar} from 'react-native-paper';
+import {AppContext} from '../../App';
+import {getAppSettingValue} from '../db/settings';
 
 /**
  * Normalize ASR text
@@ -41,8 +42,8 @@ import { AppContext } from "../../App";
 function normalizeText(input: string): string {
   return input
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -54,8 +55,6 @@ export type VariantStat = {
   count: number;
 };
 
-
-
 type ResultUpdate = {
   patch: Partial<SpItem>;
   resultToPersist: SpItemResult;
@@ -65,7 +64,7 @@ function buildResultUpdate(
   rawItem: SpItem,
   currentAnswer: string,
   listeningStartedAt: number | null,
-  reverseMode: boolean
+  reverseMode: boolean,
 ): ResultUpdate {
   const now = Date.now();
   const durationMs = listeningStartedAt
@@ -74,7 +73,7 @@ function buildResultUpdate(
 
   const answerWordCount = Math.max(
     1,
-    normalizeText(currentAnswer).split(" ").filter(Boolean).length
+    normalizeText(currentAnswer).split(' ').filter(Boolean).length,
   );
   const durationPerWord = durationMs / answerWordCount;
 
@@ -96,17 +95,17 @@ function buildResultUpdate(
 
   const patch: Partial<SpItem> = reverseMode
     ? {
-      cntr: nextCount,
-      dr: nextDurationAvg,
-      dwr: nextWordAvg,
-      tsr: now,
-    }
+        cntr: nextCount,
+        dr: nextDurationAvg,
+        dwr: nextWordAvg,
+        tsr: now,
+      }
     : {
-      cntf: nextCount,
-      df: nextDurationAvg,
-      dwf: nextWordAvg,
-      tsf: now,
-    };
+        cntf: nextCount,
+        df: nextDurationAvg,
+        dwf: nextWordAvg,
+        tsf: now,
+      };
 
   return {
     patch,
@@ -123,33 +122,39 @@ function buildResultUpdate(
   };
 }
 
-
 export default function SpeechTrainerPhrase() {
   const ctx = useContext(AppContext);
   const screenSize = useWindowDimensions();
   const scw = (scwUnits: number) => (screenSize.width / 100) * scwUnits;
   const sch = (scwUnits: number) => (screenSize.height / 100) * scwUnits;
-  const lstyles = StyleSheet.create({
-  });
+  const lstyles = StyleSheet.create({});
 
   // ============================================================
   // Core trainer state
   // ============================================================
   const [items, setItems] = useState<SpItem[]>([]);
   const [phraseIndex, setPhraseIndex] = useState(0);
-  const [phase, setPhase] = useState<"speaking" | "listening">("speaking");
+  const [phase, setPhase] = useState<'speaking' | 'listening'>('speaking');
   const [ttsInitialized, setTtsInitialized] = useState(false);
-  const [reverseMode] = useState(false);
+  const [reverseMode] = useState<boolean>(() =>
+    getAppSettingValue<boolean>('reverseMode'),
+  );
   // ============================================================
   // ASR integration (SINGLE SOURCE)
   // ============================================================
-  const [lastAsrResult, setLastAsrResult] = useState<AsrResultEvent | null>(null);
-  const [variantBuffer, setVariantBuffer] = useState<Map<string, VariantStat>>(new Map());
+  const [lastAsrResult, setLastAsrResult] = useState<AsrResultEvent | null>(
+    null,
+  );
+  const [variantBuffer, setVariantBuffer] = useState<Map<string, VariantStat>>(
+    new Map(),
+  );
   // ============================================================
   // Current word (reported by SpeechCompare)
   // ============================================================
-  const [currentWord, setCurrentWord] = useState("");
-  const [listeningStartedAt, setListeningStartedAt] = useState<number | null>(null);
+  const [currentWord, setCurrentWord] = useState('');
+  const [listeningStartedAt, setListeningStartedAt] = useState<number | null>(
+    null,
+  );
   const [recentHistory, setRecentHistory] = useState<string[]>([]);
 
   // ============================================================
@@ -161,8 +166,8 @@ export default function SpeechTrainerPhrase() {
     if (!rawItem) return null;
     return reverseMode ? toReverse(rawItem) : rawItem;
   }, [rawItem, reverseMode]);
-  const currentQuestion = currentItem?.q ?? "";
-  const currentAnswer = currentItem?.a ?? "";
+  const currentQuestion = currentItem?.q ?? '';
+  const currentAnswer = currentItem?.a ?? '';
   const perAnswerVariants: Tvariant[] = rawItem?.variants ?? [];
 
   // ============================================================
@@ -170,7 +175,7 @@ export default function SpeechTrainerPhrase() {
   // ============================================================
   useEffect(() => {
     async function load() {
-      console.log("📦 Loading phrases from SQLite...");
+      console.log('📦 Loading phrases from SQLite...');
 
       await initSpeechDb();
       await seedSpeechDbIfEmpty();
@@ -185,9 +190,9 @@ export default function SpeechTrainerPhrase() {
 
       const initialIndex = pickNextPhraseIndex(
         data,
-        "__initial__",
+        '__initial__',
         reverseMode,
-        []
+        [],
       );
 
       setItems(data);
@@ -203,7 +208,7 @@ export default function SpeechTrainerPhrase() {
   // ============================================================
   useEffect(() => {
     const sub = TtsService.waitReady().then(() => {
-      console.log("✅ TTS Ready");
+      console.log('✅ TTS Ready');
       setTtsInitialized(true);
     });
 
@@ -216,15 +221,15 @@ export default function SpeechTrainerPhrase() {
   // ASR subscription (THE ONLY ONE)
   // ============================================================
   useEffect(() => {
-    return AsrService.subscribeResults((evt) => {
+    return AsrService.subscribeResults(evt => {
       setLastAsrResult(evt);
 
       // Collect partials into variant buffer
-      if (evt.type === "partial" && phase === "listening") {
+      if (evt.type === 'partial' && phase === 'listening') {
         const norm = normalizeText(evt.text);
         if (!norm) return;
 
-        setVariantBuffer((prev) => {
+        setVariantBuffer(prev => {
           const next = new Map(prev);
           const v = next.get(norm);
 
@@ -257,11 +262,11 @@ export default function SpeechTrainerPhrase() {
     let cancelled = false;
 
     async function runStep() {
-      setPhase("speaking");
-      await speakAndListen(currentQuestion, "vosk-en");
+      setPhase('speaking');
+      await speakAndListen(currentQuestion, 'vosk-en');
       if (cancelled) return;
       setListeningStartedAt(Date.now());
-      setPhase("listening");
+      setPhase('listening');
     }
 
     setTimeout(runStep, 300);
@@ -276,13 +281,10 @@ export default function SpeechTrainerPhrase() {
   const savedVariantsForCurrentWord: string[] = useMemo(() => {
     if (!currentWord) return [];
 
-    const entry = perAnswerVariants.find(
-      (v) => v.word === currentWord
-    );
+    const entry = perAnswerVariants.find(v => v.word === currentWord);
 
     return entry?.variants ?? [];
   }, [perAnswerVariants, currentWord]);
-
 
   // ============================================================
   // Phrase matched callback
@@ -290,34 +292,35 @@ export default function SpeechTrainerPhrase() {
   async function handleMatched() {
     if (!rawItem) return;
 
-    const { patch, resultToPersist } = buildResultUpdate(
+    const {patch, resultToPersist} = buildResultUpdate(
       rawItem,
       currentAnswer,
       listeningStartedAt,
-      reverseMode
+      reverseMode,
     );
 
     await saveResultToPhrase(rawItem.uid, resultToPersist);
 
-    const updatedItems = items.map((it) =>
-      it.uid === rawItem.uid
-        ? { ...it, ...patch }
-        : it
+    const updatedItems = items.map(it =>
+      it.uid === rawItem.uid ? {...it, ...patch} : it,
     );
 
     setItems(updatedItems);
 
-    console.log("✅ Phrase complete!");
-    const id = await TtsService.speak("Correct!");
+    console.log('✅ Phrase complete!');
+    const id = await TtsService.speak('Correct!');
     await TtsService.waitFinish(id);
 
-    const historyLimit = Math.max(3, Math.min(8, Math.floor(updatedItems.length / 2)));
+    const historyLimit = Math.max(
+      3,
+      Math.min(8, Math.floor(updatedItems.length / 2)),
+    );
     const nextHistory = [...recentHistory, rawItem.uid].slice(-historyLimit);
     const nextIndex = pickNextPhraseIndex(
       updatedItems,
       rawItem.uid,
       reverseMode,
-      nextHistory
+      nextHistory,
     );
 
     setRecentHistory(nextHistory);
@@ -331,48 +334,40 @@ export default function SpeechTrainerPhrase() {
     const prev = rawItem.variants ?? [];
     let updated: Tvariant[];
 
-    const existing = prev.find((v) => v.word === currentWord);
+    const existing = prev.find(v => v.word === currentWord);
 
     if (existing) {
-      updated = prev.map((v) =>
+      updated = prev.map(v =>
         v.word === currentWord
           ? {
-            ...v,
-            variants: Array.from(
-              new Set([...v.variants, ...selected])
-            ),
-          }
-          : v
+              ...v,
+              variants: Array.from(new Set([...v.variants, ...selected])),
+            }
+          : v,
       );
     } else {
-      updated = [
-        ...prev,
-        { word: currentWord, variants: selected },
-      ];
+      updated = [...prev, {word: currentWord, variants: selected}];
     }
 
     // 1️⃣ DB
     await saveVariantsToPhrase(rawItem.uid, updated);
 
     // 2️⃣ React state (немедленно)
-    setItems((prevItems) =>
-      prevItems.map((it) =>
-        it.uid === rawItem.uid
-          ? { ...it, variants: updated }
-          : it
-      )
+    setItems(prevItems =>
+      prevItems.map(it =>
+        it.uid === rawItem.uid ? {...it, variants: updated} : it,
+      ),
     );
   }
 
   const variantStatsFromASR: VariantStat[] = useMemo(() => {
     return Array.from(variantBuffer.values())
-      .filter((v) => v.count >= 2)
+      .filter(v => v.count >= 2)
       .sort((a, b) => b.count - a.count);
   }, [variantBuffer]);
 
   const showVariantButton =
-    savedVariantsForCurrentWord.length > 0 ||
-    variantStatsFromASR.length > 0;
+    savedVariantsForCurrentWord.length > 0 || variantStatsFromASR.length > 0;
 
   function handleNextPhrasePress() {
     if (!hasData) return;
@@ -387,7 +382,7 @@ export default function SpeechTrainerPhrase() {
       items,
       rawItem.uid,
       reverseMode,
-      nextHistory
+      nextHistory,
     );
 
     setRecentHistory(nextHistory);
@@ -399,28 +394,25 @@ export default function SpeechTrainerPhrase() {
   // Render
   // ============================================================
   return (
-    <View style={[styles.root, { width: screenSize.width }]}>
+    <View style={[styles.root, {width: screenSize.width}]}>
       {!hasData && <Text>Loading phrases...</Text>}
 
       {hasData && (
         <>
           <Toolbar>
-            {(savedVariantsForCurrentWord.length > 0 || variantStatsFromASR.length > 0) && (
+            {(savedVariantsForCurrentWord.length > 0 ||
+              variantStatsFromASR.length > 0) && (
               <AnchoredOverlay
-                anchor={({ onPress }) => (
-                  <Appbar.Action
-                    icon="list-status"
-                    onPress={onPress}
-                  />
-                )}
-              >
-                {({ close }) => (
+                anchor={({onPress}) => (
+                  <Appbar.Action icon="list-status" onPress={onPress} />
+                )}>
+                {({close}) => (
                   <VariantPicker
                     variantsFromDatabase={savedVariantsForCurrentWord}
                     variantsFromASR={variantStatsFromASR}
                     currentWord={currentWord}
                     onCancel={close}
-                    onSave={(selected) => {
+                    onSave={selected => {
                       handleSaveVariants(selected);
                       close();
                     }}
@@ -430,40 +422,35 @@ export default function SpeechTrainerPhrase() {
             )}
             <Appbar.Action
               icon="cog-outline"
-              onPress={() => { ctx?.setCurrPage("settings") }}
+              onPress={() => {
+                ctx?.setCurrPage('settings');
+              }}
             />
           </Toolbar>
           <View style={styles.questionSection}>
-            <LinearGradient style={[Fieldstyles.fieldCard, { height: 200 }]}
-              colors={[
-                "rgba(20,30,48,1)",
-                "rgba(36,59,85,0.95)",
-              ]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
+            <LinearGradient
+              style={[Fieldstyles.fieldCard, {height: 200}]}
+              colors={['rgba(20,30,48,1)', 'rgba(36,59,85,0.95)']}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 1}}>
               <View style={Fieldstyles.fieldCardInner}>
-                <Text style={Fieldstyles.fieldCaption} >Current question:</Text>
+                <Text style={Fieldstyles.fieldCaption}>Current question:</Text>
                 <Text style={Fieldstyles.fieldValue}>{currentQuestion}</Text>
               </View>
             </LinearGradient>
-          </View >
+          </View>
 
           {/* <Text style={styles.currentWord}>
               Current word: {currentWord}
             </Text> */}
-
 
           {/* {phase === "speaking" && (
               <Text style={styles.phase}>
                 🔊 Озвучивание...
               </Text>
             )} */}
-
-
         </>
-      )
-      }
+      )}
 
       <View style={styles.asrResultSection}>
         <SpeechCompare
@@ -475,32 +462,33 @@ export default function SpeechTrainerPhrase() {
         />
       </View>
       <View style={styles.bottomSection}>
-        <TouchableOpacity onPress={() => {
-          if (!currentWord) return;
-          setLastAsrResult({
-            engine: "vosk-en",
-            type: "final",
-            text: currentWord
-          });
-        }} style={{ position: "absolute", left: 20 }}>
+        <TouchableOpacity
+          onPress={() => {
+            if (!currentWord) return;
+            setLastAsrResult({
+              engine: 'vosk-en',
+              type: 'final',
+              text: currentWord,
+            });
+          }}
+          style={{position: 'absolute', left: 20}}>
           <Image
-            style={{ width: 150 }}
-            source={require("../assets/NextWord.png")}
+            style={{width: 150}}
+            source={require('../assets/NextWord.png')}
             resizeMode="contain"
           />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handleNextPhrasePress}
-          style={{ position: "absolute", right: 20 }}
-        >
+          style={{position: 'absolute', right: 20}}>
           <Image
-            style={{ width: 150 }}
-            source={require("../assets/NextPhrase.png")}
+            style={{width: 150}}
+            source={require('../assets/NextPhrase.png')}
             resizeMode="contain"
           />
         </TouchableOpacity>
       </View>
-    </View >
+    </View>
   );
 }
 
@@ -510,18 +498,18 @@ export default function SpeechTrainerPhrase() {
 export const Fieldstyles = StyleSheet.create({
   fieldCard: {
     borderRadius: 18,
-    overflow: "hidden",
+    overflow: 'hidden',
 
     // glass / modern look
     borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: 'rgba(255,255,255,0.08)',
 
     // тень (Android + iOS)
     elevation: 8,
-    shadowColor: "#00E5FF",
+    shadowColor: '#00E5FF',
     shadowOpacity: 0.2,
     shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: {width: 0, height: 6},
     marginTop: 15,
     marginLeft: 15,
     marginRight: 15,
@@ -532,14 +520,14 @@ export const Fieldstyles = StyleSheet.create({
   },
   fieldCaption: {
     fontSize: 13,
-    color: "#9AA3B2",
+    color: '#9AA3B2',
     marginBottom: 6,
-    backgroundColor: "transparent"
+    backgroundColor: 'transparent',
   },
   fieldValue: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#E6F1FF",
+    fontWeight: '600',
+    color: '#E6F1FF',
     lineHeight: 24,
   },
 });
@@ -559,13 +547,13 @@ const styles = StyleSheet.create({
   },
   currentWord: {
     marginTop: 10,
-    fontWeight: "800",
+    fontWeight: '800',
     fontSize: 16,
   },
   phase: {
     fontSize: 16,
     marginTop: 10,
     marginBottom: 10,
-    fontWeight: "600",
+    fontWeight: '600',
   },
 });
