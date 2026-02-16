@@ -16,7 +16,7 @@ import {
     saveAppSettingsToDb,
     setAppSettingValue,
 } from '../db/settings';
-import { initSpeechDb, loadAllPhrases, openSpeechDb } from '../db/speechDb';
+import { initSpeechDb, loadAllPhrases, openSpeechDb, syncPhrasesRows } from '../db/speechDb';
 import { ReceiveAllRowsFromCloud, SendDatabaseToCloud } from '../helpers/webApiWrapper';
 
 export function Settings() {
@@ -131,15 +131,22 @@ export function Settings() {
                                     <Button mode="contained-tonal" onPress={async() => {
                                         setCommandStage('processing');
                                             try {
-                                                let rows = await ReceiveAllRowsFromCloud();
-                                                await SendDatabaseToCloud(rows);
-                                                Alert.alert('Success', 'Data uploaded to cloud successfully');
+                                                let response = await ReceiveAllRowsFromCloud();
+                                                if (!response.ok) {
+                                                    throw new Error("HTTP error " + response.status);
+                                                }
+                                                const rows = await response.json();
+                                                await syncPhrasesRows(rows);
+                                                Alert.alert('Success', 'Data from the Cloud synchonized to local database');
                                             } catch (err: any) {
                                                 Alert.alert('Error', `Failed to upload data to cloud: ${err.message}`);
                                                 return;
                                             }
+                                            finally{
+                                                setCommandStage('idle');
+                                            }
                                         }}>  
-                                        {commandStage === 'idle' ? 'Download from cloud' : 'processing...'}
+                                        {commandStage === 'idle' ? 'Syncronize Local db from Cloud' : '.........  processing  ...........'}
                                     </Button>
                                     <Button mode="contained-tonal" onPress={async () => {
                                         try {
@@ -150,8 +157,12 @@ export function Settings() {
                                             Alert.alert('Error', `Failed to upload data to cloud: ${err.message}`);
                                             return;
                                         }
+                                        finally{
+                                            setCommandStage('idle');
+                                        }
+
                                     }}>
-                                        uploadRowsToCloud
+                                        {commandStage === 'idle' ? 'Upload Local db to Cloud' : '.........  processing  ...........'}
                                     </Button>
                                 </View>
                             </>
