@@ -49,9 +49,36 @@ function applySettingsFromObject(payload: Record<string, any>) {
   }
 }
 
+function normalizeSettingValueByDefaultValue(
+  value: any,
+  defaultValue: any,
+): any {
+  if (value == null) {
+    return defaultValue;
+  }
+
+  if (Array.isArray(defaultValue)) {
+    return Array.isArray(value) ? value : defaultValue;
+  }
+
+  const defaultType = typeof defaultValue;
+  if (
+    defaultType === 'boolean' ||
+    defaultType === 'string' ||
+    defaultType === 'number'
+  ) {
+    return typeof value === defaultType ? value : defaultValue;
+  }
+
+  return value;
+}
+
 export function getAppSettingValue<T = any>(name: TSettingName): T {
   const setting = getAppSettingOrFail(name);
-  return (setting.value ?? setting.defaultValue) as T;
+  return normalizeSettingValueByDefaultValue(
+    setting.value,
+    setting.defaultValue,
+  ) as T;
 }
 
 export function setAppSettingValue(name: TSettingName, value: any) {
