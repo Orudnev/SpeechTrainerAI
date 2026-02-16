@@ -82,9 +82,6 @@ export async function loadAppSettingsFromDb() {
 
   if (res[0].rows.length === 0) {
     applySettingsPayload(defaults);
-    await db.executeSql(`INSERT INTO appSettings(settings) VALUES(?);`, [
-      JSON.stringify(defaults),
-    ]);
     return;
   }
 
