@@ -110,19 +110,15 @@ export async function saveAppSettingsToDb() {
   const payloadJson = JSON.stringify(payload);
 
   const rowRes = await db.executeSql(
-    `SELECT rowid FROM appSettings ORDER BY rowid DESC LIMIT 1;`,
+    `SELECT COUNT(*) as cnt FROM appSettings;`,
   );
 
-  if (rowRes[0].rows.length === 0) {
+  if (rowRes[0].rows.item(0).cnt === 0) {
     await db.executeSql(`INSERT INTO appSettings(settings) VALUES(?);`, [
       payloadJson,
     ]);
     return;
   }
 
-  const rowId = rowRes[0].rows.item(0).rowid;
-  await db.executeSql(`UPDATE appSettings SET settings=? WHERE rowid=?;`, [
-    payloadJson,
-    rowId,
-  ]);
+  await db.executeSql(`UPDATE appSettings SET settings=?;`, [payloadJson]);
 }
