@@ -11,11 +11,9 @@ import {Appbar, Button, Chip, Switch, TextInput} from 'react-native-paper';
 import {AppContext} from '../../App';
 import {
   getAppSettingValue,
-  getArraySettingValue,
   loadAppSettingsFromDb,
   saveAppSettingsToDb,
   setAppSettingValue,
-  setArraySettingItem,
 } from '../db/settings';
 import {initSpeechDb, openSpeechDb} from '../db/speechDb';
 
@@ -56,12 +54,15 @@ export function Settings() {
   const reverseMode = getAppSettingValue<boolean>('reverseMode');
   const fullAccess = getAppSettingValue<boolean>('fullAccess');
   const rowsCloudDataSource = getAppSettingValue<string>('rowsCloudDataSource');
-  const selectedTopicsSet = new Set(
-    getArraySettingValue<string>('selectedTopics'),
-  );
+  const selectedTopics = getAppSettingValue<string[]>('selectedTopics');
+  const selectedTopicsSet = new Set(selectedTopics);
 
   function toggleTopic(topic: string) {
-    setArraySettingItem('selectedTopics', topic, !selectedTopicsSet.has(topic));
+    const nextSelectedTopics = selectedTopicsSet.has(topic)
+      ? selectedTopics.filter(currTopic => currTopic !== topic)
+      : [...selectedTopics, topic];
+
+    setAppSettingValue('selectedTopics', nextSelectedTopics);
     setSettingsVersion(prev => prev + 1);
   }
 
