@@ -177,6 +177,7 @@ export function toReverse(item: SpItem): SpItem {
   };
 }
 
+
 export async function seedSpeechDbIfEmpty() {
   const db = await openSpeechDb();
 
@@ -185,7 +186,7 @@ export async function seedSpeechDbIfEmpty() {
 
   if (count > 0) return;
 
-  console.log("🌱 Seeding database...");
+  console.log("Seeding database...");
 
   const seed: Omit<SpItem, "uid">[] = [
     {

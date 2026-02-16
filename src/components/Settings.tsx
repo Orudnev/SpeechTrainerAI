@@ -1,183 +1,204 @@
-import React, {useEffect, useState, useContext} from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  useWindowDimensions,
-  ScrollView,
+    View,
+    Text,
+    StyleSheet,
+    useWindowDimensions,
+    ScrollView,
+    Alert,
 } from 'react-native';
 import Toolbar from './Toolbar';
-import {Appbar, Button, Chip, Switch, TextInput} from 'react-native-paper';
-import {AppContext} from '../../App';
+import { Appbar, Button, Chip, Switch, TextInput } from 'react-native-paper';
+import { AppContext } from '../../App';
 import {
-  getAppSettingValue,
-  loadAppSettingsFromDb,
-  saveAppSettingsToDb,
-  setAppSettingValue,
+    getAppSettingValue,
+    loadAppSettingsFromDb,
+    saveAppSettingsToDb,
+    setAppSettingValue,
 } from '../db/settings';
-import {initSpeechDb, openSpeechDb} from '../db/speechDb';
+import { initSpeechDb, loadAllPhrases, openSpeechDb } from '../db/speechDb';
+import { ReceiveAllRowsFromCloud, SendDatabaseToCloud } from '../helpers/webApiWrapper';
 
 export function Settings() {
-  const screenSize = useWindowDimensions();
-  const ctx = useContext(AppContext);
+    const screenSize = useWindowDimensions();
+    const ctx = useContext(AppContext);
 
-  const [hasData, setHasData] = useState(false);
-  const [topics, setTopics] = useState<string[]>([]);
-  const [, setSettingsVersion] = useState(0);
+    const [hasData, setHasData] = useState(false);
+    const [topics, setTopics] = useState<string[]>([]);
+    const [, setSettingsVersion] = useState(0);
+    const [commandStage, setCommandStage] = useState<'idle' | 'processing'>('idle');
 
-  useEffect(() => {
-    async function load() {
-      await loadAppSettingsFromDb();
+    useEffect(() => {
+        async function load() {
+            await initSpeechDb();
+            await loadAppSettingsFromDb();
+            const db = await openSpeechDb();
+            const res = await db.executeSql(
+                `SELECT DISTINCT topic FROM phrases ORDER BY topic;`,
+            );
 
-      await initSpeechDb();
-      const db = await openSpeechDb();
-      const res = await db.executeSql(
-        `SELECT DISTINCT topic FROM phrases ORDER BY topic;`,
-      );
+            const dbTopics: string[] = [];
+            for (let i = 0; i < res[0].rows.length; i++) {
+                const row = res[0].rows.item(i);
+                if (typeof row.topic === 'string' && row.topic.trim()) {
+                    dbTopics.push(row.topic);
+                }
+            }
 
-      const dbTopics: string[] = [];
-      for (let i = 0; i < res[0].rows.length; i++) {
-        const row = res[0].rows.item(i);
-        if (typeof row.topic === 'string' && row.topic.trim()) {
-          dbTopics.push(row.topic);
+            setTopics(dbTopics);
+            setHasData(true);
+            setSettingsVersion(prev => prev + 1);
         }
-      }
 
-      setTopics(dbTopics);
-      setHasData(true);
-      setSettingsVersion(prev => prev + 1);
+        load();
+    }, []);
+
+    const reverseMode = getAppSettingValue<boolean>('reverseMode');
+    const fullAccess = getAppSettingValue<boolean>('fullAccess');
+    const rowsCloudDataSource = getAppSettingValue<string>('rowsCloudDataSource');
+    const selectedTopics = getAppSettingValue<string[]>('selectedTopics');
+    const selectedTopicsSet = new Set(selectedTopics);
+
+    function toggleTopic(topic: string) {
+        const nextSelectedTopics = selectedTopicsSet.has(topic)
+            ? selectedTopics.filter(currTopic => currTopic !== topic)
+            : [...selectedTopics, topic];
+
+        setAppSettingValue('selectedTopics', nextSelectedTopics);
+        setSettingsVersion(prev => prev + 1);
     }
 
-    load();
-  }, []);
+    async function persistSettingsAndExit() {
+        await saveAppSettingsToDb();
+        ctx?.setCurrPage('main');
+    }
 
-  const reverseMode = getAppSettingValue<boolean>('reverseMode');
-  const fullAccess = getAppSettingValue<boolean>('fullAccess');
-  const rowsCloudDataSource = getAppSettingValue<string>('rowsCloudDataSource');
-  const selectedTopics = getAppSettingValue<string[]>('selectedTopics');
-  const selectedTopicsSet = new Set(selectedTopics);
+    return (
+        <View style={[styles.settingsRoot, { width: screenSize.width }]}>
+            {!hasData && <Text>Loading settings...</Text>}
 
-  function toggleTopic(topic: string) {
-    const nextSelectedTopics = selectedTopicsSet.has(topic)
-      ? selectedTopics.filter(currTopic => currTopic !== topic)
-      : [...selectedTopics, topic];
+            {hasData && (
+                <>
+                    <Toolbar>
+                        <Appbar.Action
+                            icon="location-exit"
+                            onPress={() => {
+                                persistSettingsAndExit().catch(err => {
+                                    console.warn('Failed to save app settings', err);
+                                });
+                            }}
+                        />
+                    </Toolbar>
+                    <ScrollView contentContainerStyle={styles.content}>
+                        <View style={styles.rowBetween}>
+                            <Text style={styles.label}>reverseMode</Text>
+                            <Switch
+                                value={reverseMode}
+                                onValueChange={value => {
+                                    setAppSettingValue('reverseMode', value);
+                                    setSettingsVersion(prev => prev + 1);
+                                }}
+                            />
+                        </View>
 
-    setAppSettingValue('selectedTopics', nextSelectedTopics);
-    setSettingsVersion(prev => prev + 1);
-  }
+                        <Text style={styles.sectionTitle}>selectedTopics</Text>
+                        <View style={styles.chipWrap}>
+                            {topics.map(topic => (
+                                <Chip
+                                    key={topic}
+                                    selected={selectedTopicsSet.has(topic)}
+                                    onPress={() => toggleTopic(topic)}
+                                    style={styles.topicChip}>
+                                    {topic}
+                                </Chip>
+                            ))}
+                        </View>
 
-  async function persistSettingsAndExit() {
-    await saveAppSettingsToDb();
-    ctx?.setCurrPage('main');
-  }
+                        {fullAccess && (
+                            <>
+                                <Text style={styles.sectionTitle}>rowsCloudDataSource</Text>
+                                <TextInput
+                                    mode="outlined"
+                                    value={rowsCloudDataSource}
+                                    onChangeText={text => {
+                                        setAppSettingValue('rowsCloudDataSource', text);
+                                        setSettingsVersion(prev => prev + 1);
+                                    }}
+                                    placeholder="https://example.com/source.json"
+                                />
 
-  return (
-    <View style={[styles.settingsRoot, {width: screenSize.width}]}>
-      {!hasData && <Text>Loading settings...</Text>}
-
-      {hasData && (
-        <>
-          <Toolbar>
-            <Appbar.Action
-              icon="location-exit"
-              onPress={() => {
-                persistSettingsAndExit().catch(err => {
-                  console.warn('Failed to save app settings', err);
-                });
-              }}
-            />
-          </Toolbar>
-          <ScrollView contentContainerStyle={styles.content}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.label}>reverseMode</Text>
-              <Switch
-                value={reverseMode}
-                onValueChange={value => {
-                  setAppSettingValue('reverseMode', value);
-                  setSettingsVersion(prev => prev + 1);
-                }}
-              />
-            </View>
-
-            <Text style={styles.sectionTitle}>selectedTopics</Text>
-            <View style={styles.chipWrap}>
-              {topics.map(topic => (
-                <Chip
-                  key={topic}
-                  selected={selectedTopicsSet.has(topic)}
-                  onPress={() => toggleTopic(topic)}
-                  style={styles.topicChip}>
-                  {topic}
-                </Chip>
-              ))}
-            </View>
-
-            {fullAccess && (
-              <>
-                <Text style={styles.sectionTitle}>rowsCloudDataSource</Text>
-                <TextInput
-                  mode="outlined"
-                  value={rowsCloudDataSource}
-                  onChangeText={text => {
-                    setAppSettingValue('rowsCloudDataSource', text);
-                    setSettingsVersion(prev => prev + 1);
-                  }}
-                  placeholder="https://example.com/source.json"
-                />
-
-                <View style={styles.actionsRow}>
-                  <Button mode="contained" onPress={() => {}}>
-                    downloadRowsFromCloud
-                  </Button>
-                  <Button mode="contained-tonal" onPress={() => {}}>
-                    uploadRowsToCloud
-                  </Button>
-                </View>
-              </>
+                                <View style={styles.actionsRow}>
+                                    <Button mode="contained-tonal" onPress={async() => {
+                                        setCommandStage('processing');
+                                            try {
+                                                let rows = await ReceiveAllRowsFromCloud();
+                                                await SendDatabaseToCloud(rows);
+                                                Alert.alert('Success', 'Data uploaded to cloud successfully');
+                                            } catch (err: any) {
+                                                Alert.alert('Error', `Failed to upload data to cloud: ${err.message}`);
+                                                return;
+                                            }
+                                        }}>  
+                                        {commandStage === 'idle' ? 'Download from cloud' : 'processing...'}
+                                    </Button>
+                                    <Button mode="contained-tonal" onPress={async () => {
+                                        try {
+                                            let rows = await loadAllPhrases();
+                                            await SendDatabaseToCloud(rows);
+                                            Alert.alert('Success', 'Data uploaded to cloud successfully');
+                                        } catch (err: any) {
+                                            Alert.alert('Error', `Failed to upload data to cloud: ${err.message}`);
+                                            return;
+                                        }
+                                    }}>
+                                        uploadRowsToCloud
+                                    </Button>
+                                </View>
+                            </>
+                        )}
+                    </ScrollView>
+                </>
             )}
-          </ScrollView>
-        </>
-      )}
-    </View>
-  );
+        </View>
+    );
 }
 
 // ============================================================
 const styles = StyleSheet.create({
-  settingsRoot: {
-    flex: 1,
-  },
-  content: {
-    paddingLeft: 20,
-    paddingRight: 20,
-    paddingBottom: 20,
-    gap: 14,
-  },
-  rowBetween: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  label: {
-    fontSize: 18,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  chipWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  topicChip: {
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  actionsRow: {
-    marginTop: 8,
-    flexDirection: 'row',
-    gap: 10,
-    flexWrap: 'wrap',
-  },
+    settingsRoot: {
+        flex: 1,
+    },
+    content: {
+        paddingLeft: 20,
+        paddingRight: 20,
+        paddingBottom: 20,
+        gap: 14,
+    },
+    rowBetween: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    label: {
+        fontSize: 18,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    chipWrap: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    topicChip: {
+        marginRight: 8,
+        marginBottom: 8,
+    },
+    actionsRow: {
+        marginTop: 8,
+        flexDirection: 'row',
+        gap: 10,
+        flexWrap: 'wrap',
+    },
 });
