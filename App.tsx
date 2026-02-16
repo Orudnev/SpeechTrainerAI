@@ -1,25 +1,12 @@
-import {
-  View,
-  Text,
-  useColorScheme,
-  Button,
-  Alert,
-  NativeModules,
-  Image,
-  StyleSheet,
-} from 'react-native';
-import {useEffect, useState, createContext} from 'react';
-import {useSpeechResults} from './src/speech/asr/useSpeechResults';
+import React, {useEffect, useState, createContext} from 'react';
+import {View, useColorScheme} from 'react-native';
+import {MD3DarkTheme, PaperProvider} from 'react-native-paper';
 import SpeechTrainerPhrase from './src/components/SpeechTrainerPhrase';
-import {speakAndListen} from './src/speech/flow/speechOrchestrator';
+import {Settings} from './src/components/Settings';
 import {registerDebugApi} from './src/debug/registerDebugApi';
 import {AsrService} from './src/speech/asr/AsrService';
-import {MD3DarkTheme, PaperProvider} from 'react-native-paper';
-import {Settings} from './src/components/Settings';
+import {useSpeechResults} from './src/speech/asr/useSpeechResults';
 import {loadAppSettingsFromDb} from './src/db/settings';
-
-console.log('Hermes?', (global as any).HermesInternal != null);
-const {RnJavaConnector} = NativeModules;
 
 export type TPages = 'main' | 'settings';
 type AppContextType = {
@@ -30,14 +17,15 @@ export const AppContext = createContext<AppContextType | null>(null);
 
 export default function App() {
   const isDark = useColorScheme() === 'dark';
+
   useEffect(() => {
-    // 🔹 запускаем тест один раз
     AsrService.initAllEngines();
     registerDebugApi();
     loadAppSettingsFromDb().catch(err => {
       console.warn('Failed to load app settings', err);
     });
   }, []);
+
   useSpeechResults();
   const [currPage, setCurrPage] = useState<TPages>('main');
 

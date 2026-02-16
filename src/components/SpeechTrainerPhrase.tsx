@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Button,
   useWindowDimensions,
   Image,
   TouchableOpacity,
@@ -125,10 +124,6 @@ function buildResultUpdate(
 export default function SpeechTrainerPhrase() {
   const ctx = useContext(AppContext);
   const screenSize = useWindowDimensions();
-  const scw = (scwUnits: number) => (screenSize.width / 100) * scwUnits;
-  const sch = (scwUnits: number) => (screenSize.height / 100) * scwUnits;
-  const lstyles = StyleSheet.create({});
-
   // ============================================================
   // Core trainer state
   // ============================================================
@@ -168,7 +163,10 @@ export default function SpeechTrainerPhrase() {
   }, [rawItem, reverseMode]);
   const currentQuestion = currentItem?.q ?? '';
   const currentAnswer = currentItem?.a ?? '';
-  const perAnswerVariants: Tvariant[] = rawItem?.variants ?? [];
+  const perAnswerVariants: Tvariant[] = useMemo(
+    () => rawItem?.variants ?? [],
+    [rawItem],
+  );
 
   // ============================================================
   // Load DB
@@ -201,13 +199,13 @@ export default function SpeechTrainerPhrase() {
     }
 
     load();
-  }, []);
+  }, [reverseMode]);
 
   // ============================================================
   // TTS ready
   // ============================================================
   useEffect(() => {
-    const sub = TtsService.waitReady().then(() => {
+    TtsService.waitReady().then(() => {
       console.log('✅ TTS Ready');
       setTtsInitialized(true);
     });
@@ -365,9 +363,6 @@ export default function SpeechTrainerPhrase() {
       .filter(v => v.count >= 2)
       .sort((a, b) => b.count - a.count);
   }, [variantBuffer]);
-
-  const showVariantButton =
-    savedVariantsForCurrentWord.length > 0 || variantStatsFromASR.length > 0;
 
   function handleNextPhrasePress() {
     if (!hasData) return;
