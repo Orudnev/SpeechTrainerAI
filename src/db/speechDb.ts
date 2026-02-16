@@ -167,6 +167,68 @@ export async function saveResultToPhrase(
 }
 
 /**
+ * Sync rows with phrases table
+ */
+export async function syncPhrasesRows(rows: SpItem[]) {
+  const db = await openSpeechDb();
+
+  for (const row of rows) {
+    const existing = await db.executeSql(
+      `SELECT uid FROM phrases WHERE uid=? LIMIT 1`,
+      [row.uid]
+    );
+
+    const variants = JSON.stringify(row.variants ?? []);
+
+    if (existing[0].rows.length > 0) {
+      await db.executeSql(
+        `UPDATE phrases
+          SET topic=?, q=?, a=?, variants=?, cntf=?, cntr=?, df=?, dr=?, dwf=?, dwr=?, tsf=?, tsr=?
+          WHERE uid=?`,
+        [
+          row.topic,
+          row.q,
+          row.a,
+          variants,
+          row.cntf ?? 0,
+          row.cntr ?? 0,
+          row.df ?? 0,
+          row.dr ?? 0,
+          row.dwf ?? 0,
+          row.dwr ?? 0,
+          row.tsf ?? null,
+          row.tsr ?? null,
+          row.uid,
+        ]
+      );
+
+      continue;
+    }
+
+    await db.executeSql(
+      `INSERT INTO phrases(
+        uid, topic, q, a, variants, cntf, cntr, df, dr, dwf, dwr, tsf, tsr
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      [
+        row.uid,
+        row.topic,
+        row.q,
+        row.a,
+        variants,
+        row.cntf ?? 0,
+        row.cntr ?? 0,
+        row.df ?? 0,
+        row.dr ?? 0,
+        row.dwf ?? 0,
+        row.dwr ?? 0,
+        row.tsf ?? null,
+        row.tsr ?? null,
+      ]
+    );
+  }
+}
+
+/**
  * Reverse mode helper
  */
 export function toReverse(item: SpItem): SpItem {
