@@ -374,6 +374,28 @@ export default function SpeechTrainerPhrase() {
     savedVariantsForCurrentWord.length > 0 ||
     variantStatsFromASR.length > 0;
 
+  function handleNextPhrasePress() {
+    if (!hasData) return;
+
+    if (!rawItem) {
+      setPhraseIndex((prev) => (prev + 1) % items.length);
+      return;
+    }
+
+    const historyLimit = Math.max(3, Math.min(8, Math.floor(items.length / 2)));
+    const nextHistory = [...recentHistory, rawItem.uid].slice(-historyLimit);
+    const nextIndex = pickNextPhraseIndex(
+      items,
+      rawItem.uid,
+      reverseMode,
+      nextHistory
+    );
+
+    setRecentHistory(nextHistory);
+    setListeningStartedAt(null);
+    setPhraseIndex(nextIndex);
+  }
+
   // ============================================================
   // Render
   // ============================================================
@@ -466,7 +488,10 @@ export default function SpeechTrainerPhrase() {
             resizeMode="contain"
           />
         </TouchableOpacity>
-        <TouchableOpacity style={{ position: "absolute", right: 20 }}>
+        <TouchableOpacity
+          onPress={handleNextPhrasePress}
+          style={{ position: "absolute", right: 20 }}
+        >
           <Image
             style={{ width: 150 }}
             source={require("../assets/NextPhrase.png")}
