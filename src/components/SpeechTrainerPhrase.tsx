@@ -13,7 +13,7 @@ import SpeechCompare from './SpeechCompare';
 import { speakAndListen } from '../speech/flow/speechOrchestrator';
 import { TtsService } from '../speech/tts/TtsService';
 import { AsrService } from '../speech/asr/AsrService';
-import { AsrResultEvent } from '../speech/asr/types';
+import { AsrEngineId, AsrResultEvent } from '../speech/asr/types';
 
 import {
   initSpeechDb,
@@ -167,9 +167,20 @@ export default function SpeechTrainerPhrase() {
     if (!rawItem) return null;
     return reverseMode ? toReverse(rawItem) : rawItem;
   }, [rawItem, reverseMode]);
+  const currentAsrId = getAsrEngineId();
   const currentQuestion = currentItem?.q ?? '';
+
   const currentAnswer = currentItem?.a ?? '';
   const perAnswerVariants: Tvariant[] = rawItem?.variants ?? [];
+
+
+  function getAsrEngineId(): AsrEngineId {
+    if (getAppSettingValue<boolean>('reverseMode')) {
+      return 'android-ru';
+    } else {
+      return 'vosk-en';
+    }
+  }
   // ============================================================
   // Load DB
   // ============================================================
@@ -180,14 +191,14 @@ export default function SpeechTrainerPhrase() {
       await initSpeechDb();
       await seedSpeechDbIfEmpty();
       const data = (await loadAllPhrases()).filter(item => {
-        if(!item.topic){
+        if (!item.topic) {
           return false;
         }
         const selectedTopics = getAppSettingValue<string[]>('selectedTopics');
         let result = selectedTopics.includes(item.topic);
         return result;
       });
-      
+
       if (data.length === 0) {
         setItems(data);
         setPhraseIndex(0);
@@ -293,7 +304,7 @@ export default function SpeechTrainerPhrase() {
       if (cancelled) return;
       try {
         setPhase('speaking');
-        await speakAndListen(currentQuestion, 'android-en');
+        await speakAndListen(currentQuestion, getAsrEngineId());
         if (cancelled) return;
         setListeningStartedAt(Date.now());
         setPhase('listening');
@@ -309,6 +320,8 @@ export default function SpeechTrainerPhrase() {
       clearTimeout(timerId);
     };
   }, [phraseIndex, ttsInitialized, hasData, currentQuestion]);
+
+
 
   // ============================================================
   // Variant UI helpers
@@ -421,7 +434,7 @@ export default function SpeechTrainerPhrase() {
     try {
       setPhase('listening');
       await AsrService.stopSession();
-      await AsrService.startSession({ engineId: 'android-en' });
+      await AsrService.startSession({ engineId: getAsrEngineId() });
       setListeningStartedAt(Date.now());
     } catch (e) {
       setPhase('idle');
