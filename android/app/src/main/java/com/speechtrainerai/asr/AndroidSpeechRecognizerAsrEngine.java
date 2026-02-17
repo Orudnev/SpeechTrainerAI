@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -32,8 +33,10 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
 
     private static final String TAG = "AndroidAsrEngine";
-    private static final long DEFAULT_RESTART_DELAY_MS = 250L;
-    private static final long SILENCE_RESTART_DELAY_MS = 1200L;
+    private static final long DEFAULT_RESTART_DELAY_MS = 450L;
+    private static final long SILENCE_RESTART_DELAY_MS = 1800L;
+    private static final long MIN_RESTART_GAP_MS = 900L;
+    private static final long MAX_NO_MATCH_BACKOFF_MS = 6000L;
 
     private final String id;
     private final Locale locale;
@@ -44,6 +47,8 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
 
     private final AtomicBoolean shouldBeListening = new AtomicBoolean(false);
     private final AtomicInteger restartGeneration = new AtomicInteger(0);
+    private final AtomicInteger consecutiveNoMatchErrors = new AtomicInteger(0);
+    private final AtomicLong lastListenStartAtMs = new AtomicLong(0L);
     private final AtomicReference<Intent> currentIntent = new AtomicReference<>();
     private final Runnable restartRunnable = this::restartNowIfNeeded;
 
@@ -84,6 +89,7 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
                 @Override
                 public void onReadyForSpeech(Bundle params) {
                     cancelPendingRestart();
+                    consecutiveNoMatchErrors.set(0);
                     Log.i(TAG, "onReadyForSpeech()");
                 }
 
@@ -113,6 +119,7 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
                 @Override
                 public void onResults(Bundle results) {
                     emitResults(results, "final");
+                    consecutiveNoMatchErrors.set(0);
                     restartIfNeeded(DEFAULT_RESTART_DELAY_MS);
                 }
 
@@ -153,17 +160,17 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
             intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale.toLanguageTag());
             intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
-            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500);
-            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500);
-            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1000);
+            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3000);
+            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2500);
+            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1200);
 
             shouldBeListening.set(true);
             restartGeneration.incrementAndGet();
+            consecutiveNoMatchErrors.set(0);
             cancelPendingRestart();
             currentIntent.set(intent);
 
-            speechRecognizer.cancel();
-            speechRecognizer.startListening(intent);
+            startListeningSafely(intent);
             started.set(true);
         });
 
@@ -276,12 +283,7 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
             return;
         }
 
-        try {
-            speechRecognizer.cancel();
-            speechRecognizer.startListening(intent);
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to restart recognition", e);
-        }
+        startListeningSafely(intent);
     }
 
     private void cancelPendingRestart() {
@@ -291,9 +293,42 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
     private long getRestartDelayForError(int error) {
         if (error == SpeechRecognizer.ERROR_NO_MATCH
                 || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-            return SILENCE_RESTART_DELAY_MS;
+            int noMatchCount = Math.min(4, consecutiveNoMatchErrors.incrementAndGet());
+            long exponentialBackoff = SILENCE_RESTART_DELAY_MS * (1L << (noMatchCount - 1));
+            return Math.min(MAX_NO_MATCH_BACKOFF_MS, exponentialBackoff);
         }
 
+        consecutiveNoMatchErrors.set(0);
+
         return DEFAULT_RESTART_DELAY_MS;
+    }
+
+    private void startListeningSafely(Intent intent) {
+        if (speechRecognizer == null) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        long elapsedSinceLastStart = now - lastListenStartAtMs.get();
+        if (elapsedSinceLastStart < MIN_RESTART_GAP_MS) {
+            restartIfNeeded(MIN_RESTART_GAP_MS - elapsedSinceLastStart);
+            return;
+        }
+
+        try {
+            speechRecognizer.startListening(intent);
+            lastListenStartAtMs.set(System.currentTimeMillis());
+        } catch (IllegalStateException illegalState) {
+            Log.w(TAG, "startListening in illegal state, fallback to cancel+start", illegalState);
+            try {
+                speechRecognizer.cancel();
+                speechRecognizer.startListening(intent);
+                lastListenStartAtMs.set(System.currentTimeMillis());
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to restart recognition", e);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to restart recognition", e);
+        }
     }
 }
