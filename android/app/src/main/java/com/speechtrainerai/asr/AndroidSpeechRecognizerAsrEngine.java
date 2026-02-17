@@ -31,6 +31,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
 
     private static final String TAG = "AndroidAsrEngine";
+    private static final long DEFAULT_RESTART_DELAY_MS = 250L;
+    private static final long SILENCE_RESTART_DELAY_MS = 1200L;
 
     private final String id;
     private final Locale locale;
@@ -100,13 +102,13 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
                 @Override
                 public void onError(int error) {
                     Log.w(TAG, "onError(): " + error);
-                    restartIfNeeded();
+                    restartIfNeeded(getRestartDelayForError(error));
                 }
 
                 @Override
                 public void onResults(Bundle results) {
                     emitResults(results, "final");
-                    restartIfNeeded();
+                    restartIfNeeded(DEFAULT_RESTART_DELAY_MS);
                 }
 
                 @Override
@@ -236,7 +238,11 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
     }
 
     private void restartIfNeeded() {
-        mainHandler.post(() -> {
+        restartIfNeeded(DEFAULT_RESTART_DELAY_MS);
+    }
+
+    private void restartIfNeeded(long delayMs) {
+        mainHandler.postDelayed(() -> {
             if (!shouldBeListening.get()) {
                 return;
             }
@@ -255,6 +261,15 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
             } catch (Exception e) {
                 Log.e(TAG, "Failed to restart recognition", e);
             }
-        });
+        }, Math.max(0L, delayMs));
+    }
+
+    private long getRestartDelayForError(int error) {
+        if (error == SpeechRecognizer.ERROR_NO_MATCH
+                || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+            return SILENCE_RESTART_DELAY_MS;
+        }
+
+        return DEFAULT_RESTART_DELAY_MS;
     }
 }
