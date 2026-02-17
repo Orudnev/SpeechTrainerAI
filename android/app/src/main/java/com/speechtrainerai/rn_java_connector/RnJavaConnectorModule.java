@@ -161,6 +161,10 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
         });
     }
 
+    public static ReactApplicationContext getAppContext() {
+        return reactContext;
+    }
+
     @Override
     public String getName() {
         return "RnJavaConnector";
