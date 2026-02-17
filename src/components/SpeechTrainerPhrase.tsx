@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useContext } from 'react';
+import React, { useEffect, useMemo, useState, useContext, useRef } from 'react';
 import {
   View,
   Text,
@@ -156,6 +156,7 @@ export default function SpeechTrainerPhrase() {
     null,
   );
   const [recentHistory, setRecentHistory] = useState<string[]>([]);
+  const handlingMatchRef = useRef(false);
 
   // ============================================================
   // Current phrase
@@ -228,6 +229,10 @@ export default function SpeechTrainerPhrase() {
   // ============================================================
   useEffect(() => {
     return AsrService.subscribeResults(evt => {
+      if (phase !== 'listening') {
+        return;
+      }
+
       setLastAsrResult(evt);
 
       // Collect partials into variant buffer
@@ -266,8 +271,10 @@ export default function SpeechTrainerPhrase() {
     if (!hasData) return;
 
     let cancelled = false;
+    const timerId = setTimeout(runStep, 300);
 
     async function runStep() {
+      if (cancelled) return;
       setPhase('speaking');
       await speakAndListen(currentQuestion, 'android-ru');
       if (cancelled) return;
@@ -275,9 +282,9 @@ export default function SpeechTrainerPhrase() {
       setPhase('listening');
     }
 
-    setTimeout(runStep, 300);
     return () => {
       cancelled = true;
+      clearTimeout(timerId);
     };
   }, [phraseIndex, ttsInitialized, hasData, currentQuestion]);
 
@@ -298,42 +305,49 @@ export default function SpeechTrainerPhrase() {
   // Phrase matched callback
   // ============================================================
   async function handleMatched() {
-    if (!rawItem) return;
+    if (!rawItem || phase !== 'listening' || handlingMatchRef.current) return;
+    handlingMatchRef.current = true;
 
-    const { patch, resultToPersist } = buildResultUpdate(
-      rawItem,
-      currentAnswer,
-      listeningStartedAt,
-      reverseMode,
-    );
+    try {
+      setPhase('speaking');
 
-    await saveResultToPhrase(rawItem.uid, resultToPersist);
+      const { patch, resultToPersist } = buildResultUpdate(
+        rawItem,
+        currentAnswer,
+        listeningStartedAt,
+        reverseMode,
+      );
 
-    const updatedItems = items.map(it =>
-      it.uid === rawItem.uid ? { ...it, ...patch } : it,
-    );
+      await saveResultToPhrase(rawItem.uid, resultToPersist);
 
-    setItems(updatedItems);
+      const updatedItems = items.map(it =>
+        it.uid === rawItem.uid ? { ...it, ...patch } : it,
+      );
 
-    console.log('✅ Phrase complete!');
-    const id = await TtsService.speak('Correct!');
-    await TtsService.waitFinish(id);
+      setItems(updatedItems);
 
-    const historyLimit = Math.max(
-      3,
-      Math.min(8, Math.floor(updatedItems.length / 2)),
-    );
-    const nextHistory = [...recentHistory, rawItem.uid].slice(-historyLimit);
-    const nextIndex = pickNextPhraseIndex(
-      updatedItems,
-      rawItem.uid,
-      reverseMode,
-      nextHistory,
-    );
+      console.log('✅ Phrase complete!');
+      const id = await TtsService.speak('Correct!');
+      await TtsService.waitFinish(id);
 
-    setRecentHistory(nextHistory);
-    setListeningStartedAt(null);
-    setPhraseIndex(nextIndex);
+      const historyLimit = Math.max(
+        3,
+        Math.min(8, Math.floor(updatedItems.length / 2)),
+      );
+      const nextHistory = [...recentHistory, rawItem.uid].slice(-historyLimit);
+      const nextIndex = pickNextPhraseIndex(
+        updatedItems,
+        rawItem.uid,
+        reverseMode,
+        nextHistory,
+      );
+
+      setRecentHistory(nextHistory);
+      setListeningStartedAt(null);
+      setPhraseIndex(nextIndex);
+    } finally {
+      handlingMatchRef.current = false;
+    }
   }
 
   async function handleSaveVariants(selected: string[]) {
