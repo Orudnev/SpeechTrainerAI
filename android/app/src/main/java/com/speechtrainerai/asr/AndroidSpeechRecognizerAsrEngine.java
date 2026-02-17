@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Реализация ASR движка на базе Android SpeechRecognizer API.
@@ -37,6 +38,9 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
 
     @Nullable
     private SpeechRecognizer speechRecognizer;
+
+    private final AtomicBoolean shouldBeListening = new AtomicBoolean(false);
+    private final AtomicReference<Intent> currentIntent = new AtomicReference<>();
 
     public AndroidSpeechRecognizerAsrEngine(String id, Locale locale) {
         this.id = id;
@@ -96,11 +100,13 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
                 @Override
                 public void onError(int error) {
                     Log.w(TAG, "onError(): " + error);
+                    restartIfNeeded();
                 }
 
                 @Override
                 public void onResults(Bundle results) {
                     emitResults(results, "final");
+                    restartIfNeeded();
                 }
 
                 @Override
@@ -140,7 +146,13 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
             intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale.toLanguageTag());
             intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500);
+            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500);
 
+            shouldBeListening.set(true);
+            currentIntent.set(intent);
+
+            speechRecognizer.cancel();
             speechRecognizer.startListening(intent);
             started.set(true);
         });
@@ -150,6 +162,8 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
 
     @Override
     public void stopRecognition() {
+        shouldBeListening.set(false);
+
         runOnMainThreadBlocking(() -> {
             if (speechRecognizer == null) {
                 return;
@@ -158,6 +172,8 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
             speechRecognizer.stopListening();
             speechRecognizer.cancel();
         });
+
+        currentIntent.set(null);
     }
 
     @Override
@@ -217,5 +233,28 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
         } catch (JSONException e) {
             Log.e(TAG, "Failed to emit recognition result", e);
         }
+    }
+
+    private void restartIfNeeded() {
+        mainHandler.post(() -> {
+            if (!shouldBeListening.get()) {
+                return;
+            }
+            if (speechRecognizer == null) {
+                return;
+            }
+
+            Intent intent = currentIntent.get();
+            if (intent == null) {
+                return;
+            }
+
+            try {
+                speechRecognizer.cancel();
+                speechRecognizer.startListening(intent);
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to restart recognition", e);
+            }
+        });
     }
 }
