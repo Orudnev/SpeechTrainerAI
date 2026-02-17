@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -31,6 +32,9 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
 
     private static final String TAG = "AndroidAsrEngine";
+    private static final long DEFAULT_RESTART_DELAY_MS = 250L;
+    private static final long SILENCE_RESTART_BASE_DELAY_MS = 1200L;
+    private static final long SILENCE_RESTART_MAX_DELAY_MS = 5000L;
 
     private final String id;
     private final Locale locale;
@@ -41,6 +45,7 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
 
     private final AtomicBoolean shouldBeListening = new AtomicBoolean(false);
     private final AtomicReference<Intent> currentIntent = new AtomicReference<>();
+    private final AtomicInteger consecutiveSilenceErrors = new AtomicInteger(0);
 
     public AndroidSpeechRecognizerAsrEngine(String id, Locale locale) {
         this.id = id;
@@ -84,6 +89,7 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
                 @Override
                 public void onBeginningOfSpeech() {
                     Log.i(TAG, "onBeginningOfSpeech()");
+                    consecutiveSilenceErrors.set(0);
                 }
 
                 @Override
@@ -100,13 +106,14 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
                 @Override
                 public void onError(int error) {
                     Log.w(TAG, "onError(): " + error);
-                    restartIfNeeded();
+                    restartIfNeeded(getRestartDelayForError(error));
                 }
 
                 @Override
                 public void onResults(Bundle results) {
                     emitResults(results, "final");
-                    restartIfNeeded();
+                    consecutiveSilenceErrors.set(0);
+                    restartIfNeeded(DEFAULT_RESTART_DELAY_MS);
                 }
 
                 @Override
@@ -146,10 +153,12 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
             intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale.toLanguageTag());
             intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
-            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500);
-            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500);
+            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 4000);
+            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3000);
+            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 3000);
 
             shouldBeListening.set(true);
+            consecutiveSilenceErrors.set(0);
             currentIntent.set(intent);
 
             speechRecognizer.cancel();
@@ -163,6 +172,7 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
     @Override
     public void stopRecognition() {
         shouldBeListening.set(false);
+        consecutiveSilenceErrors.set(0);
 
         runOnMainThreadBlocking(() -> {
             if (speechRecognizer == null) {
@@ -236,7 +246,11 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
     }
 
     private void restartIfNeeded() {
-        mainHandler.post(() -> {
+        restartIfNeeded(DEFAULT_RESTART_DELAY_MS);
+    }
+
+    private void restartIfNeeded(long delayMs) {
+        mainHandler.postDelayed(() -> {
             if (!shouldBeListening.get()) {
                 return;
             }
@@ -250,11 +264,22 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
             }
 
             try {
-                speechRecognizer.cancel();
                 speechRecognizer.startListening(intent);
             } catch (Exception e) {
                 Log.e(TAG, "Failed to restart recognition", e);
             }
-        });
+        }, Math.max(0L, delayMs));
+    }
+
+    private long getRestartDelayForError(int error) {
+        if (error == SpeechRecognizer.ERROR_NO_MATCH
+                || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+            int streak = Math.min(4, consecutiveSilenceErrors.incrementAndGet());
+            long delay = SILENCE_RESTART_BASE_DELAY_MS << (streak - 1);
+            return Math.min(SILENCE_RESTART_MAX_DELAY_MS, delay);
+        }
+
+        consecutiveSilenceErrors.set(0);
+        return DEFAULT_RESTART_DELAY_MS;
     }
 }
