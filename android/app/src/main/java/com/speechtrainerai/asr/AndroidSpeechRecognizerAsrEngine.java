@@ -3,6 +3,8 @@ package com.speechtrainerai.asr;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -17,6 +19,8 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Реализация ASR движка на базе Android SpeechRecognizer API.
@@ -29,6 +33,7 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
 
     private final String id;
     private final Locale locale;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @Nullable
     private SpeechRecognizer speechRecognizer;
@@ -50,62 +55,68 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
 
     @Override
     public boolean init() {
-        Context context = RnJavaConnectorModule.getAppContext();
+        AtomicBoolean initResult = new AtomicBoolean(false);
 
-        if (context == null) {
-            Log.e(TAG, "init() failed: app context is null");
-            return false;
-        }
+        runOnMainThreadBlocking(() -> {
+            Context context = RnJavaConnectorModule.getAppContext();
 
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            Log.e(TAG, "init() failed: SpeechRecognizer is not available");
-            return false;
-        }
-
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context);
-        speechRecognizer.setRecognitionListener(new RecognitionListener() {
-            @Override
-            public void onReadyForSpeech(Bundle params) {
-                Log.i(TAG, "onReadyForSpeech()");
+            if (context == null) {
+                Log.e(TAG, "init() failed: app context is null");
+                return;
             }
 
-            @Override
-            public void onBeginningOfSpeech() {
-                Log.i(TAG, "onBeginningOfSpeech()");
+            if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+                Log.e(TAG, "init() failed: SpeechRecognizer is not available");
+                return;
             }
 
-            @Override
-            public void onRmsChanged(float rmsdB) { }
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context);
+            speechRecognizer.setRecognitionListener(new RecognitionListener() {
+                @Override
+                public void onReadyForSpeech(Bundle params) {
+                    Log.i(TAG, "onReadyForSpeech()");
+                }
 
-            @Override
-            public void onBufferReceived(byte[] buffer) { }
+                @Override
+                public void onBeginningOfSpeech() {
+                    Log.i(TAG, "onBeginningOfSpeech()");
+                }
 
-            @Override
-            public void onEndOfSpeech() {
-                Log.i(TAG, "onEndOfSpeech()");
-            }
+                @Override
+                public void onRmsChanged(float rmsdB) { }
 
-            @Override
-            public void onError(int error) {
-                Log.w(TAG, "onError(): " + error);
-            }
+                @Override
+                public void onBufferReceived(byte[] buffer) { }
 
-            @Override
-            public void onResults(Bundle results) {
-                emitResults(results, "final");
-            }
+                @Override
+                public void onEndOfSpeech() {
+                    Log.i(TAG, "onEndOfSpeech()");
+                }
 
-            @Override
-            public void onPartialResults(Bundle partialResults) {
-                emitResults(partialResults, "partial");
-            }
+                @Override
+                public void onError(int error) {
+                    Log.w(TAG, "onError(): " + error);
+                }
 
-            @Override
-            public void onEvent(int eventType, Bundle params) { }
+                @Override
+                public void onResults(Bundle results) {
+                    emitResults(results, "final");
+                }
+
+                @Override
+                public void onPartialResults(Bundle partialResults) {
+                    emitResults(partialResults, "partial");
+                }
+
+                @Override
+                public void onEvent(int eventType, Bundle params) { }
+            });
+
+            Log.i(TAG, "init() ok: " + id + " locale=" + locale);
+            initResult.set(true);
         });
 
-        Log.i(TAG, "init() ok: " + id + " locale=" + locale);
-        return true;
+        return initResult.get();
     }
 
     @Override
@@ -116,39 +127,73 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
 
     @Override
     public boolean startRecognition() {
-        if (speechRecognizer == null) {
-            Log.e(TAG, "startRecognition() failed: not initialized");
-            return false;
-        }
+        AtomicBoolean started = new AtomicBoolean(false);
 
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale.toLanguageTag());
-        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        runOnMainThreadBlocking(() -> {
+            if (speechRecognizer == null) {
+                Log.e(TAG, "startRecognition() failed: not initialized");
+                return;
+            }
 
-        speechRecognizer.startListening(intent);
-        return true;
+            Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale.toLanguageTag());
+            intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+
+            speechRecognizer.startListening(intent);
+            started.set(true);
+        });
+
+        return started.get();
     }
 
     @Override
     public void stopRecognition() {
-        if (speechRecognizer == null) {
-            return;
-        }
+        runOnMainThreadBlocking(() -> {
+            if (speechRecognizer == null) {
+                return;
+            }
 
-        speechRecognizer.stopListening();
-        speechRecognizer.cancel();
+            speechRecognizer.stopListening();
+            speechRecognizer.cancel();
+        });
     }
 
     @Override
     public void shutdown() {
-        if (speechRecognizer == null) {
+        runOnMainThreadBlocking(() -> {
+            if (speechRecognizer == null) {
+                return;
+            }
+
+            speechRecognizer.destroy();
+            speechRecognizer = null;
+        });
+    }
+
+    private void runOnMainThreadBlocking(Runnable action) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            action.run();
             return;
         }
 
-        speechRecognizer.destroy();
-        speechRecognizer = null;
+        CountDownLatch latch = new CountDownLatch(1);
+
+        mainHandler.post(() -> {
+            try {
+                action.run();
+            } finally {
+                latch.countDown();
+            }
+        });
+
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Log.e(TAG, "Interrupted while waiting main thread task", e);
+        }
     }
 
     private void emitResults(Bundle results, String type) {
