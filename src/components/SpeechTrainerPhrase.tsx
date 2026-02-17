@@ -391,6 +391,21 @@ export default function SpeechTrainerPhrase() {
   const showVariantButton =
     savedVariantsForCurrentWord.length > 0 || variantStatsFromASR.length > 0;
 
+  async function handleStartListeningPress() {
+    if (phase === 'speaking') {
+      return;
+    }
+
+    try {
+      await AsrService.stopSession();
+      await AsrService.startSession({ engineId: 'android-ru' });
+      setListeningStartedAt(Date.now());
+      setPhase('listening');
+    } catch (e) {
+      console.warn('Failed to start ASR session manually', e);
+    }
+  }
+
   function handleNextPhrasePress() {
     if (!hasData) return;
 
@@ -500,6 +515,11 @@ export default function SpeechTrainerPhrase() {
             resizeMode="contain"
           />
         </TouchableOpacity>
+
+        <View style={styles.manualStartButton}>
+          <Button title="Start mic" onPress={handleStartListeningPress} />
+        </View>
+
         <TouchableOpacity
           onPress={handleNextPhrasePress}
           style={{ position: 'absolute', right: 20 }}>
@@ -566,6 +586,10 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     flex: 2,
+  },
+  manualStartButton: {
+    alignSelf: 'center',
+    marginTop: 16,
   },
   currentWord: {
     marginTop: 10,
