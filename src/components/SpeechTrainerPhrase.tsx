@@ -269,7 +269,7 @@ export default function SpeechTrainerPhrase() {
 
     async function runStep() {
       setPhase('speaking');
-      await speakAndListen(currentQuestion, 'vosk-en');
+      await speakAndListen(currentQuestion, 'android-ru');
       if (cancelled) return;
       setListeningStartedAt(Date.now());
       setPhase('listening');
