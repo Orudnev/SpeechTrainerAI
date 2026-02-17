@@ -113,7 +113,6 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
                 @Override
                 public void onError(int error) {
                     Log.w(TAG, "onError(): " + error);
-                    restartIfNeeded(getRestartDelayForError(error));
                 }
 
                 @Override
