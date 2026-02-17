@@ -293,7 +293,7 @@ export default function SpeechTrainerPhrase() {
       if (cancelled) return;
       try {
         setPhase('speaking');
-        await speakAndListen(currentQuestion, 'android-ru');
+        await speakAndListen(currentQuestion, 'android-en');
         if (cancelled) return;
         setListeningStartedAt(Date.now());
         setPhase('listening');
@@ -421,7 +421,7 @@ export default function SpeechTrainerPhrase() {
     try {
       setPhase('listening');
       await AsrService.stopSession();
-      await AsrService.startSession({ engineId: 'android-ru' });
+      await AsrService.startSession({ engineId: 'android-en' });
       setListeningStartedAt(Date.now());
     } catch (e) {
       setPhase('idle');
