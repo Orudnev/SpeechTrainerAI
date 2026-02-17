@@ -113,6 +113,8 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
                 @Override
                 public void onError(int error) {
                     Log.w(TAG, "onError(): " + error);
+                    emitError(error);
+                    restartIfNeeded(getRestartDelayForError(error));
                 }
 
                 @Override
@@ -251,9 +253,23 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
             JSONObject payload = new JSONObject();
             payload.put("type", type);
             payload.put("text", text);
+            payload.put("isError", false);
             RnJavaConnectorModule.onNativeResult(payload.toString());
         } catch (JSONException e) {
             Log.e(TAG, "Failed to emit recognition result", e);
+        }
+    }
+
+    private void emitError(int errorCode) {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("type", "final");
+            payload.put("text", "");
+            payload.put("isError", true);
+            payload.put("errorCode", errorCode);
+            RnJavaConnectorModule.onNativeResult(payload.toString());
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to emit recognition error", e);
         }
     }
 

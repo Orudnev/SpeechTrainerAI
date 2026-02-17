@@ -98,6 +98,11 @@ class AsrServiceImpl {
           engine: this.activeEngine ?? "vosk-en",
           type: parsed.type,
           text: parsed.text,
+          isError: Boolean(parsed.isError),
+          errorCode:
+            typeof parsed.errorCode === "number"
+              ? parsed.errorCode
+              : undefined,
         };
 
         cb(evt);

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Button,
   useWindowDimensions,
   Image,
   TouchableOpacity,
@@ -32,7 +31,7 @@ import { AnchoredOverlay } from './AnchoredOverlay';
 import { VariantPicker } from './VariantPicker';
 import Toolbar from './Toolbar';
 import { pickNextPhraseIndex } from './phraseSelection';
-import { Appbar } from 'react-native-paper';
+import { Appbar, FAB } from 'react-native-paper';
 import { AppContext } from '../../App';
 import { AppSettings, getAppSettingValue } from '../db/settings';
 
@@ -134,7 +133,7 @@ export default function SpeechTrainerPhrase() {
   // ============================================================
   const [items, setItems] = useState<SpItem[]>([]);
   const [phraseIndex, setPhraseIndex] = useState(0);
-  const [phase, setPhase] = useState<'speaking' | 'listening'>('speaking');
+  const [phase, setPhase] = useState<'speaking' | 'listening' | 'idle'>('speaking');
   const [ttsInitialized, setTtsInitialized] = useState(false);
   const [reverseMode] = useState<boolean>(() =>
     getAppSettingValue<boolean>('reverseMode'),
@@ -229,6 +228,12 @@ export default function SpeechTrainerPhrase() {
   // ============================================================
   useEffect(() => {
     return AsrService.subscribeResults(evt => {
+      if (evt.isError) {
+        setPhase('idle');
+        setListeningStartedAt(null);
+        return;
+      }
+
       if (phase !== 'listening') {
         return;
       }
@@ -392,16 +397,17 @@ export default function SpeechTrainerPhrase() {
     savedVariantsForCurrentWord.length > 0 || variantStatsFromASR.length > 0;
 
   async function handleStartListeningPress() {
-    if (phase === 'speaking') {
+    if (phase !== 'idle') {
       return;
     }
 
     try {
+      setPhase('listening');
       await AsrService.stopSession();
       await AsrService.startSession({ engineId: 'android-ru' });
       setListeningStartedAt(Date.now());
-      setPhase('listening');
     } catch (e) {
+      setPhase('idle');
       console.warn('Failed to start ASR session manually', e);
     }
   }
@@ -516,9 +522,15 @@ export default function SpeechTrainerPhrase() {
           />
         </TouchableOpacity>
 
-        <View style={styles.manualStartButton}>
-          <Button title="Start mic" onPress={handleStartListeningPress} />
-        </View>
+        {phase === 'idle' && (
+          <View style={styles.manualStartButton}>
+            <FAB
+              icon="microphone"
+              size="large"
+              onPress={handleStartListeningPress}
+            />
+          </View>
+        )}
 
         <TouchableOpacity
           onPress={handleNextPhrasePress}
@@ -588,8 +600,11 @@ const styles = StyleSheet.create({
     flex: 2,
   },
   manualStartButton: {
+    position: 'absolute',
     alignSelf: 'center',
-    marginTop: 16,
+    top: '50%',
+    marginTop: -28,
+    zIndex: 2,
   },
   currentWord: {
     marginTop: 10,

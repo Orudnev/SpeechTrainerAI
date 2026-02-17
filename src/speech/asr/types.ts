@@ -7,6 +7,8 @@ export type AsrResultEvent = {
   engine: AsrEngineId;
   type: "partial" | "final";
   text: string;
+  isError?: boolean;
+  errorCode?: number;
 };
 
 export type AsrSessionConfig = {
