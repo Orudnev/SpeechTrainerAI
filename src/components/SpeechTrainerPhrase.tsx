@@ -156,6 +156,7 @@ export default function SpeechTrainerPhrase() {
   );
   const [recentHistory, setRecentHistory] = useState<string[]>([]);
   const handlingMatchRef = useRef(false);
+  const stoppingAfterErrorRef = useRef(false);
 
   // ============================================================
   // Current phrase
@@ -229,6 +230,16 @@ export default function SpeechTrainerPhrase() {
   useEffect(() => {
     return AsrService.subscribeResults(evt => {
       if (evt.isError) {
+        if (!stoppingAfterErrorRef.current) {
+          stoppingAfterErrorRef.current = true;
+          AsrService.stopSession()
+            .catch(err => {
+              console.warn('Failed to stop ASR session after error', err);
+            })
+            .finally(() => {
+              stoppingAfterErrorRef.current = false;
+            });
+        }
         setPhase('idle');
         setListeningStartedAt(null);
         return;
@@ -280,11 +291,17 @@ export default function SpeechTrainerPhrase() {
 
     async function runStep() {
       if (cancelled) return;
-      setPhase('speaking');
-      await speakAndListen(currentQuestion, 'android-ru');
-      if (cancelled) return;
-      setListeningStartedAt(Date.now());
-      setPhase('listening');
+      try {
+        setPhase('speaking');
+        await speakAndListen(currentQuestion, 'android-ru');
+        if (cancelled) return;
+        setListeningStartedAt(Date.now());
+        setPhase('listening');
+      } catch (e) {
+        console.warn('Failed to run speak/listen step', e);
+        setListeningStartedAt(null);
+        setPhase('idle');
+      }
     }
 
     return () => {
