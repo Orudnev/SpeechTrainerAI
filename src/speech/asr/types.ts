@@ -1,6 +1,7 @@
 export type AsrEngineId =
   | "vosk-en"
-  | "android-ru"; // будущий
+  | "android-en"
+  | "android-ru";
 
 export type AsrResultEvent = {
   engine: AsrEngineId;
