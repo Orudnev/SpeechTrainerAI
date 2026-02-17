@@ -169,7 +169,7 @@ export async function saveResultToPhrase(
 /**
  * Sync rows with phrases table
  */
-export async function syncPhrasesRows(rows: SpItem[]) {
+export async function syncPhrasesRows(rows: any[]) {
   const db = await openSpeechDb();
 
   for (const row of rows) {
@@ -177,9 +177,13 @@ export async function syncPhrasesRows(rows: SpItem[]) {
       `SELECT uid FROM phrases WHERE uid=? LIMIT 1`,
       [row.uid]
     );
-
-    const variants = JSON.stringify(row.variants ?? []);
-
+    let variantsArray = [];
+    try{
+      variantsArray = JSON.parse(row.variants ?? []);
+    } catch(e) {
+      console.log(`Wrong value format of ${row.variants} for uid ${row.uid}`);
+    }    
+    let variants = JSON.stringify(variantsArray);
     if (existing[0].rows.length > 0) {
       await db.executeSql(
         `UPDATE phrases

@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState, useContext} from 'react';
+import React, { useEffect, useMemo, useState, useContext } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,10 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 
 import SpeechCompare from './SpeechCompare';
-import {speakAndListen} from '../speech/flow/speechOrchestrator';
-import {TtsService} from '../speech/tts/TtsService';
-import {AsrService} from '../speech/asr/AsrService';
-import {AsrResultEvent} from '../speech/asr/types';
+import { speakAndListen } from '../speech/flow/speechOrchestrator';
+import { TtsService } from '../speech/tts/TtsService';
+import { AsrService } from '../speech/asr/AsrService';
+import { AsrResultEvent } from '../speech/asr/types';
 
 import {
   initSpeechDb,
@@ -28,13 +28,13 @@ import {
   SpItemResult,
 } from '../db/speechDb';
 
-import {AnchoredOverlay} from './AnchoredOverlay';
-import {VariantPicker} from './VariantPicker';
+import { AnchoredOverlay } from './AnchoredOverlay';
+import { VariantPicker } from './VariantPicker';
 import Toolbar from './Toolbar';
-import {pickNextPhraseIndex} from './phraseSelection';
-import {Appbar} from 'react-native-paper';
-import {AppContext} from '../../App';
-import {getAppSettingValue} from '../db/settings';
+import { pickNextPhraseIndex } from './phraseSelection';
+import { Appbar } from 'react-native-paper';
+import { AppContext } from '../../App';
+import { getAppSettingValue } from '../db/settings';
 
 /**
  * Normalize ASR text
@@ -95,17 +95,17 @@ function buildResultUpdate(
 
   const patch: Partial<SpItem> = reverseMode
     ? {
-        cntr: nextCount,
-        dr: nextDurationAvg,
-        dwr: nextWordAvg,
-        tsr: now,
-      }
+      cntr: nextCount,
+      dr: nextDurationAvg,
+      dwr: nextWordAvg,
+      tsr: now,
+    }
     : {
-        cntf: nextCount,
-        df: nextDurationAvg,
-        dwf: nextWordAvg,
-        tsf: now,
-      };
+      cntf: nextCount,
+      df: nextDurationAvg,
+      dwf: nextWordAvg,
+      tsf: now,
+    };
 
   return {
     patch,
@@ -169,7 +169,6 @@ export default function SpeechTrainerPhrase() {
   const currentQuestion = currentItem?.q ?? '';
   const currentAnswer = currentItem?.a ?? '';
   const perAnswerVariants: Tvariant[] = rawItem?.variants ?? [];
-
   // ============================================================
   // Load DB
   // ============================================================
@@ -280,7 +279,9 @@ export default function SpeechTrainerPhrase() {
   // ============================================================
   const savedVariantsForCurrentWord: string[] = useMemo(() => {
     if (!currentWord) return [];
-
+    if (!perAnswerVariants || perAnswerVariants.length === 0) {
+      return [];
+    }
     const entry = perAnswerVariants.find(v => v.word === currentWord);
 
     return entry?.variants ?? [];
@@ -292,7 +293,7 @@ export default function SpeechTrainerPhrase() {
   async function handleMatched() {
     if (!rawItem) return;
 
-    const {patch, resultToPersist} = buildResultUpdate(
+    const { patch, resultToPersist } = buildResultUpdate(
       rawItem,
       currentAnswer,
       listeningStartedAt,
@@ -302,7 +303,7 @@ export default function SpeechTrainerPhrase() {
     await saveResultToPhrase(rawItem.uid, resultToPersist);
 
     const updatedItems = items.map(it =>
-      it.uid === rawItem.uid ? {...it, ...patch} : it,
+      it.uid === rawItem.uid ? { ...it, ...patch } : it,
     );
 
     setItems(updatedItems);
@@ -340,13 +341,13 @@ export default function SpeechTrainerPhrase() {
       updated = prev.map(v =>
         v.word === currentWord
           ? {
-              ...v,
-              variants: Array.from(new Set([...v.variants, ...selected])),
-            }
+            ...v,
+            variants: Array.from(new Set([...v.variants, ...selected])),
+          }
           : v,
       );
     } else {
-      updated = [...prev, {word: currentWord, variants: selected}];
+      updated = [...prev, { word: currentWord, variants: selected }];
     }
 
     // 1️⃣ DB
@@ -355,7 +356,7 @@ export default function SpeechTrainerPhrase() {
     // 2️⃣ React state (немедленно)
     setItems(prevItems =>
       prevItems.map(it =>
-        it.uid === rawItem.uid ? {...it, variants: updated} : it,
+        it.uid === rawItem.uid ? { ...it, variants: updated } : it,
       ),
     );
   }
@@ -394,7 +395,7 @@ export default function SpeechTrainerPhrase() {
   // Render
   // ============================================================
   return (
-    <View style={[styles.root, {width: screenSize.width}]}>
+    <View style={[styles.root, { width: screenSize.width }]}>
       {!hasData && <Text>Loading phrases...</Text>}
 
       {hasData && (
@@ -402,24 +403,24 @@ export default function SpeechTrainerPhrase() {
           <Toolbar>
             {(savedVariantsForCurrentWord.length > 0 ||
               variantStatsFromASR.length > 0) && (
-              <AnchoredOverlay
-                anchor={({onPress}) => (
-                  <Appbar.Action icon="list-status" onPress={onPress} />
-                )}>
-                {({close}) => (
-                  <VariantPicker
-                    variantsFromDatabase={savedVariantsForCurrentWord}
-                    variantsFromASR={variantStatsFromASR}
-                    currentWord={currentWord}
-                    onCancel={close}
-                    onSave={selected => {
-                      handleSaveVariants(selected);
-                      close();
-                    }}
-                  />
-                )}
-              </AnchoredOverlay>
-            )}
+                <AnchoredOverlay
+                  anchor={({ onPress }) => (
+                    <Appbar.Action icon="list-status" onPress={onPress} />
+                  )}>
+                  {({ close }) => (
+                    <VariantPicker
+                      variantsFromDatabase={savedVariantsForCurrentWord}
+                      variantsFromASR={variantStatsFromASR}
+                      currentWord={currentWord}
+                      onCancel={close}
+                      onSave={selected => {
+                        handleSaveVariants(selected);
+                        close();
+                      }}
+                    />
+                  )}
+                </AnchoredOverlay>
+              )}
             <Appbar.Action
               icon="cog-outline"
               onPress={() => {
@@ -429,10 +430,10 @@ export default function SpeechTrainerPhrase() {
           </Toolbar>
           <View style={styles.questionSection}>
             <LinearGradient
-              style={[Fieldstyles.fieldCard, {height: 200}]}
+              style={[Fieldstyles.fieldCard, { height: 200 }]}
               colors={['rgba(20,30,48,1)', 'rgba(36,59,85,0.95)']}
-              start={{x: 0, y: 0}}
-              end={{x: 1, y: 1}}>
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}>
               <View style={Fieldstyles.fieldCardInner}>
                 <Text style={Fieldstyles.fieldCaption}>Current question:</Text>
                 <Text style={Fieldstyles.fieldValue}>{currentQuestion}</Text>
@@ -471,18 +472,18 @@ export default function SpeechTrainerPhrase() {
               text: currentWord,
             });
           }}
-          style={{position: 'absolute', left: 20}}>
+          style={{ position: 'absolute', left: 20 }}>
           <Image
-            style={{width: 150}}
+            style={{ width: 150 }}
             source={require('../assets/NextWord.png')}
             resizeMode="contain"
           />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handleNextPhrasePress}
-          style={{position: 'absolute', right: 20}}>
+          style={{ position: 'absolute', right: 20 }}>
           <Image
-            style={{width: 150}}
+            style={{ width: 150 }}
             source={require('../assets/NextPhrase.png')}
             resizeMode="contain"
           />
@@ -509,7 +510,7 @@ export const Fieldstyles = StyleSheet.create({
     shadowColor: '#00E5FF',
     shadowOpacity: 0.2,
     shadowRadius: 12,
-    shadowOffset: {width: 0, height: 6},
+    shadowOffset: { width: 0, height: 6 },
     marginTop: 15,
     marginLeft: 15,
     marginRight: 15,

@@ -18,6 +18,7 @@ import {
 } from '../db/settings';
 import { initSpeechDb, loadAllPhrases, openSpeechDb, syncPhrasesRows } from '../db/speechDb';
 import { ReceiveAllRowsFromCloud, SendDatabaseToCloud } from '../helpers/webApiWrapper';
+import { synchCloudToLocal, synchLocalToCloud } from '../debug/debugCommands';
 
 export function Settings() {
     const screenSize = useWindowDimensions();
@@ -128,36 +129,31 @@ export function Settings() {
                                 />
 
                                 <View style={styles.actionsRow}>
-                                    <Button mode="contained-tonal" onPress={async() => {
+                                    <Button mode="contained-tonal" onPress={async () => {
                                         setCommandStage('processing');
-                                            try {
-                                                let response = await ReceiveAllRowsFromCloud();
-                                                if (!response.ok) {
-                                                    throw new Error("HTTP error " + response.status);
-                                                }
-                                                const rows = await response.json();
-                                                await syncPhrasesRows(rows);
-                                                Alert.alert('Success', 'Data from the Cloud synchonized to local database');
-                                            } catch (err: any) {
-                                                Alert.alert('Error', `Failed to upload data to cloud: ${err.message}`);
-                                                return;
-                                            }
-                                            finally{
-                                                setCommandStage('idle');
-                                            }
-                                        }}>  
-                                        {commandStage === 'idle' ? 'Syncronize Local db from Cloud' : '.........  processing  ...........'}
+                                        try {
+                                            await synchCloudToLocal();
+                                            Alert.alert('Success', 'Data from the Cloud synchonized to local database');
+                                        } catch (err: any) {
+                                            Alert.alert('Error', `Failed to upload data to cloud: ${err.message}`);
+                                            return;
+                                        }
+                                        finally {
+                                            setCommandStage('idle');
+                                        }
+                                    }}>
+                                        {commandStage === 'idle' ? 'Synchronize Local db from Cloud' : '.........  processing  ...........'}
                                     </Button>
                                     <Button mode="contained-tonal" onPress={async () => {
+                                        setCommandStage('processing');
                                         try {
-                                            let rows = await loadAllPhrases();
-                                            await SendDatabaseToCloud(rows);
+                                            await synchLocalToCloud();
                                             Alert.alert('Success', 'Data uploaded to cloud successfully');
                                         } catch (err: any) {
                                             Alert.alert('Error', `Failed to upload data to cloud: ${err.message}`);
                                             return;
                                         }
-                                        finally{
+                                        finally {
                                             setCommandStage('idle');
                                         }
 

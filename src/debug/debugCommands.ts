@@ -5,10 +5,12 @@ import {
   loadAllPhrases,
   openSpeechDb,
   generatePseudoUniqueId,
-  SpItem
+  SpItem,
+  syncPhrasesRows
 } from "../db/speechDb";
+import { ReceiveAllRowsFromCloud, SendDatabaseToCloud } from "../helpers/webApiWrapper";
 import { AsrService } from "../speech/asr/AsrService";
-import {dataRows} from "./testPhraseData";
+import { dataRows } from "./testPhraseData";
 
 export async function dropPhrasesTable() {
   const db = await openSpeechDb();
@@ -25,29 +27,45 @@ export async function clearDb() {
 }
 
 export async function reseedDb() {
-  await dropPhrasesTable();  
+  await dropPhrasesTable();
   await initSpeechDb();
   const db = await openSpeechDb();
-    for (const item of dataRows.data) {
-      await db.executeSql(
-        `INSERT INTO phrases(uid, topic, q, a)
+  for (const item of dataRows.data) {
+    await db.executeSql(
+      `INSERT INTO phrases(uid, topic, q, a)
          VALUES(?, ?, ?, ?);`,
-        [item.Uid, item.SheetName, item.Ru, item.En]
-      );
-    }
+      [item.Uid, item.SheetName, item.Ru, item.En]
+    );
+  }
   console.log("🌱 Database reseeded");
 }
 
+export async function synchCloudToLocal() {
+  let response = await ReceiveAllRowsFromCloud();
+  if (!response.ok) {
+    throw new Error("HTTP error " + response.status);
+  }
+  const rows = await response.json();
+  await syncPhrasesRows(rows);
+  console.log("Cloud data synchronized to local database");
+}
+
+export async function synchLocalToCloud() {
+  let rows = await loadAllPhrases();
+  await SendDatabaseToCloud(rows);
+  console.log("Local database synchronized to cloud");
+}
+
 export async function listAllRows(): Promise<void> {
-  console.log("listAllRows");  
+  console.log("listAllRows");
   const db = await openSpeechDb();
-  console.log("listAllRows1");  
+  console.log("listAllRows1");
 
   const res = await db.executeSql(`SELECT * FROM phrases ORDER BY topic;`);
-  console.log("listAllRows2");  
+  console.log("listAllRows2");
 
   const rows = res[0].rows;
-  console.log("listAllRows3");  
+  console.log("listAllRows3");
 
   for (let i = 0; i < rows.length; i++) {
     let r = rows.item(i);
@@ -57,11 +75,11 @@ export async function listAllRows(): Promise<void> {
   }
 }
 
-export async function asrinit(){
+export async function asrinit() {
   await AsrService.initAllEngines();
 }
 
-export async function asrshutdown(){
+export async function asrshutdown() {
   console.log("shutdown");
   await AsrService.shutdownAllEngines();
 }
