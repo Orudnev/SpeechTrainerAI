@@ -1,6 +1,7 @@
 package com.speechtrainerai.asr;
 
 import java.util.HashMap;
+import java.util.Locale;
 
 /**
  * Центральный реестр ASR движков.
@@ -14,11 +15,12 @@ public class AsrEngineManager {
 
     public AsrEngineManager() {
 
-        // Пока только Vosk движок (EN)
+        // Vosk движок (EN)
         engines.put("vosk-en", new VoskAsrEngine("vosk-en"));
 
-        // В будущем добавим:
-        // engines.put("android-ru", new AndroidAsrEngine());
+        // Android SpeechRecognizer движки
+        engines.put("android-en", new AndroidSpeechRecognizerAsrEngine("android-en", Locale.US));
+        engines.put("android-ru", new AndroidSpeechRecognizerAsrEngine("android-ru", new Locale("ru", "RU")));
     }
 
     public AsrEngine getEngine(String id) {
