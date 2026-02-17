@@ -34,7 +34,7 @@ import Toolbar from './Toolbar';
 import { pickNextPhraseIndex } from './phraseSelection';
 import { Appbar } from 'react-native-paper';
 import { AppContext } from '../../App';
-import { getAppSettingValue } from '../db/settings';
+import { AppSettings, getAppSettingValue } from '../db/settings';
 
 /**
  * Normalize ASR text
@@ -178,8 +178,15 @@ export default function SpeechTrainerPhrase() {
 
       await initSpeechDb();
       await seedSpeechDbIfEmpty();
-
-      const data = await loadAllPhrases();
+      const data = (await loadAllPhrases()).filter(item => {
+        if(!item.topic){
+          return false;
+        }
+        const selectedTopics = getAppSettingValue<string[]>('selectedTopics');
+        let result = selectedTopics.includes(item.topic);
+        return result;
+      });
+      
       if (data.length === 0) {
         setItems(data);
         setPhraseIndex(0);
