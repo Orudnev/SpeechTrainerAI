@@ -6,6 +6,7 @@ import { AsrEngineId } from "./types";
  */
 export const SupportedEngines: AsrEngineId[] = [
   "vosk-en",
+  "vosk-ru",
   "android-en",
   "android-ru",
 ];

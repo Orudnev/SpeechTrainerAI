@@ -176,7 +176,7 @@ export default function SpeechTrainerPhrase() {
 
   function getAsrEngineId(): AsrEngineId {
     if (getAppSettingValue<boolean>('reverseMode')) {
-      return 'android-ru';
+      return 'vosk-ru';
     } else {
       return 'vosk-en';
     }
@@ -539,7 +539,7 @@ export default function SpeechTrainerPhrase() {
           onPress={() => {
             if (!currentWord) return;
             setLastAsrResult({
-              engine: 'vosk-en',
+              engine: currentAsrId,
               type: 'final',
               text: currentWord,
             });
