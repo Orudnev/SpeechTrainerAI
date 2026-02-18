@@ -31,7 +31,7 @@ import { AnchoredOverlay } from './AnchoredOverlay';
 import { VariantPicker } from './VariantPicker';
 import Toolbar from './Toolbar';
 import { pickNextPhraseIndex } from './phraseSelection';
-import { Appbar, FAB } from 'react-native-paper';
+import { Appbar, FAB, Portal, Modal } from 'react-native-paper';
 import { AppContext } from '../../App';
 import { AppSettings, getAppSettingValue } from '../db/settings';
 
@@ -126,7 +126,6 @@ export default function SpeechTrainerPhrase() {
   const screenSize = useWindowDimensions();
   const scw = (scwUnits: number) => (screenSize.width / 100) * scwUnits;
   const sch = (scwUnits: number) => (screenSize.height / 100) * scwUnits;
-  const lstyles = StyleSheet.create({});
 
   // ============================================================
   // Core trainer state
@@ -136,6 +135,7 @@ export default function SpeechTrainerPhrase() {
   const [phase, setPhase] = useState<'speaking' | 'listening' | 'idle'>('speaking');
   const [ttsInitialized, setTtsInitialized] = useState(false);
   const reverseMode = getAppSettingValue<boolean>('reverseMode');
+  const [showCurrentItem, setShowCurrentItem] = useState(false);
   // ============================================================
   // ASR integration (SINGLE SOURCE)
   // ============================================================
@@ -480,8 +480,13 @@ export default function SpeechTrainerPhrase() {
       {hasData && (
         <>
           <Toolbar>
+            <Appbar.Action
+              icon="eye-outline"
+              onPress={() => { setShowCurrentItem(true); }}
+            />
             {(savedVariantsForCurrentWord.length > 0 ||
               variantStatsFromASR.length > 0) && (
+
                 <AnchoredOverlay
                   anchor={({ onPress }) => (
                     <Appbar.Action icon="list-status" onPress={onPress} />
@@ -507,6 +512,22 @@ export default function SpeechTrainerPhrase() {
               }}
             />
           </Toolbar>
+          <Portal>
+            <Modal visible={showCurrentItem} onDismiss={() => setShowCurrentItem(false)} contentContainerStyle={{ justifyContent: 'center', alignItems: 'center' }}>
+              <LinearGradient
+                style={[Fieldstyles.modalDetailsOfItem, { width: screenSize.width * 0.9 }]}
+                colors={['rgba(20,30,48,1)', 'rgba(36,59,85,0.95)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}>
+                <View style={{width: screenSize.width * 0.9, padding: 20}}>
+                  <Text style={Fieldstyles.fieldCaption}>Current question:</Text>
+                  <Text style={Fieldstyles.fieldValue }>{currentQuestion}</Text>
+                  <Text style={[Fieldstyles.fieldCaption,{ marginTop: 20 }]}>Current answer:</Text>
+                  <Text style={Fieldstyles.fieldValue}>{currentAnswer}</Text>
+                </View>
+              </LinearGradient>
+            </Modal>
+          </Portal>
           <View style={styles.questionSection}>
             <LinearGradient
               style={[Fieldstyles.fieldCard, { height: 200 }]}
@@ -587,6 +608,25 @@ export default function SpeechTrainerPhrase() {
 // Styles
 // ============================================================
 export const Fieldstyles = StyleSheet.create({
+  modalDetailsOfItem: {
+    borderRadius: 18,
+    overflow: 'hidden',
+
+    // glass / modern look
+    borderWidth: 2,
+    minHeight: 300,
+    borderColor: "gray",
+
+    // тень (Android + iOS)
+    elevation: 8,
+    shadowColor: '#00E5FF',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    marginTop: 15,
+    marginLeft: 15,
+    marginRight: 15,
+  },
   fieldCard: {
     borderRadius: 18,
     overflow: 'hidden',
@@ -605,6 +645,7 @@ export const Fieldstyles = StyleSheet.create({
     marginLeft: 15,
     marginRight: 15,
   },
+
   fieldCardInner: {
     paddingHorizontal: 18,
     paddingVertical: 16,
