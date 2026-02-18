@@ -1,5 +1,6 @@
 export type AsrEngineId =
   | "vosk-en"
+  | "vosk-ru"
   | "android-en"
   | "android-ru";
 

@@ -15,8 +15,9 @@ public class AsrEngineManager {
 
     public AsrEngineManager() {
 
-        // Vosk движок (EN)
+        // Vosk движки
         engines.put("vosk-en", new VoskAsrEngine("vosk-en"));
+        engines.put("vosk-ru", new VoskAsrEngine("vosk-ru"));
 
         // Android SpeechRecognizer движки
         engines.put("android-en", new AndroidSpeechRecognizerAsrEngine("android-en", Locale.US));

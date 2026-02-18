@@ -19,10 +19,10 @@ class AsrServiceImpl {
 
     await RnJavaConnector.init();
 
-    const modelPath = await RnJavaConnector.prepareModel();
-    console.log("📦 Vosk model installed:", modelPath);
+    const defaultModelPath = await RnJavaConnector.prepareModel("vosk-en");
+    console.log("📦 Vosk EN model installed:", defaultModelPath);
 
-    await RnJavaConnector.loadModel(modelPath);
+    await RnJavaConnector.loadModel(defaultModelPath);
 
     console.log("✅ ASR engines ready:", SupportedEngines);
   }
@@ -38,6 +38,12 @@ class AsrServiceImpl {
   async startSession(cfg: AsrSessionConfig) {
     const ok = await ensureAudioPermission();
     if (!ok) throw new Error("Mic permission denied");
+
+    if (cfg.engineId === "vosk-en" || cfg.engineId === "vosk-ru") {
+      const modelPath = await RnJavaConnector.prepareModel(cfg.engineId);
+      console.log("📦 Vosk model installed:", cfg.engineId, modelPath);
+      await RnJavaConnector.loadModel(modelPath);
+    }
 
     this.activeEngine = cfg.engineId;
 

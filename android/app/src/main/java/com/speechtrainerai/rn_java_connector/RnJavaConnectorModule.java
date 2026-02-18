@@ -215,13 +215,19 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
     // ============================================================
 
     @ReactMethod
-    public void prepareModel(Promise p) {
+    public void prepareModel(String engineId, Promise p) {
 
         try {
+            String assetFolderName = "vosk-model-small-en-us-0.15";
+
+            if ("vosk-ru".equals(engineId)) {
+                assetFolderName = "vosk-model-small-ru-0.22";
+            }
+
             String installedPath =
                     ModelInstaller.installModelIfNeeded(
                             getReactApplicationContext(),
-                            "vosk-model-small-en-us-0.15"
+                            assetFolderName
                     );
 
             p.resolve(installedPath);
