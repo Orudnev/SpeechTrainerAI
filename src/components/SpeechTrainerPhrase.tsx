@@ -135,9 +135,7 @@ export default function SpeechTrainerPhrase() {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [phase, setPhase] = useState<'speaking' | 'listening' | 'idle'>('speaking');
   const [ttsInitialized, setTtsInitialized] = useState(false);
-  const [reverseMode] = useState<boolean>(() =>
-    getAppSettingValue<boolean>('reverseMode'),
-  );
+  const reverseMode = getAppSettingValue<boolean>('reverseMode');
   // ============================================================
   // ASR integration (SINGLE SOURCE)
   // ============================================================
@@ -175,12 +173,21 @@ export default function SpeechTrainerPhrase() {
 
 
   function getAsrEngineId(): AsrEngineId {
-    if (getAppSettingValue<boolean>('reverseMode')) {
-      return 'vosk-ru';
+    if (getAppSettingValue<string>('asrModelType') === 'vosk') {
+      if (getAppSettingValue<boolean>('reverseMode')) {
+        return 'vosk-ru';
+      } else {
+        return 'vosk-en';
+      }
     } else {
-      return 'vosk-en';
+      if (getAppSettingValue<boolean>('reverseMode')) {
+        return 'android-ru';
+      } else {
+        return 'android-en';
+      }
     }
   }
+
   // ============================================================
   // Load DB
   // ============================================================

@@ -1,5 +1,6 @@
 export type TSettingName =
   | 'fullAccess'
+  | 'asrModelType'
   | 'reverseMode'
   | 'rowsCloudDataSource'
   | 'selectedTopics';
@@ -18,6 +19,10 @@ export const AppSettings: TsettingsItem[] = [
   {
     name: 'fullAccess',
     defaultValue: false,
+  },
+  {
+    name: 'asrModelType',
+    defaultValue: 'vosk',
   },
   {
     name: 'reverseMode',
@@ -119,7 +124,6 @@ export async function loadAppSettingsFromDb() {
       parsed = {};
     }
   }
-
   applySettingsFromObject(parsed);
 }
 

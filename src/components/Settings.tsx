@@ -8,7 +8,7 @@ import {
     Alert,
 } from 'react-native';
 import Toolbar from './Toolbar';
-import { Appbar, Button, Chip, Switch, TextInput } from 'react-native-paper';
+import { Appbar, Button, Chip, Switch, TextInput, SegmentedButtons } from 'react-native-paper';
 import { AppContext } from '../../App';
 import {
     getAppSettingValue,
@@ -28,7 +28,7 @@ export function Settings() {
     const [topics, setTopics] = useState<string[]>([]);
     const [, setSettingsVersion] = useState(0);
     const [commandStage, setCommandStage] = useState<'idle' | 'processing'>('idle');
-
+    const [asrModelType, setAsrModelType] = useState(getAppSettingValue<string>('asrModelType'));
     useEffect(() => {
         async function load() {
             await initSpeechDb();
@@ -91,6 +91,27 @@ export function Settings() {
                         />
                     </Toolbar>
                     <ScrollView contentContainerStyle={styles.content}>
+                        <View style={styles.rowBetween}>
+                            <Text style={styles.label}>ASR engine</Text>
+                            <SegmentedButtons
+                                style={{width: 200}}
+                                value={asrModelType}
+                                onValueChange={(newValue)=>{
+                                    setAsrModelType(newValue);
+                                    setAppSettingValue('asrModelType', newValue);
+                                }}
+                                buttons={[
+                                    {
+                                        value: 'vosk',
+                                        label: 'Vosk',
+                                    },
+                                    {
+                                        value: 'android',
+                                        label: 'Android',
+                                    },
+                                ]}
+                            />
+                        </View>
                         <View style={styles.rowBetween}>
                             <Text style={styles.label}>reverseMode</Text>
                             <Switch
