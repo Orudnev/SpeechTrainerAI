@@ -74,7 +74,6 @@ export async function listAllRows(): Promise<void> {
     let r = rows.item(i);
     let str1 = `${fmr(i, 3)} ${fml(r.uid,15)}cntf:${fmr(r.cntf, 5)} df:${fmr(r.df.toFixed(0),6)} dwf:${fmr(r.dwf.toFixed(0),6)} correctf:${fmr(r.correctf, 5)} streakf:${fmr(r.streakf, 5)} mssf:${fmr(MSS(r),4)} ${r.q}`;
     let str2 = `    ${fml(r.topic,15)}cntr:${fmr(r.cntr, 5)} dr:${fmr(r.dr.toFixed(0),6)} dwr:${fmr(r.dwr.toFixed(0),6)} correctr:${fmr(r.correctr, 5)} streakr:${fmr(r.streakr, 5)} mssr:${fmr(MSS(r,true),4)} ${r.a} variants:${r.variants}`;
-    let mss = MSS;
     console.log(`${str1}\n${str2}`);
   }
 }
