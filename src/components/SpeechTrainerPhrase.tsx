@@ -572,10 +572,10 @@ export default function SpeechTrainerPhrase() {
               text: currentWord,
             });
           }}
-          style={{ position: 'absolute', left: 20 }}>
+          style={{ position: 'absolute', top: -40, left: 20 }}>
           <Image
             style={{ width: 150 }}
-            source={require('../assets/NextWord.png')}
+            source={require('../assets/openword.png')}
             resizeMode="contain"
           />
         </TouchableOpacity>
@@ -592,13 +592,23 @@ export default function SpeechTrainerPhrase() {
 
         <TouchableOpacity
           onPress={handleNextPhrasePress}
-          style={{ position: 'absolute', right: 20 }}>
+          style={{ position: 'absolute', top: -40, right: 20 }}>
           <Image
             style={{ width: 150 }}
-            source={require('../assets/NextPhrase.png')}
+            source={require('../assets/skipphrase.png')}
             resizeMode="contain"
           />
         </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleNextPhrasePress}
+          style={{ position: 'absolute', top: 40,right: 20 }}>
+          <Image
+            style={{ width: 150 }}
+            source={require('../assets/cannotremember.png')}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+
       </View>
     </View>
   );
