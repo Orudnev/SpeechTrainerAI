@@ -71,8 +71,8 @@ export async function listAllRows(): Promise<void> {
   };
   for (let i = 0; i < rows.length; i++) {
     let r = rows.item(i);
-    let str1 = `${fmr(i, 3)} ${fml(r.uid,15)}cntf:${fmr(r.cntf, 5)}\tdf:${fmr(r.df.toFixed(0),6)} \tdwf:${fmr(r.dwf.toFixed(0),6)} \tcorrectf:${fmr(r.correctf, 5)} \tstreakf:${fmr(r.streakf, 5)} \t${r.q}`;
-    let str2 = `    ${fml(r.topic,15)}cntr:${fmr(r.cntr, 5)}\tdr:${fmr(r.dr.toFixed(0),6)} \tdwr:${fmr(r.dwr.toFixed(0),6)} \tcorrectr:${fmr(r.correctr, 5)} \tstreakr:${fmr(r.streakr, 5)} \t${r.a} variants:${r.variants}`;
+    let str1 = `${fmr(i, 3)} ${fml(r.uid,15)}cntf:${fmr(r.cntf, 5)}\tdf:${fmr(r.df.toFixed(0),6)} \tdwf:${fmr(r.dwf.toFixed(0),6)} \tcorrectf:${fmr(r.correctf, 5)} \tstreakf:${fmr(r.streakf, 5)} \t${r.q}\tmssf:${r.mssf}`;
+    let str2 = `    ${fml(r.topic,15)}cntr:${fmr(r.cntr, 5)}\tdr:${fmr(r.dr.toFixed(0),6)} \tdwr:${fmr(r.dwr.toFixed(0),6)} \tcorrectr:${fmr(r.correctr, 5)} \tstreakr:${fmr(r.streakr, 5)}\t${r.q}\tmssf:${r.mssf} \t${r.a} variants:${r.variants}`;
     console.log(`${str1}\n${str2}`);
   }
 }
