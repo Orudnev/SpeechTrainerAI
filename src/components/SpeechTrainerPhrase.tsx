@@ -600,7 +600,7 @@ export default function SpeechTrainerPhrase() {
           />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={handleNextPhrasePress}
+          onPress={()=>{}}
           style={{ position: 'absolute', top: 40,right: 20 }}>
           <Image
             style={{ width: 150 }}
