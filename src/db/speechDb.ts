@@ -57,6 +57,28 @@ export type SpItemResult = Pick<
   "cntf" | "cntr" | "df" | "dr" | "dwf" | "dwr" | "tsf" | "tsr"| "correctf" | "correctr" | "streakf" | "streakr"
 >;
 
+function getMssExpression(
+  correctCol: string,
+  cntCol: string,
+  streakCol: string,
+  dwCol: string,
+  tsCol: string,
+) {
+  return `
+    100.0
+    * ((${correctCol} + 1.0) / (${cntCol} + 2.0))
+    * (0.5 + 0.5 * min(1.0, max(0.3, 1.0 - (${dwCol} / 800.0))))
+    * min(
+      1.0,
+      max(
+        0.3,
+        (log((((strftime('%s', 'now') * 1000.0) - ${tsCol}) / 86400000.0) + 1.0) / log(2.0)) / 5.0
+      )
+    )
+    * min(1.0, max(0.5, 0.5 + (${streakCol} / 20.0)))
+  `;
+}
+
 let db: SQLiteDatabase | null = null;
 
 /**
@@ -99,30 +121,10 @@ export async function initSpeechDb() {
       streakf INTEGER DEFAULT 0,
       streakr INTEGER DEFAULT 0,
       mssf REAL GENERATED ALWAYS AS (
-        100.0
-        * ((correctf + 1.0) / (cntf + 2.0))
-        * (0.5 + 0.5 * min(1.0, max(0.3, 1.0 - (dwf / 800.0))))
-        * min(
-          1.0,
-          max(
-            0.3,
-            (log((((strftime('%s', 'now') * 1000.0) - tsf) / 86400000.0) + 1.0) / log(2.0)) / 5.0
-          )
-        )
-        * min(1.0, max(0.5, 0.5 + (streakf / 20.0)))
+        ${getMssExpression("correctf", "cntf", "streakf", "dwf", "tsf")}
       ) VIRTUAL,
       mssr REAL GENERATED ALWAYS AS (
-        100.0
-        * ((correctr + 1.0) / (cntr + 2.0))
-        * (0.5 + 0.5 * min(1.0, max(0.3, 1.0 - (dwr / 800.0))))
-        * min(
-          1.0,
-          max(
-            0.3,
-            (log((((strftime('%s', 'now') * 1000.0) - tsr) / 86400000.0) + 1.0) / log(2.0)) / 5.0
-          )
-        )
-        * min(1.0, max(0.5, 0.5 + (streakr / 20.0)))
+        ${getMssExpression("correctr", "cntr", "streakr", "dwr", "tsr")}
       ) VIRTUAL
     );
   `);
@@ -138,17 +140,7 @@ export async function initSpeechDb() {
     await db.executeSql(`
       ALTER TABLE phrases
       ADD COLUMN mssf REAL GENERATED ALWAYS AS (
-        100.0
-        * ((correctf + 1.0) / (cntf + 2.0))
-        * (0.5 + 0.5 * min(1.0, max(0.3, 1.0 - (dwf / 800.0))))
-        * min(
-          1.0,
-          max(
-            0.3,
-            (log((((strftime('%s', 'now') * 1000.0) - tsf) / 86400000.0) + 1.0) / log(2.0)) / 5.0
-          )
-        )
-        * min(1.0, max(0.5, 0.5 + (streakf / 20.0)))
+        ${getMssExpression("correctf", "cntf", "streakf", "dwf", "tsf")}
       ) VIRTUAL;
     `);
   }
@@ -157,17 +149,7 @@ export async function initSpeechDb() {
     await db.executeSql(`
       ALTER TABLE phrases
       ADD COLUMN mssr REAL GENERATED ALWAYS AS (
-        100.0
-        * ((correctr + 1.0) / (cntr + 2.0))
-        * (0.5 + 0.5 * min(1.0, max(0.3, 1.0 - (dwr / 800.0))))
-        * min(
-          1.0,
-          max(
-            0.3,
-            (log((((strftime('%s', 'now') * 1000.0) - tsr) / 86400000.0) + 1.0) / log(2.0)) / 5.0
-          )
-        )
-        * min(1.0, max(0.5, 0.5 + (streakr / 20.0)))
+        ${getMssExpression("correctr", "cntr", "streakr", "dwr", "tsr")}
       ) VIRTUAL;
     `);
   }
