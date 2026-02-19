@@ -6,7 +6,8 @@ import {
   openSpeechDb,
   generatePseudoUniqueId,
   SpItem,
-  syncPhrasesRows
+  syncPhrasesRows,
+  MSS
 } from "../db/speechDb";
 import { ReceiveAllRowsFromCloud, SendDatabaseToCloud } from "../helpers/webApiWrapper";
 import { AsrService } from "../speech/asr/AsrService";
@@ -64,15 +65,16 @@ export async function listAllRows(): Promise<void> {
   const rows = res[0].rows;
 
   const fml = (o:any, length: number) => {
-    return o.toString().padEnd(length, " ");
+    return o.toString().padEnd(length, " ").substr(0,length);
   };
   const fmr = (o:any, length: number) => {
-    return o.toString().padStart(length, " ");
+    return o.toString().padStart(length, " ").substr(0,length);
   };
   for (let i = 0; i < rows.length; i++) {
     let r = rows.item(i);
-    let str1 = `${fmr(i, 3)} ${fml(r.uid,15)}cntf:${fmr(r.cntf, 5)}\tdf:${fmr(r.df.toFixed(0),6)} \tdwf:${fmr(r.dwf.toFixed(0),6)} \tcorrectf:${fmr(r.correctf, 5)} \tstreakf:${fmr(r.streakf, 5)} \t${r.q}\tmssf:${r.mssf}`;
-    let str2 = `    ${fml(r.topic,15)}cntr:${fmr(r.cntr, 5)}\tdr:${fmr(r.dr.toFixed(0),6)} \tdwr:${fmr(r.dwr.toFixed(0),6)} \tcorrectr:${fmr(r.correctr, 5)} \tstreakr:${fmr(r.streakr, 5)}\t${r.q}\tmssf:${r.mssf} \t${r.a} variants:${r.variants}`;
+    let str1 = `${fmr(i, 3)} ${fml(r.uid,15)}cntf:${fmr(r.cntf, 5)}\tdf:${fmr(r.df.toFixed(0),6)} \tdwf:${fmr(r.dwf.toFixed(0),6)} \tcorrectf:${fmr(r.correctf, 5)} \tstreakf:${fmr(r.streakf, 5)}\tmssf:${fmr(MSS(r),4)} ${r.q}`;
+    let str2 = `    ${fml(r.topic,15)}cntr:${fmr(r.cntr, 5)}\tdr:${fmr(r.dr.toFixed(0),6)} \tdwr:${fmr(r.dwr.toFixed(0),6)} \tcorrectr:${fmr(r.correctr, 5)} \tstreakr:${fmr(r.streakr, 5)}\tmssr:${fmr(MSS(r,true),4)}\t${r.q} ${r.a} variants:${r.variants}`;
+    let mss = MSS;
     console.log(`${str1}\n${str2}`);
   }
 }

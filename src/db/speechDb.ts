@@ -48,43 +48,33 @@ export type SpItem = {
   correctr?: number; //количество правильных ответов в обратном режиме
   streakf?: number; //текущая серия правильных ответов в прямом режиме
   streakr?: number; //текущая серия правильных ответов в обратном режиме
-  mssf?: number; //вычисляемый memory stability score для прямого режима
-  mssr?: number; //вычисляемый memory stability score для обратного режима
 };
+
+export function MSS(row:SpItem,isReverse = false){
+  function clamp(value:number,minValue:number,maxValue:number){
+    if(value < minValue) return minValue;
+    if(value > maxValue) return maxValue;
+    return value;
+  }
+  let correct = (isReverse ? row.correctr : row.correctf) ?? 0;
+  let dw = (isReverse ? row.dwr : row.dwf) ?? 0;
+  let streak = (isReverse ? row.streakr : row.streakf) ?? 0;
+  let cnt = (isReverse ? row.cntr : row.cntf) ?? 0;
+  let ts = (isReverse ? row.tsr : row.tsf) ?? 0;
+  
+  let R = (correct + 1) / (cnt + 2);
+  let SpeedFactor = clamp(1 - (dw / 800), 0.3, 1);
+  let days = (Date.now() - ts) / 86400000;
+  let IntervalFactor = clamp(Math.log2(days + 1) / 5, 0.3, 1);
+  let StabilityFactor = clamp(0.5 + streak / 20, 0.5, 1);
+  let result = 100 * R * (0.5 + 0.5 * SpeedFactor) * IntervalFactor * StabilityFactor;
+  return result;
+}
 
 export type SpItemResult = Pick<
   SpItem,
   "cntf" | "cntr" | "df" | "dr" | "dwf" | "dwr" | "tsf" | "tsr"| "correctf" | "correctr" | "streakf" | "streakr"
 >;
-
-function getMssExpression(
-  correctCol: string,
-  cntCol: string,
-  streakCol: string,
-  dwCol: string,
-  tsCol: string,
-) {
-  return `
-    100.0
-    * ((${correctCol} + 1.0) / (${cntCol} + 2.0))
-    * (0.5 + 0.5 * min(1.0, max(0.3, 1.0 - (${dwCol} / 800.0))))
-    * min(
-      1.0,
-      max(
-        0.3,
-        (((((strftime('%s', 'now') * 1000.0) - ${tsCol}) / 86400000.0) + 1.0) / 5.0)
-      )
-    )
-    * min(1.0, max(0.5, 0.5 + (${streakCol} / 20.0)))
-  `;
-}
-
-function getMssSelectClause() {
-  return `
-    ${getMssExpression("correctf", "cntf", "streakf", "dwf", "tsf")} AS mssf,
-    ${getMssExpression("correctr", "cntr", "streakr", "dwr", "tsr")} AS mssr
-  `;
-}
 
 let db: SQLiteDatabase | null = null;
 
@@ -130,68 +120,6 @@ export async function initSpeechDb() {
     );
   `);
 
-
-  const tableSchemaRes = await db.executeSql(`
-    SELECT sql
-    FROM sqlite_master
-    WHERE type='table' AND name='phrases';
-  `);
-
-  const tableSql = tableSchemaRes[0].rows.length
-    ? String(tableSchemaRes[0].rows.item(0).sql ?? "")
-    : "";
-
-  const tableInfoRes = await db.executeSql(`PRAGMA table_xinfo(phrases);`);
-  const hasLegacyComputedColumns = Array.from(
-    { length: tableInfoRes[0].rows.length },
-    (_, index) => String(tableInfoRes[0].rows.item(index).name ?? "").toLowerCase()
-  ).some((name) => name === "mssf" || name === "mssr");
-
-  if (
-    tableSql.toLowerCase().includes("log(")
-    || tableSql.toLowerCase().includes("generated always")
-    || hasLegacyComputedColumns
-  ) {
-    await db.executeSql(`ALTER TABLE phrases RENAME TO phrases_legacy;`);
-
-    await db.executeSql(`
-      CREATE TABLE phrases (
-        uid TEXT PRIMARY KEY,
-        topic TEXT NOT NULL,
-        q TEXT NOT NULL,
-        a TEXT NOT NULL,
-        variants TEXT DEFAULT NULL,
-        cntf INTEGER DEFAULT 0,
-        cntr INTEGER DEFAULT 0,
-        df REAL DEFAULT 0,
-        dr REAL DEFAULT 0,
-        dwf REAL DEFAULT 0,
-        dwr REAL DEFAULT 0,
-        tsf INTEGER DEFAULT 0,
-        tsr INTEGER DEFAULT 0,
-        correctf INTEGER DEFAULT 0,
-        correctr INTEGER DEFAULT 0,
-        streakf INTEGER DEFAULT 0,
-        streakr INTEGER DEFAULT 0
-      );
-    `);
-
-    await db.executeSql(`
-      INSERT INTO phrases (
-        uid, topic, q, a, variants,
-        cntf, cntr, df, dr, dwf, dwr, tsf, tsr,
-        correctf, correctr, streakf, streakr
-      )
-      SELECT
-        uid, topic, q, a, variants,
-        cntf, cntr, df, dr, dwf, dwr, tsf, tsr,
-        correctf, correctr, streakf, streakr
-      FROM phrases_legacy;
-    `);
-
-    await db.executeSql(`DROP TABLE phrases_legacy;`);
-  }
-
   await db.executeSql(`
     CREATE TABLE IF NOT EXISTS appSettings (
       settings TEXT DEFAULT NULL
@@ -206,13 +134,7 @@ export async function initSpeechDb() {
 export async function loadAllPhrases(): Promise<SpItem[]> {
   const db = await openSpeechDb();
 
-  const res = await db.executeSql(`
-    SELECT
-      phrases.*,
-      ${getMssSelectClause()}
-    FROM phrases
-    ORDER BY topic;
-  `);
+  const res = await db.executeSql(`SELECT * FROM phrases ORDER BY topic;`);
 
   const rows = res[0].rows;
   const items: SpItem[] = [];
