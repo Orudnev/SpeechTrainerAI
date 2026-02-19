@@ -79,6 +79,13 @@ function getMssExpression(
   `;
 }
 
+function getMssSelectClause() {
+  return `
+    ${getMssExpression("correctf", "cntf", "streakf", "dwf", "tsf")} AS mssf,
+    ${getMssExpression("correctr", "cntr", "streakr", "dwr", "tsr")} AS mssr
+  `;
+}
+
 let db: SQLiteDatabase | null = null;
 
 /**
@@ -119,40 +126,9 @@ export async function initSpeechDb() {
       correctf INTEGER DEFAULT 0,
       correctr INTEGER DEFAULT 0,
       streakf INTEGER DEFAULT 0,
-      streakr INTEGER DEFAULT 0,
-      mssf REAL GENERATED ALWAYS AS (
-        ${getMssExpression("correctf", "cntf", "streakf", "dwf", "tsf")}
-      ) VIRTUAL,
-      mssr REAL GENERATED ALWAYS AS (
-        ${getMssExpression("correctr", "cntr", "streakr", "dwr", "tsr")}
-      ) VIRTUAL
+      streakr INTEGER DEFAULT 0
     );
   `);
-
-  const tableInfo = await db.executeSql(`PRAGMA table_xinfo(phrases);`);
-  const columns: string[] = [];
-  const rows = tableInfo[0].rows;
-  for (let i = 0; i < rows.length; i++) {
-    columns.push(rows.item(i).name);
-  }
-
-  if (!columns.includes("mssf")) {
-    await db.executeSql(`
-      ALTER TABLE phrases
-      ADD COLUMN mssf REAL GENERATED ALWAYS AS (
-        ${getMssExpression("correctf", "cntf", "streakf", "dwf", "tsf")}
-      ) VIRTUAL;
-    `);
-  }
-
-  if (!columns.includes("mssr")) {
-    await db.executeSql(`
-      ALTER TABLE phrases
-      ADD COLUMN mssr REAL GENERATED ALWAYS AS (
-        ${getMssExpression("correctr", "cntr", "streakr", "dwr", "tsr")}
-      ) VIRTUAL;
-    `);
-  }
 
 
   const tableSchemaRes = await db.executeSql(`
@@ -186,13 +162,7 @@ export async function initSpeechDb() {
         correctf INTEGER DEFAULT 0,
         correctr INTEGER DEFAULT 0,
         streakf INTEGER DEFAULT 0,
-        streakr INTEGER DEFAULT 0,
-        mssf REAL GENERATED ALWAYS AS (
-          ${getMssExpression("correctf", "cntf", "streakf", "dwf", "tsf")}
-        ) VIRTUAL,
-        mssr REAL GENERATED ALWAYS AS (
-          ${getMssExpression("correctr", "cntr", "streakr", "dwr", "tsr")}
-        ) VIRTUAL
+        streakr INTEGER DEFAULT 0
       );
     `);
 
@@ -226,7 +196,13 @@ export async function initSpeechDb() {
 export async function loadAllPhrases(): Promise<SpItem[]> {
   const db = await openSpeechDb();
 
-  const res = await db.executeSql(`SELECT * FROM phrases ORDER BY topic;`);
+  const res = await db.executeSql(`
+    SELECT
+      phrases.*,
+      ${getMssSelectClause()}
+    FROM phrases
+    ORDER BY topic;
+  `);
 
   const rows = res[0].rows;
   const items: SpItem[] = [];
