@@ -57,20 +57,22 @@ export async function synchLocalToCloud() {
 }
 
 export async function listAllRows(): Promise<void> {
-  console.log("listAllRows");
   const db = await openSpeechDb();
-  console.log("listAllRows1");
 
   const res = await db.executeSql(`SELECT * FROM phrases ORDER BY topic;`);
-  console.log("listAllRows2");
 
   const rows = res[0].rows;
-  console.log("listAllRows3");
 
+  const fml = (o:any, length: number) => {
+    return o.toString().padEnd(length, " ");
+  };
+  const fmr = (o:any, length: number) => {
+    return o.toString().padStart(length, " ");
+  };
   for (let i = 0; i < rows.length; i++) {
     let r = rows.item(i);
-    let str1 = `${i}\t${r.uid}\tcntf:${r.cntf} \tdf:${r.df} \tdwf:${r.dwf} \t${r.q}`;
-    let str2 = `\t${r.topic}\t\tcntr:${r.cntr} \tdr:${r.dr} \tdwr:${r.dwr} \t${r.a} variants:${r.variants}`;
+    let str1 = `${fmr(i, 3)} ${fml(r.uid,15)}cntf:${fmr(r.cntf, 5)}\tdf:${fmr(r.df.toFixed(0),6)} \tdwf:${fmr(r.dwf.toFixed(0),6)} \tcorrectf:${fmr(r.correctf, 5)} \tstreakf:${fmr(r.streakf, 5)} \t${r.q}`;
+    let str2 = `    ${fml(r.topic,15)}cntr:${fmr(r.cntr, 5)}\tdr:${fmr(r.dr.toFixed(0),6)} \tdwr:${fmr(r.dwr.toFixed(0),6)} \tcorrectr:${fmr(r.correctr, 5)} \tstreakr:${fmr(r.streakr, 5)} \t${r.a} variants:${r.variants}`;
     console.log(`${str1}\n${str2}`);
   }
 }

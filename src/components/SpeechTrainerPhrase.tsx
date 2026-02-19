@@ -64,6 +64,7 @@ function buildResultUpdate(
   currentAnswer: string,
   listeningStartedAt: number | null,
   reverseMode: boolean,
+  resetStreakOnError: boolean = false,
 ): ResultUpdate {
   const now = Date.now();
   const durationMs = listeningStartedAt
@@ -78,6 +79,16 @@ function buildResultUpdate(
 
   const prevCount = reverseMode ? rawItem.cntr ?? 0 : rawItem.cntf ?? 0;
   const nextCount = prevCount + 1;
+
+  const prevCorrectCount = reverseMode ? rawItem.correctr ?? 0 : rawItem.correctf ?? 0;
+  const nextCorrectCount = prevCorrectCount + 1;
+
+  const prevStreak = reverseMode ? rawItem.streakr ?? 0 : rawItem.streakf ?? 0;
+  let nextStreak = resetStreakOnError ? 0 : prevStreak + 1;
+
+  if(resetStreakOnError) {
+    nextStreak = Math.floor(prevStreak / 2);
+  }
 
   const prevDurationAvg = reverseMode ? rawItem.dr ?? 0 : rawItem.df ?? 0;
   const prevWordAvg = reverseMode ? rawItem.dwr ?? 0 : rawItem.dwf ?? 0;
@@ -98,12 +109,16 @@ function buildResultUpdate(
       dr: nextDurationAvg,
       dwr: nextWordAvg,
       tsr: now,
+      correctr: nextCorrectCount,
+      streakr: nextStreak,  
     }
     : {
       cntf: nextCount,
       df: nextDurationAvg,
       dwf: nextWordAvg,
       tsf: now,
+      correctf: nextCorrectCount,
+      streakf: nextStreak,        
     };
 
   return {
@@ -117,6 +132,10 @@ function buildResultUpdate(
       dwr: patch.dwr ?? rawItem.dwr ?? 0,
       tsf: patch.tsf ?? rawItem.tsf ?? 0,
       tsr: patch.tsr ?? rawItem.tsr ?? 0,
+      correctf: patch.correctf ?? rawItem.correctf ?? 0,
+      correctr: patch.correctr ?? rawItem.correctr ?? 0,
+      streakf: patch.streakf ?? rawItem.streakf ?? 0,
+      streakr: patch.streakr ?? rawItem.streakr ?? 0,
     },
   };
 }
@@ -346,10 +365,10 @@ export default function SpeechTrainerPhrase() {
   // ============================================================
   // Phrase matched callback
   // ============================================================
-  async function handleMatched() {
+  async function handleMatched(resetStreakOnError: boolean = false) {
     if (!rawItem || phase !== 'listening' || handlingMatchRef.current) return;
     handlingMatchRef.current = true;
-
+ 
     try {
       setPhase('speaking');
 
@@ -358,6 +377,7 @@ export default function SpeechTrainerPhrase() {
         currentAnswer,
         listeningStartedAt,
         reverseMode,
+        resetStreakOnError
       );
 
       await saveResultToPhrase(rawItem.uid, resultToPersist);
@@ -600,7 +620,9 @@ export default function SpeechTrainerPhrase() {
           />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={()=>{}}
+          onPress={()=>{
+            handleMatched(true)
+          }}
           style={{ position: 'absolute', top: 40,right: 20 }}>
           <Image
             style={{ width: 150 }}

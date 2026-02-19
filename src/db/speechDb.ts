@@ -52,7 +52,7 @@ export type SpItem = {
 
 export type SpItemResult = Pick<
   SpItem,
-  "cntf" | "cntr" | "df" | "dr" | "dwf" | "dwr" | "tsf" | "tsr"
+  "cntf" | "cntr" | "df" | "dr" | "dwf" | "dwr" | "tsf" | "tsr"| "correctf" | "correctr" | "streakf" | "streakr"
 >;
 
 let db: SQLiteDatabase | null = null;
@@ -90,8 +90,12 @@ export async function initSpeechDb() {
       dr REAL DEFAULT 0,
       dwf REAL DEFAULT 0,
       dwr REAL DEFAULT 0,
-      tsf INTEGER DEFAULT NULL,
-      tsr INTEGER DEFAULT NULL
+      tsf INTEGER DEFAULT 0,
+      tsr INTEGER DEFAULT 0,
+      correctf INTEGER DEFAULT 0,
+      correctr INTEGER DEFAULT 0,
+      streakf INTEGER DEFAULT 0,
+      streakr INTEGER DEFAULT 0
     );
   `);
 
@@ -154,7 +158,7 @@ export async function saveResultToPhrase(
 
   await db.executeSql(
     `UPDATE phrases
-      SET cntf=?, cntr=?, df=?, dr=?, dwf=?, dwr=?, tsf=?, tsr=?
+      SET cntf=?, cntr=?, df=?, dr=?, dwf=?, dwr=?, tsf=?, tsr=?, correctf=?, correctr=?, streakf=?, streakr=?
       WHERE uid=?`,
     [
       result.cntf ?? 0,
@@ -163,8 +167,12 @@ export async function saveResultToPhrase(
       result.dr ?? 0,
       result.dwf ?? 0,
       result.dwr ?? 0,
-      result.tsf ?? null,
-      result.tsr ?? null,
+      result.tsf ?? 0,
+      result.tsr ?? 0,
+      result.correctf ?? 0,
+      result.correctr ?? 0,
+      result.streakf ?? 0,
+      result.streakr ?? 0,
       uid,
     ]
   );
@@ -191,7 +199,7 @@ export async function syncPhrasesRows(rows: any[]) {
     if (existing[0].rows.length > 0) {
       await db.executeSql(
         `UPDATE phrases
-          SET topic=?, q=?, a=?, variants=?, cntf=?, cntr=?, df=?, dr=?, dwf=?, dwr=?, tsf=?, tsr=?
+          SET topic=?, q=?, a=?, variants=?, cntf=?, cntr=?, df=?, dr=?, dwf=?, dwr=?, tsf=?, tsr=?, correctf=?, correctr=?, streakf=?, streakr=?
           WHERE uid=?`,
         [
           row.topic,
@@ -206,6 +214,10 @@ export async function syncPhrasesRows(rows: any[]) {
           row.dwr ?? 0,
           row.tsf ?? null,
           row.tsr ?? null,
+          row.correctf ?? 0,
+          row.correctr ?? 0,
+          row.streakf ?? 0,
+          row.streakr ?? 0,
           row.uid,
         ]
       );
