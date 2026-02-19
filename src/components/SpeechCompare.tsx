@@ -233,7 +233,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   status: {
-    marginTop: 12,
+    marginLeft: 17,
+    color:"#06a81c",
     fontSize: 18,
     fontWeight: "800",
   },

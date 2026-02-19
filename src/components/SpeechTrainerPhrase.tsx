@@ -560,16 +560,6 @@ export default function SpeechTrainerPhrase() {
               </View>
             </LinearGradient>
           </View>
-
-          {/* <Text style={styles.currentWord}>
-              Current word: {currentWord}
-            </Text> */}
-
-          {/* {phase === "speaking" && (
-              <Text style={styles.phase}>
-                🔊 Озвучивание...
-              </Text>
-            )} */}
         </>
       )}
 
