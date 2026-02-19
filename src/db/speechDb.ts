@@ -72,7 +72,7 @@ function getMssExpression(
       1.0,
       max(
         0.3,
-        (log((((strftime('%s', 'now') * 1000.0) - ${tsCol}) / 86400000.0) + 1.0) / log(2.0)) / 5.0
+        (((((strftime('%s', 'now') * 1000.0) - ${tsCol}) / 86400000.0) + 1.0) / 5.0)
       )
     )
     * min(1.0, max(0.5, 0.5 + (${streakCol} / 20.0)))
@@ -152,6 +152,64 @@ export async function initSpeechDb() {
         ${getMssExpression("correctr", "cntr", "streakr", "dwr", "tsr")}
       ) VIRTUAL;
     `);
+  }
+
+
+  const tableSchemaRes = await db.executeSql(`
+    SELECT sql
+    FROM sqlite_master
+    WHERE type='table' AND name='phrases';
+  `);
+
+  const tableSql = tableSchemaRes[0].rows.length
+    ? String(tableSchemaRes[0].rows.item(0).sql ?? "")
+    : "";
+
+  if (tableSql.toLowerCase().includes("log(")) {
+    await db.executeSql(`ALTER TABLE phrases RENAME TO phrases_legacy;`);
+
+    await db.executeSql(`
+      CREATE TABLE phrases (
+        uid TEXT PRIMARY KEY,
+        topic TEXT NOT NULL,
+        q TEXT NOT NULL,
+        a TEXT NOT NULL,
+        variants TEXT DEFAULT NULL,
+        cntf INTEGER DEFAULT 0,
+        cntr INTEGER DEFAULT 0,
+        df REAL DEFAULT 0,
+        dr REAL DEFAULT 0,
+        dwf REAL DEFAULT 0,
+        dwr REAL DEFAULT 0,
+        tsf INTEGER DEFAULT 0,
+        tsr INTEGER DEFAULT 0,
+        correctf INTEGER DEFAULT 0,
+        correctr INTEGER DEFAULT 0,
+        streakf INTEGER DEFAULT 0,
+        streakr INTEGER DEFAULT 0,
+        mssf REAL GENERATED ALWAYS AS (
+          ${getMssExpression("correctf", "cntf", "streakf", "dwf", "tsf")}
+        ) VIRTUAL,
+        mssr REAL GENERATED ALWAYS AS (
+          ${getMssExpression("correctr", "cntr", "streakr", "dwr", "tsr")}
+        ) VIRTUAL
+      );
+    `);
+
+    await db.executeSql(`
+      INSERT INTO phrases (
+        uid, topic, q, a, variants,
+        cntf, cntr, df, dr, dwf, dwr, tsf, tsr,
+        correctf, correctr, streakf, streakr
+      )
+      SELECT
+        uid, topic, q, a, variants,
+        cntf, cntr, df, dr, dwf, dwr, tsf, tsr,
+        correctf, correctr, streakf, streakr
+      FROM phrases_legacy;
+    `);
+
+    await db.executeSql(`DROP TABLE phrases_legacy;`);
   }
 
   await db.executeSql(`
