@@ -48,6 +48,8 @@ export type SpItem = {
   correctr?: number; //количество правильных ответов в обратном режиме
   streakf?: number; //текущая серия правильных ответов в прямом режиме
   streakr?: number; //текущая серия правильных ответов в обратном режиме
+  mssf?: number; //вычисляемый memory stability score для прямого режима
+  mssr?: number; //вычисляемый memory stability score для обратного режима
 };
 
 export type SpItemResult = Pick<
@@ -95,9 +97,80 @@ export async function initSpeechDb() {
       correctf INTEGER DEFAULT 0,
       correctr INTEGER DEFAULT 0,
       streakf INTEGER DEFAULT 0,
-      streakr INTEGER DEFAULT 0
+      streakr INTEGER DEFAULT 0,
+      mssf REAL GENERATED ALWAYS AS (
+        100.0
+        * ((correctf + 1.0) / (cntf + 2.0))
+        * (0.5 + 0.5 * min(1.0, max(0.3, 1.0 - (dwf / 800.0))))
+        * min(
+          1.0,
+          max(
+            0.3,
+            (log((((strftime('%s', 'now') * 1000.0) - tsf) / 86400000.0) + 1.0) / log(2.0)) / 5.0
+          )
+        )
+        * min(1.0, max(0.5, 0.5 + (streakf / 20.0)))
+      ) VIRTUAL,
+      mssr REAL GENERATED ALWAYS AS (
+        100.0
+        * ((correctr + 1.0) / (cntr + 2.0))
+        * (0.5 + 0.5 * min(1.0, max(0.3, 1.0 - (dwr / 800.0))))
+        * min(
+          1.0,
+          max(
+            0.3,
+            (log((((strftime('%s', 'now') * 1000.0) - tsr) / 86400000.0) + 1.0) / log(2.0)) / 5.0
+          )
+        )
+        * min(1.0, max(0.5, 0.5 + (streakr / 20.0)))
+      ) VIRTUAL
     );
   `);
+
+  const tableInfo = await db.executeSql(`PRAGMA table_xinfo(phrases);`);
+  const columns: string[] = [];
+  const rows = tableInfo[0].rows;
+  for (let i = 0; i < rows.length; i++) {
+    columns.push(rows.item(i).name);
+  }
+
+  if (!columns.includes("mssf")) {
+    await db.executeSql(`
+      ALTER TABLE phrases
+      ADD COLUMN mssf REAL GENERATED ALWAYS AS (
+        100.0
+        * ((correctf + 1.0) / (cntf + 2.0))
+        * (0.5 + 0.5 * min(1.0, max(0.3, 1.0 - (dwf / 800.0))))
+        * min(
+          1.0,
+          max(
+            0.3,
+            (log((((strftime('%s', 'now') * 1000.0) - tsf) / 86400000.0) + 1.0) / log(2.0)) / 5.0
+          )
+        )
+        * min(1.0, max(0.5, 0.5 + (streakf / 20.0)))
+      ) VIRTUAL;
+    `);
+  }
+
+  if (!columns.includes("mssr")) {
+    await db.executeSql(`
+      ALTER TABLE phrases
+      ADD COLUMN mssr REAL GENERATED ALWAYS AS (
+        100.0
+        * ((correctr + 1.0) / (cntr + 2.0))
+        * (0.5 + 0.5 * min(1.0, max(0.3, 1.0 - (dwr / 800.0))))
+        * min(
+          1.0,
+          max(
+            0.3,
+            (log((((strftime('%s', 'now') * 1000.0) - tsr) / 86400000.0) + 1.0) / log(2.0)) / 5.0
+          )
+        )
+        * min(1.0, max(0.5, 0.5 + (streakr / 20.0)))
+      ) VIRTUAL;
+    `);
+  }
 
   await db.executeSql(`
     CREATE TABLE IF NOT EXISTS appSettings (
