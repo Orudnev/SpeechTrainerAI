@@ -141,7 +141,17 @@ export async function initSpeechDb() {
     ? String(tableSchemaRes[0].rows.item(0).sql ?? "")
     : "";
 
-  if (tableSql.toLowerCase().includes("log(")) {
+  const tableInfoRes = await db.executeSql(`PRAGMA table_xinfo(phrases);`);
+  const hasLegacyComputedColumns = Array.from(
+    { length: tableInfoRes[0].rows.length },
+    (_, index) => String(tableInfoRes[0].rows.item(index).name ?? "").toLowerCase()
+  ).some((name) => name === "mssf" || name === "mssr");
+
+  if (
+    tableSql.toLowerCase().includes("log(")
+    || tableSql.toLowerCase().includes("generated always")
+    || hasLegacyComputedColumns
+  ) {
     await db.executeSql(`ALTER TABLE phrases RENAME TO phrases_legacy;`);
 
     await db.executeSql(`
