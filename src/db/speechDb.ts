@@ -50,6 +50,12 @@ export type SpItem = {
   streakr?: number; //текущая серия правильных ответов в обратном режиме
 };
 
+export type SpItemExport = SpItem & {
+  mssf: number; // MSS для прямого режима
+  mssr: number; // MSS для обратного режима
+};
+
+
 export function MSS(row:SpItem,isReverse = false){
   function clamp(value:number,minValue:number,maxValue:number){
     if(value < minValue) return minValue;
@@ -68,6 +74,19 @@ export function MSS(row:SpItem,isReverse = false){
   let IntervalFactor = clamp(Math.log2(days + 1) / 5, 0.3, 1);
   let StabilityFactor = clamp(0.5 + streak / 20, 0.5, 1);
   let result = 100 * R * (0.5 + 0.5 * SpeedFactor) * IntervalFactor * StabilityFactor;
+  return result;
+}
+
+export function calcNextReviewTs(mss: number,ts:number): number {
+  const lastAccessDate = new Date(ts);
+  const dayInMs = 86400000;
+  let days = 0;
+  if(mss > 90) days = 90
+  else if(mss > 80) days = 21;
+  else if(mss > 70) days = 7;
+  else if(mss > 50) days = 3;
+  else if(mss > 40) days = 1;
+  let result = ts + days * dayInMs;
   return result;
 }
 

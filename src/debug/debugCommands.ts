@@ -7,7 +7,8 @@ import {
   generatePseudoUniqueId,
   SpItem,
   syncPhrasesRows,
-  MSS
+  MSS,
+  SpItemExport
 } from "../db/speechDb";
 import { ReceiveAllRowsFromCloud, SendDatabaseToCloud } from "../helpers/webApiWrapper";
 import { AsrService } from "../speech/asr/AsrService";
@@ -53,7 +54,12 @@ export async function synchCloudToLocal() {
 
 export async function synchLocalToCloud() {
   let rows = await loadAllPhrases();
-  await SendDatabaseToCloud(rows);
+  let rowsExp: SpItemExport[] = rows.map(r => ({
+    ...r,
+    mssf: MSS(r),
+    mssr: MSS(r,true)
+  }));
+  await SendDatabaseToCloud(rowsExp);
   console.log("Local database synchronized to cloud");
 }
 
