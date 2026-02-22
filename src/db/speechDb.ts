@@ -82,7 +82,7 @@ export function MSS(row:SpItem,isReverse = false){
 
 export type SpItemResult = Pick<
   SpItem,
-  "cntf" | "cntr" | "df" | "dr" | "dwf" | "dwr" | "tsf" | "tsr"| "correctf" | "correctr" | "streakf" | "streakr"
+  "cntf" | "cntr" | "df" | "dr" | "dwf" | "dwr" | "tsf" | "tsr"| "correctf" | "correctr" | "streakf" | "streakr" | "intf" | "intr"
 >;
 
 let db: SQLiteDatabase | null = null;
@@ -125,7 +125,9 @@ export async function initSpeechDb() {
       correctf INTEGER DEFAULT 0,
       correctr INTEGER DEFAULT 0,
       streakf INTEGER DEFAULT 0,
-      streakr INTEGER DEFAULT 0
+      streakr INTEGER DEFAULT 0,
+      intf INTEGER DEFAULT 0,
+      intr INTEGER DEFAULT 0,
     );
   `);
 
@@ -188,7 +190,7 @@ export async function saveResultToPhrase(
 
   await db.executeSql(
     `UPDATE phrases
-      SET cntf=?, cntr=?, df=?, dr=?, dwf=?, dwr=?, tsf=?, tsr=?, correctf=?, correctr=?, streakf=?, streakr=?
+      SET cntf=?, cntr=?, df=?, dr=?, dwf=?, dwr=?, tsf=?, tsr=?, correctf=?, correctr=?, streakf=?, streakr=?, intf=?, intr=?
       WHERE uid=?`,
     [
       result.cntf ?? 0,
@@ -203,6 +205,8 @@ export async function saveResultToPhrase(
       result.correctr ?? 0,
       result.streakf ?? 0,
       result.streakr ?? 0,
+      result.intf ?? 0,
+      result.intr ?? 0,
       uid,
     ]
   );
