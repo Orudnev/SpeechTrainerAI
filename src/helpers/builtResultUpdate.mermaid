@@ -1,0 +1,29 @@
+flowchart TD
+
+A[-A- builtResultUpdate] 
+--> B[-B- Вычислить параметры:
+durationMs,answerWordCount,durationPerWord,
+durationPerWord,nextCount,nextCorrectCount,
+nextDurationAvg,nextWordAvg,
+]
+B --> D{-D- Ответ правильный?}
+%% ---------------------
+%% SUCCESS
+%% ---------------------
+
+D -->|Да| E4[-E4- Увеличить streak
+streakf = streak + 1]
+E4 --> E7[-E7- Рассчитать новый интервал
+intf = newInterval]
+
+E7 --> Z[-Z- Сохранить карточку]
+%% ---------------------
+%% FAIL
+%% ---------------------
+D -->|Нет| F2[-F2- Уменьшить streak
+streak = prevStreak/2]
+
+F2 --> F4[-F4- Сбросить интервал
+intf = базовый интервал]
+
+F4 --> Z

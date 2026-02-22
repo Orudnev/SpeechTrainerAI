@@ -30,10 +30,11 @@ import {
 import { AnchoredOverlay } from './AnchoredOverlay';
 import { VariantPicker } from './VariantPicker';
 import Toolbar from './Toolbar';
-import { pickNextPhraseIndex } from './phraseSelection';
 import { Appbar, FAB, Portal, Modal } from 'react-native-paper';
 import { AppContext } from '../../App';
 import { AppSettings, getAppSettingValue } from '../db/settings';
+import { getNextItemUid } from '../helpers/getNextItemUid';
+import { buildResultUpdate } from '../helpers/buildResultUpdate';
 
 /**
  * Normalize ASR text
@@ -54,91 +55,8 @@ export type VariantStat = {
   count: number;
 };
 
-type ResultUpdate = {
-  patch: Partial<SpItem>;
-  resultToPersist: SpItemResult;
-};
 
-function buildResultUpdate(
-  rawItem: SpItem,
-  currentAnswer: string,
-  listeningStartedAt: number | null,
-  reverseMode: boolean,
-  resetStreakOnError: boolean = false,
-): ResultUpdate {
-  const now = Date.now();
-  const durationMs = listeningStartedAt
-    ? Math.max(0, now - listeningStartedAt)
-    : 0;
 
-  const answerWordCount = Math.max(
-    1,
-    normalizeText(currentAnswer).split(' ').filter(Boolean).length,
-  );
-  const durationPerWord = durationMs / answerWordCount;
-
-  const prevCount = reverseMode ? rawItem.cntr ?? 0 : rawItem.cntf ?? 0;
-  const nextCount = prevCount + 1;
-
-  const prevCorrectCount = reverseMode ? rawItem.correctr ?? 0 : rawItem.correctf ?? 0;
-  const nextCorrectCount = prevCorrectCount + 1;
-
-  const prevStreak = reverseMode ? rawItem.streakr ?? 0 : rawItem.streakf ?? 0;
-  let nextStreak = resetStreakOnError ? 0 : prevStreak + 1;
-
-  if(resetStreakOnError) {
-    nextStreak = Math.floor(prevStreak / 2);
-  }
-
-  const prevDurationAvg = reverseMode ? rawItem.dr ?? 0 : rawItem.df ?? 0;
-  const prevWordAvg = reverseMode ? rawItem.dwr ?? 0 : rawItem.dwf ?? 0;
-
-  const nextDurationAvg =
-    nextCount === 1
-      ? durationMs
-      : (prevDurationAvg * prevCount + durationMs) / nextCount;
-
-  const nextWordAvg =
-    nextCount === 1
-      ? durationPerWord
-      : (prevWordAvg * prevCount + durationPerWord) / nextCount;
-
-  const patch: Partial<SpItem> = reverseMode
-    ? {
-      cntr: nextCount,
-      dr: nextDurationAvg,
-      dwr: nextWordAvg,
-      tsr: now,
-      correctr: nextCorrectCount,
-      streakr: nextStreak,  
-    }
-    : {
-      cntf: nextCount,
-      df: nextDurationAvg,
-      dwf: nextWordAvg,
-      tsf: now,
-      correctf: nextCorrectCount,
-      streakf: nextStreak,        
-    };
-
-  return {
-    patch,
-    resultToPersist: {
-      cntf: patch.cntf ?? rawItem.cntf ?? 0,
-      cntr: patch.cntr ?? rawItem.cntr ?? 0,
-      df: patch.df ?? rawItem.df ?? 0,
-      dr: patch.dr ?? rawItem.dr ?? 0,
-      dwf: patch.dwf ?? rawItem.dwf ?? 0,
-      dwr: patch.dwr ?? rawItem.dwr ?? 0,
-      tsf: patch.tsf ?? rawItem.tsf ?? 0,
-      tsr: patch.tsr ?? rawItem.tsr ?? 0,
-      correctf: patch.correctf ?? rawItem.correctf ?? 0,
-      correctr: patch.correctr ?? rawItem.correctr ?? 0,
-      streakf: patch.streakf ?? rawItem.streakf ?? 0,
-      streakr: patch.streakr ?? rawItem.streakr ?? 0,
-    },
-  };
-}
 
 export default function SpeechTrainerPhrase() {
   const ctx = useContext(AppContext);
@@ -171,7 +89,6 @@ export default function SpeechTrainerPhrase() {
   const [listeningStartedAt, setListeningStartedAt] = useState<number | null>(
     null,
   );
-  const [recentHistory, setRecentHistory] = useState<string[]>([]);
   const handlingMatchRef = useRef(false);
   const stoppingAfterErrorRef = useRef(false);
 
@@ -228,20 +145,14 @@ export default function SpeechTrainerPhrase() {
       if (data.length === 0) {
         setItems(data);
         setPhraseIndex(0);
-        setRecentHistory([]);
         return;
       }
 
-      const initialIndex = pickNextPhraseIndex(
-        data,
-        '__initial__',
-        reverseMode,
-        [],
-      );
+      const nextItemUid = getNextItemUid(data,reverseMode);
+      const initialIndex = data.findIndex(itm=>itm.uid == nextItemUid);
 
       setItems(data);
       setPhraseIndex(initialIndex);
-      setRecentHistory([data[initialIndex].uid]);
     }
 
     load();
@@ -396,15 +307,14 @@ export default function SpeechTrainerPhrase() {
         3,
         Math.min(8, Math.floor(updatedItems.length / 2)),
       );
-      const nextHistory = [...recentHistory, rawItem.uid].slice(-historyLimit);
-      const nextIndex = pickNextPhraseIndex(
-        updatedItems,
-        rawItem.uid,
-        reverseMode,
-        nextHistory,
-      );
+      // const nextIndex = pickNextPhraseIndex(
+      //   updatedItems,
+      //   rawItem.uid,
+      //   reverseMode,
+      // );
+      const nextItemUid = getNextItemUid(updatedItems,reverseMode);
+      const nextIndex = updatedItems.findIndex(itm=>itm.uid == nextItemUid);
 
-      setRecentHistory(nextHistory);
       setListeningStartedAt(null);
       setPhraseIndex(nextIndex);
     } finally {
@@ -476,16 +386,16 @@ export default function SpeechTrainerPhrase() {
       return;
     }
 
-    const historyLimit = Math.max(3, Math.min(8, Math.floor(items.length / 2)));
-    const nextHistory = [...recentHistory, rawItem.uid].slice(-historyLimit);
-    const nextIndex = pickNextPhraseIndex(
-      items,
-      rawItem.uid,
-      reverseMode,
-      nextHistory,
-    );
+    // const historyLimit = Math.max(3, Math.min(8, Math.floor(items.length / 2)));
+    // const nextIndex = pickNextPhraseIndex(
+    //   items,
+    //   rawItem.uid,
+    //   reverseMode,
+    // );
+    const nextItemUid = getNextItemUid(items,reverseMode);
+    const nextIndex = items.findIndex(itm=>itm.uid == nextItemUid);
 
-    setRecentHistory(nextHistory);
+
     setListeningStartedAt(null);
     setPhraseIndex(nextIndex);
   }

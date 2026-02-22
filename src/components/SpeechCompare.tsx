@@ -7,7 +7,7 @@ import LinearGradient from "react-native-linear-gradient";
 /**
  * Normalize text
  */
-function normalizeText(input: string): string {
+export function normalizeText(input: string): string {
   if (!input) return "";
   return input
     .toLowerCase()

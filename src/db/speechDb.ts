@@ -48,6 +48,8 @@ export type SpItem = {
   correctr?: number; //количество правильных ответов в обратном режиме
   streakf?: number; //текущая серия правильных ответов в прямом режиме
   streakr?: number; //текущая серия правильных ответов в обратном режиме
+  intf?:number; //запланированный интервал повторения в прямом режиме (миллисекунд)
+  intr?:number; //запланированный интервал повторения в обратном режиме 
 };
 
 export type SpItemExport = SpItem & {
@@ -67,26 +69,14 @@ export function MSS(row:SpItem,isReverse = false){
   let streak = (isReverse ? row.streakr : row.streakf) ?? 0;
   let cnt = (isReverse ? row.cntr : row.cntf) ?? 0;
   let ts = (isReverse ? row.tsr : row.tsf) ?? 0;
+  let interval = (isReverse ? row.intr : row.intf) ?? 0;
   
   let R = (correct + 1) / (cnt + 2);
   let SpeedFactor = clamp(1 - (dw / 800), 0.3, 1);
-  let days = (Date.now() - ts) / 86400000;
+  let days = (Date.now() - interval) / 86400000;
   let IntervalFactor = clamp(Math.log2(days + 1) / 5, 0.3, 1);
   let StabilityFactor = clamp(0.5 + streak / 20, 0.5, 1);
   let result = 100 * R * (0.5 + 0.5 * SpeedFactor) * IntervalFactor * StabilityFactor;
-  return result;
-}
-
-export function calcNextReviewTs(mss: number,ts:number): number {
-  const lastAccessDate = new Date(ts);
-  const dayInMs = 86400000;
-  let days = 0;
-  if(mss > 90) days = 90
-  else if(mss > 80) days = 21;
-  else if(mss > 70) days = 7;
-  else if(mss > 50) days = 3;
-  else if(mss > 40) days = 1;
-  let result = ts + days * dayInMs;
   return result;
 }
 

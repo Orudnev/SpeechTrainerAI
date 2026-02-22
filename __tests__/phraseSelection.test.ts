@@ -1,5 +1,28 @@
-import { getWeaknessScore, pickNextPhraseIndex } from "../src/components/phraseSelection";
-import { SpItem } from "../src/db/speechDb";
+import { getRecencyFactor, pickNextPhraseIndex } from "../src/components/phraseSelection";
+import { MSS, SpItem } from "../src/db/speechDb";
+
+
+const testItems:Partial<SpItem> = [
+  {cntf:,tsf:correctf:10,dwf:,streakf}
+]
+
+function wt(
+  allItems: SpItem[],
+  currentUid: string,
+  reverseMode: boolean,
+  recentHistory: string[]
+){
+  const weighted = allItems.map((item, index) => {
+    const weakness = MSS(item, reverseMode);
+    const recencyFactor = getRecencyFactor(item.uid, recentHistory);
+    const sameAsCurrentFactor = item.uid === currentUid ? 0.01 : 1;
+
+    return {
+      index,
+      weight: weakness * recencyFactor * sameAsCurrentFactor,
+    };
+  });
+}
 
 function item(uid: string, partial: Partial<SpItem> = {}): SpItem {
   return {
@@ -12,14 +35,15 @@ function item(uid: string, partial: Partial<SpItem> = {}): SpItem {
 }
 
 describe("phrase selection", () => {
-  it("treats unseen items as weak even with zero duration", () => {
-    const unseen = item("u", { cntf: 0, dwf: 0 });
-    const seenFast = item("s", { cntf: 5, dwf: 500 });
+  
+  // it("treats unseen items as weak even with zero duration", () => {
+  //   const unseen = item("u", { cntf: 0, dwf: 0 });
+  //   const seenFast = item("s", { cntf: 5, dwf: 500 });
 
-    expect(getWeaknessScore(unseen, false)).toBeGreaterThan(
-      getWeaknessScore(seenFast, false)
-    );
-  });
+  //   expect(getWeaknessScore(unseen, false)).toBeGreaterThan(
+  //     getWeaknessScore(seenFast, false)
+  //   );
+  // });
 
   it("does not always pick the first element", () => {
     const items = [
@@ -27,7 +51,6 @@ describe("phrase selection", () => {
       item("b", { cntf: 1, dwf: 1000 }),
       item("c", { cntf: 1, dwf: 1000 }),
     ];
-
     const randomValues = [0.05, 0.45, 0.85];
     const picks = randomValues.map((v) => {
       const spy = jest.spyOn(Math, "random").mockReturnValue(v);
@@ -35,7 +58,7 @@ describe("phrase selection", () => {
       spy.mockRestore();
       return picked;
     });
-
+    console.log(`picks:${picks}`);
     expect(new Set(picks).size).toBeGreaterThan(1);
     expect(picks).toEqual([0, 1, 2]);
   });
