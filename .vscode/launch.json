@@ -16,6 +16,20 @@
       "port": 8081,
       "sourceMaps": true,
       "trace": true
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Jest Current File",
+      "runtimeExecutable": "node",
+      "program": "${workspaceFolder}/node_modules/jest/bin/jest.js",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "--runTestsByPath",
+        "${file}",
+        "--runInBand"
+      ],
+      "console": "integratedTerminal"
     }
   ]
 }

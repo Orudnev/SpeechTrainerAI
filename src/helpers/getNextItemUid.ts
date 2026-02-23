@@ -1,5 +1,7 @@
+import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
 import { normalizeText } from "../components/SpeechCompare";
 import { MSS, SpItem, SpItemResult } from "../db/speechDb";
+import { minItemInterval } from "./buildResultUpdate";
 
 const DAY = 86400000;
 
@@ -18,11 +20,14 @@ function getCnt(item:SpItem, isReverse:boolean){
 }
 
 function isOverdue(item: SpItem, isReverse:boolean, now: number) {
+  if(getCnt(item,isReverse) == 0) return false; // -C- Новые элементы не просрочены
   return now >= getTs(item, isReverse) + getInterval(item, isReverse);
 }
 
 function isSoon(item: SpItem, isReverse:boolean, now: number, limit: number) {
-  const next = getTs(item, isReverse) + getInterval(item, isReverse);
+  const interval = getInterval(item, isReverse);
+  if(interval == minItemInterval) return false; // Элементы с минимальным интервалом не должны попадать в категорию "soon"
+  const next = getTs(item, isReverse) + interval;
   return next > now && next <= limit;
 }
 
@@ -64,6 +69,7 @@ export function getNextItemUid(allItems: SpItem[],isReverse = false): string {
     });
 
     // -Z- Return item
+    console.log(`*** Overdue:${overdue[0].uid}`);
     return overdue[0].uid;
   }
 
@@ -81,7 +87,7 @@ export function getNextItemUid(allItems: SpItem[],isReverse = false): string {
     soon.sort((a, b) =>
       MSS(a, isReverse) - MSS(b, isReverse)
     );
-
+    console.log(`*** Soon:${soon[0].uid}`);
     return soon[0].uid; // -Z-
   }
 
@@ -97,7 +103,7 @@ export function getNextItemUid(allItems: SpItem[],isReverse = false): string {
     const index = Math.floor(
       Math.random() * maintenance.length
     );
-
+    console.log(`*** Maintenance:${maintenance[index].uid}`);
     return maintenance[index].uid; // -Z-
   }
 
@@ -109,12 +115,15 @@ export function getNextItemUid(allItems: SpItem[],isReverse = false): string {
   // -P- Exists?
   if (fresh.length > 0) {
     // -Q- Random new
-    const index = Math.floor(Math.random() * fresh.length);
-    return fresh[index].uid; // -Z-
+    const r = Math.random();
+    const ind = Math.floor(r * fresh.length);    
+    console.log(`*** Fresh:${fresh[ind].uid}`);
+    return fresh[ind].uid; // -Z-
   }
 
   // -R- Fallback
   const index = Math.floor(Math.random() * items.length);
+  console.log(`*** Fallback:${items[index].uid}`);
   return items[index].uid; // -Z-
 }
 

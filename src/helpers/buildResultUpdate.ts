@@ -6,19 +6,22 @@ type ResultUpdate = {
   resultToPersist: SpItemResult;
 };
 
+//export const minItemInterval = 1000 * 60 * 2; //2 минуты 
+export const minItemInterval = 5000; 
+
 function CalcInterval(item: SpItem,reverseMode:boolean,isError:boolean){
   const mss = MSS(item,reverseMode);
   const dayInMs = 86400000;
-  const baseInterval = 1000 * 60 * 5; //5 minutes 
   let days = 0;
   if(isError){
-    return baseInterval; // -F4 Сбросить интервал
+    return minItemInterval; // -F4 Сбросить интервал
   }
   if(mss > 90) days = 90
   else if(mss > 80) days = 21;
   else if(mss > 70) days = 7;
   else if(mss > 50) days = 3;
   else if(mss > 40) days = 1;
+  else if(mss > 5) return minItemInterval; // -F4- 2 минуты для новых слов
   const result = days * dayInMs; // -E7- Рассчитать новый интервал
   return result;  
 }
@@ -52,6 +55,11 @@ export function buildResultUpdate(
   const nextStreak = resetStreakOnError 
         ? Math.floor(prevStreak / 2) // -F2- Уменьшить streak
         : prevStreak + 1;            // -E4- Увеличить streak
+      
+  let interval = CalcInterval(rawItem,reverseMode,resetStreakOnError); // -E5- Вычислить новый интервал
+  if (resetStreakOnError) {
+    interval = 1000 * 60 * 5; // -F3- Минимальный интервал 5 минут
+  }
 
   const prevDurationAvg = reverseMode ? rawItem.dr ?? 0 : rawItem.df ?? 0;
   const prevWordAvg = reverseMode ? rawItem.dwr ?? 0 : rawItem.dwf ?? 0;
@@ -74,6 +82,7 @@ export function buildResultUpdate(
       tsr: now,
       correctr: nextCorrectCount,
       streakr: nextStreak,  
+      intr: interval,
     }
     : {
       cntf: nextCount,
@@ -82,6 +91,7 @@ export function buildResultUpdate(
       tsf: now,
       correctf: nextCorrectCount,
       streakf: nextStreak,        
+      intf: interval,
     };
 
   return {

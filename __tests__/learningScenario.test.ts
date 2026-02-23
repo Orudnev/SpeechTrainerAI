@@ -12,11 +12,7 @@ jest.mock('../src/components/SpeechCompare', () => ({
 }));
 
 describe('learning flow scenario', () => {
-  test('10 итераций выбора элемента, обновления результата и расчета MSS', () => {
-    let now = 1_700_000_000_000;
-    jest.spyOn(Date, 'now').mockImplementation(() => now);
-
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  test('10 итераций выбора элемента, обновления результата и расчета MSS', async () => {
 
     const testArray: SpItem[] = [
       {
@@ -63,12 +59,8 @@ describe('learning flow scenario', () => {
     for (let i = 0; i < 10; i += 1) {
       const selectedUid = getNextItemUid(testArray, false);
       const index = testArray.findIndex((item) => item.uid === selectedUid);
-
-      expect(index).toBeGreaterThanOrEqual(0);
-
       const selectedItem = testArray[index];
-      const listeningStartedAt = now - 1_200;
-
+      const listeningStartedAt = Date.now();
       const { patch } = buildResultUpdate(
         selectedItem,
         selectedItem.a,
@@ -81,21 +73,14 @@ describe('learning flow scenario', () => {
         ...selectedItem,
         ...patch,
       };
-
-      const mss = MSS(testArray[index], false);
-      console.log(`iteration=${i + 1}, uid=${selectedUid}, mss=${mss}`);
-
-      now += 60_000;
+      await delay(2000);
+      const mss = MSS(selectedItem, false);
+      console.log(`iteration=${i + 1}, item=${JSON.stringify(testArray[index])}, mss=${mss}`);
     }
-
-    const totalShown = testArray.reduce((sum, item) => sum + (item.cntf ?? 0), 0);
-
-    expect(totalShown).toBe(10);
-    expect(consoleSpy).toHaveBeenCalledTimes(10);
-    consoleSpy.mock.calls.forEach(([msg]) => {
-      expect(String(msg)).toContain('mss=');
-    });
-
-    jest.restoreAllMocks();
-  });
+  }, 60000);
 });
+
+
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}

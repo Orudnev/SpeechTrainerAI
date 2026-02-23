@@ -73,7 +73,7 @@ export function MSS(row:SpItem,isReverse = false){
   
   let R = (correct + 1) / (cnt + 2);
   let SpeedFactor = clamp(1 - (dw / 800), 0.3, 1);
-  let days = (Date.now() - interval) / 86400000;
+  let days = interval / 86400000;
   let IntervalFactor = clamp(Math.log2(days + 1) / 5, 0.3, 1);
   let StabilityFactor = clamp(0.5 + streak / 20, 0.5, 1);
   let result = 100 * R * (0.5 + 0.5 * SpeedFactor) * IntervalFactor * StabilityFactor;
