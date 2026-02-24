@@ -48,8 +48,8 @@ export type SpItem = {
   correctr?: number; //количество правильных ответов в обратном режиме
   streakf?: number; //текущая серия правильных ответов в прямом режиме
   streakr?: number; //текущая серия правильных ответов в обратном режиме
-  intf?:number; //запланированный интервал повторения в прямом режиме (миллисекунд)
-  intr?:number; //запланированный интервал повторения в обратном режиме 
+  intf?: number; //запланированный интервал повторения в прямом режиме (миллисекунд)
+  intr?: number; //запланированный интервал повторения в обратном режиме 
 };
 
 export type SpItemExport = SpItem & {
@@ -58,10 +58,10 @@ export type SpItemExport = SpItem & {
 };
 
 
-export function MSS(row:SpItem,isReverse = false){
-  function clamp(value:number,minValue:number,maxValue:number){
-    if(value < minValue) return minValue;
-    if(value > maxValue) return maxValue;
+export function MSS(row: SpItem, isReverse = false) {
+  function clamp(value: number, minValue: number, maxValue: number) {
+    if (value < minValue) return minValue;
+    if (value > maxValue) return maxValue;
     return value;
   }
   let correct = (isReverse ? row.correctr : row.correctf) ?? 0;
@@ -70,7 +70,7 @@ export function MSS(row:SpItem,isReverse = false){
   let cnt = (isReverse ? row.cntr : row.cntf) ?? 0;
   let ts = (isReverse ? row.tsr : row.tsf) ?? 0;
   let interval = (isReverse ? row.intr : row.intf) ?? 0;
-  
+
   let R = (correct + 1) / (cnt + 2);
   let SpeedFactor = clamp(1 - (dw / 800), 0.3, 1);
   let days = interval / 86400000;
@@ -82,7 +82,7 @@ export function MSS(row:SpItem,isReverse = false){
 
 export type SpItemResult = Pick<
   SpItem,
-  "cntf" | "cntr" | "df" | "dr" | "dwf" | "dwr" | "tsf" | "tsr"| "correctf" | "correctr" | "streakf" | "streakr" | "intf" | "intr"
+  "cntf" | "cntr" | "df" | "dr" | "dwf" | "dwr" | "tsf" | "tsr" | "correctf" | "correctr" | "streakf" | "streakr" | "intf" | "intr"
 >;
 
 let db: SQLiteDatabase | null = null;
@@ -135,7 +135,7 @@ export async function initSpeechDb() {
     CREATE TABLE IF NOT EXISTS appSettings (
       settings TEXT DEFAULT NULL
     );
-  `);   
+  `);
 }
 
 
@@ -152,7 +152,6 @@ export async function loadAllPhrases(): Promise<SpItem[]> {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows.item(i);
-
     items.push({
       ...row,
       variants: row.variants
@@ -160,7 +159,6 @@ export async function loadAllPhrases(): Promise<SpItem[]> {
         : [],
     });
   }
-
   return items;
 }
 
@@ -224,11 +222,11 @@ export async function syncPhrasesRows(rows: any[]) {
       [row.uid]
     );
     let variantsArray = [];
-    try{
+    try {
       variantsArray = JSON.parse(row.variants ?? []);
-    } catch(e) {
+    } catch (e) {
       console.log(`Wrong value format of ${row.variants} for uid ${row.uid}`);
-    }    
+    }
     let variants = JSON.stringify(variantsArray);
     if (existing[0].rows.length > 0) {
       await db.executeSql(

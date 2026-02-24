@@ -1,4 +1,5 @@
 import { Tvariant } from '../db/speechDb';
+import * as Snowball from 'snowball-stemmers';
 
 export type SpeechCompareSnapshot = {
   asrResult: string;
@@ -17,6 +18,13 @@ export function normalizeText(input: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+export type tolerantCompareDictItem = {
+  keyWord:string,
+  wordForms:string[]
+}
+
+const stemmer = Snowball.newStemmer('russian');
 
 /**
  * Speech compare logic container (no UI)
@@ -52,6 +60,36 @@ export class SpeechCompareEngine {
     };
   }
 
+  tolerantCompare(asrText: string, variants: Tvariant[], isTolerantCompare: boolean): boolean {
+    let etalonWord = this.etalonWords[this.currIndex];
+    const casrrWords = normalizeText(asrText).split(' ').filter(Boolean);
+    const foundIndex = casrrWords.findIndex(w => stemmer.stem(w) === stemmer.stem(etalonWord));
+    if (foundIndex === -1){
+      //no words in ASR result matched to current etalon words
+      return false;
+    }
+    let i = foundIndex;
+    let phraseMatched = false;
+    while (i < casrrWords.length) {
+      // -N- / -O-
+      // Reload expected word because currIndex may move after each mark.
+      etalonWord = this.etalonWords[this.currIndex];
+      if (!etalonWord) break;
+      const etalonWordStm = stemmer.stem(etalonWord);
+      const spoken = casrrWords[i];
+      const spokenStm = stemmer.stem(spoken);
+      if (spokenStm === etalonWordStm) {
+        phraseMatched = this.markWordMatched(etalonWord) || phraseMatched;
+        i++;
+        continue;
+      }
+      phraseMatched =
+        this.tryMarkByVariant(etalonWord, variants, asrText) || phraseMatched;
+      break;    
+    }
+    return phraseMatched;
+  }
+
   process(asrText: string | null, variants: Tvariant[], isTolerantCompare: boolean): boolean {
     // -A- / -B- / -Z-
     // Start processing ASR event; if text is missing, stop with no match.
@@ -64,10 +102,9 @@ export class SpeechCompareEngine {
     // -D-
     // Normalize ASR text and split into spoken words.
     const casrrWords = normalizeText(asrText).split(' ').filter(Boolean);
-    if(isTolerantCompare){
-        const tolerantCompare = (a:string[],b:string[]) => {return "";};
-        let result = tolerantCompare(casrrWords,this.etalonWords);
-    } 
+    if (isTolerantCompare) {
+      return this.tolerantCompare(asrText,variants,isTolerantCompare);
+    }
 
 
     // -E- / -F-
@@ -109,8 +146,8 @@ export class SpeechCompareEngine {
       // -Q- / -M- / -M1- / -M2- / -M3- / -M4- / -S- / -T- / -U-
       // Exact match path: mark word, potentially complete phrase, advance scan.
       if (spoken === etalonWord) {
-          phraseMatched = this.markWordMatched(etalonWord) || phraseMatched;
-          i++;
+        phraseMatched = this.markWordMatched(etalonWord) || phraseMatched;
+        i++;
         continue;
       }
 
