@@ -38,7 +38,6 @@ export default function App() {
       console.warn('Failed to load app settings', err);
     });
   }, []);
-  useSpeechResults();
   const [currPage, setCurrPage] = useState<TPages>('main');
 
   return (

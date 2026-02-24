@@ -57,7 +57,7 @@ export function buildResultUpdate(
       
   let interval = CalcInterval(rawItem,reverseMode,resetStreakOnError); // -E5- Вычислить новый интервал
   if (resetStreakOnError) {
-    interval = 1000 * 60 * 5; // -F3- Минимальный интервал 5 минут
+    interval = minItemInterval; // -F3- Минимальный интервал 5 минут
   }
 
   const prevDurationAvg = reverseMode ? rawItem.dr ?? 0 : rawItem.df ?? 0;

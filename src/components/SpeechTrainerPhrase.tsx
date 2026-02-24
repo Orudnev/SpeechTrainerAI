@@ -63,6 +63,7 @@ export default function SpeechTrainerPhrase() {
   const [ttsInitialized, setTtsInitialized] = useState(false);
   const reverseMode = getAppSettingValue<boolean>('reverseMode');
   const [showCurrentItem, setShowCurrentItem] = useState(false);
+  const [openWordCounter, setOpenWordCounter] = useState(0); // Счетчик для принудительного обновления при открытии слова
   // ============================================================
   // ASR integration (SINGLE SOURCE)
   // ============================================================
@@ -147,8 +148,8 @@ export default function SpeechTrainerPhrase() {
         return;
       }
 
-      const nextItemUid = getNextItemUid(data,reverseMode,"");
-      const initialIndex = data.findIndex(itm=>itm.uid == nextItemUid);
+      const nextItemUid = getNextItemUid(data, reverseMode, "");
+      const initialIndex = data.findIndex(itm => itm.uid == nextItemUid);
 
       setItems(data);
       setPhraseIndex(initialIndex);
@@ -248,7 +249,7 @@ export default function SpeechTrainerPhrase() {
     if (matched) {
       handleMatched();
     }
-  }, [lastAsrResult, perAnswerVariants]);
+  }, [lastAsrResult, perAnswerVariants, openWordCounter]);
 
   // ============================================================
   // Trainer loop
@@ -265,7 +266,10 @@ export default function SpeechTrainerPhrase() {
       try {
         setPhase('speaking');
         await speakAndListen(currentQuestion, getAsrEngineId());
-        if (cancelled) return;
+        if (cancelled) {
+          setPhase('idle');
+          return;
+        }
         setListeningStartedAt(Date.now());
         setPhase('listening');
       } catch (e) {
@@ -302,7 +306,7 @@ export default function SpeechTrainerPhrase() {
   async function handleMatched(resetStreakOnError: boolean = false) {
     if (!rawItem || phase !== 'listening' || handlingMatchRef.current) return;
     handlingMatchRef.current = true;
- 
+
     try {
       setPhase('speaking');
 
@@ -321,10 +325,11 @@ export default function SpeechTrainerPhrase() {
       );
 
       setItems(updatedItems);
-
-      console.log('✅ Phrase complete!');
-      const id = await TtsService.speak('Correct!');
-      await TtsService.waitFinish(id);
+      if (!resetStreakOnError) {
+          console.log('✅ Phrase complete!');      
+          const id = await TtsService.speak('Correct!');
+          await TtsService.waitFinish(id);
+      } 
 
       const historyLimit = Math.max(
         3,
@@ -335,9 +340,9 @@ export default function SpeechTrainerPhrase() {
       //   rawItem.uid,
       //   reverseMode,
       // );
-      
-      const nextItemUid = getNextItemUid(updatedItems,reverseMode,rawItem.uid);
-      const nextIndex = updatedItems.findIndex(itm=>itm.uid == nextItemUid);
+
+      const nextItemUid = getNextItemUid(updatedItems, reverseMode, rawItem.uid);
+      const nextIndex = updatedItems.findIndex(itm => itm.uid == nextItemUid);
 
       setListeningStartedAt(null);
       setPhraseIndex(nextIndex);
@@ -416,8 +421,8 @@ export default function SpeechTrainerPhrase() {
     //   rawItem.uid,
     //   reverseMode,
     // );
-    const nextItemUid = getNextItemUid(items,reverseMode,rawItem.uid);
-    const nextIndex = items.findIndex(itm=>itm.uid == nextItemUid);
+    const nextItemUid = getNextItemUid(items, reverseMode, rawItem.uid);
+    const nextIndex = items.findIndex(itm => itm.uid == nextItemUid);
 
 
     setListeningStartedAt(null);
@@ -473,10 +478,10 @@ export default function SpeechTrainerPhrase() {
                 colors={['rgba(20,30,48,1)', 'rgba(36,59,85,0.95)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}>
-                <View style={{width: screenSize.width * 0.9, padding: 20}}>
+                <View style={{ width: screenSize.width * 0.9, padding: 20 }}>
                   <Text style={Fieldstyles.fieldCaption}>Current question:</Text>
-                  <Text style={Fieldstyles.fieldValue }>{currentQuestion}</Text>
-                  <Text style={[Fieldstyles.fieldCaption,{ marginTop: 20 }]}>Current answer:</Text>
+                  <Text style={Fieldstyles.fieldValue}>{currentQuestion}</Text>
+                  <Text style={[Fieldstyles.fieldCaption, { marginTop: 20 }]}>Current answer:</Text>
                   <Text style={Fieldstyles.fieldValue}>{currentAnswer}</Text>
                 </View>
               </LinearGradient>
@@ -525,22 +530,25 @@ export default function SpeechTrainerPhrase() {
         </View>
       </View>
       <View style={styles.bottomSection}>
-        <TouchableOpacity
-          onPress={() => {
-            if (!currentWord) return;
-            setLastAsrResult({
-              engine: currentAsrId,
-              type: 'final',
-              text: currentWord,
-            });
-          }}
-          style={{ position: 'absolute', top: -40, left: 20 }}>
-          <Image
-            style={{ width: 150 }}
-            source={require('../assets/openword.png')}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
+        {phase == 'listening' && (
+          <TouchableOpacity
+            onPress={() => {
+              if (!currentWord) return;
+              setLastAsrResult({
+                engine: currentAsrId,
+                type: 'final',
+                text: currentWord,
+              });
+              setOpenWordCounter(prev => prev + 1); // Увеличиваем счетчик при открытии слова
+            }}
+            style={{ position: 'absolute', top: -40, left: 20 }}>
+            <Image
+              style={{ width: 150 }}
+              source={require('../assets/openword.png')}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        )}
 
         {phase === 'idle' && (
           <View style={styles.manualStartButton}>
@@ -562,10 +570,10 @@ export default function SpeechTrainerPhrase() {
           />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={()=>{
+          onPress={() => {
             handleMatched(true)
           }}
-          style={{ position: 'absolute', top: 40,right: 20 }}>
+          style={{ position: 'absolute', top: 40, right: 20 }}>
           <Image
             style={{ width: 150 }}
             source={require('../assets/cannotremember.png')}

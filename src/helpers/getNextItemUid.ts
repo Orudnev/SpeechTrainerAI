@@ -124,9 +124,13 @@ export function getNextItemUid(allItems: SpItem[],isReverse = false,currentItemU
   }
 
   // -R- Fallback
-  const index = Math.floor(Math.random() * items.length);
-  console.log(`*** Fallback:${items[index].uid}`);
-  return items[index].uid; // -Z-
+  const fallBackItems = items.filter(itm => itm.uid !== currentItemUid);
+  const index = Math.floor(Math.random() * fallBackItems.length);
+  console.log(`*** Fallback:${items[index].uid} prev:${currentItemUid}`);
+  if(fallBackItems[index].uid == currentItemUid){
+    console.warn(`Selected current item ${currentItemUid} in fallback, this should be avoided if possible`);
+  }
+  return fallBackItems[index].uid; // -Z-
 }
 
 

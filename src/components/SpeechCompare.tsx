@@ -67,7 +67,11 @@ export class SpeechCompareEngine {
 
     // -E- / -F-
     // Load the current expected word and stop if phrase is already exhausted.
+    if (this.currIndex >= this.etalonWords.length){
+      let s = 1;
+    }
     let etalonWord = this.etalonWords[this.currIndex];
+
     if (!etalonWord) return false;
 
     // -G- / -H- / -H1- / -M-
