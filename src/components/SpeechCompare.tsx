@@ -53,44 +53,70 @@ export class SpeechCompareEngine {
   }
 
   process(asrText: string | null, variants: Tvariant[]): boolean {
+    // -A- / -B- / -Z-
+    // Start processing ASR event; if text is missing, stop with no match.
     if (!asrText) return false;
 
+    // -C-
+    // Persist raw ASR payload for snapshots/UI.
     this.asrResult = asrText;
+
+    // -D-
+    // Normalize ASR text and split into spoken words.
     const casrrWords = normalizeText(asrText).split(' ').filter(Boolean);
 
+    // -E- / -F-
+    // Load the current expected word and stop if phrase is already exhausted.
     let etalonWord = this.etalonWords[this.currIndex];
     if (!etalonWord) return false;
 
+    // -G- / -H- / -H1- / -M-
+    // Empty ASR word list: try matching current expected word by variants.
     if (casrrWords.length === 0) {
       return this.tryMarkByVariant(etalonWord, variants, asrText);
     }
 
+    // -I- / -J-
+    // Find where expected word appears in ASR words; fallback to variants if absent.
     const foundIndex = casrrWords.findIndex(w => w === etalonWord);
 
     if (foundIndex === -1) {
       return this.tryMarkByVariant(etalonWord, variants, asrText);
     }
 
+    // -K-
+    // Initialize scan position and phrase-level match flag.
     let i = foundIndex;
     let phraseMatched = false;
 
+    // -L-
+    // Iterate through spoken words from the first found position.
     while (i < casrrWords.length) {
+      // -N- / -O-
+      // Reload expected word because currIndex may move after each mark.
       etalonWord = this.etalonWords[this.currIndex];
       if (!etalonWord) break;
 
+      // -P-
       const spoken = casrrWords[i];
 
+      // -Q- / -M- / -M1- / -M2- / -M3- / -M4- / -S- / -T- / -U-
+      // Exact match path: mark word, potentially complete phrase, advance scan.
       if (spoken === etalonWord) {
         phraseMatched = this.markWordMatched(etalonWord) || phraseMatched;
         i++;
         continue;
       }
 
+      // -V- / -W-
+      // Mismatch path: attempt variant-based match once, then finish this pass.
       phraseMatched =
         this.tryMarkByVariant(etalonWord, variants, asrText) || phraseMatched;
       break;
     }
 
+    // -R- / -END-
+    // Return phrase-level result for caller decision (including optional onMatched).
     return phraseMatched;
   }
 
