@@ -1,241 +1,140 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, Text, View, Button } from "react-native";
-import { Tvariant } from "../db/speechDb";
-import { Fieldstyles } from "./SpeechTrainerPhrase";
-import LinearGradient from "react-native-linear-gradient";
+import { Tvariant } from '../db/speechDb';
+
+export type SpeechCompareSnapshot = {
+  asrResult: string;
+  matchedWords: string[];
+  status: string;
+};
 
 /**
  * Normalize text
  */
 export function normalizeText(input: string): string {
-  if (!input) return "";
+  if (!input) return '';
   return input
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
 /**
- * Проверка по вариантам
+ * Speech compare logic container (no UI)
  */
-function checkVariants(
-  etalonWord: string,
-  variants: Tvariant[],
-  casrr: string
-): boolean {
-  const entry = variants.find(
-    (v) => normalizeText(v.word) === normalizeText(etalonWord)
-  );
+export class SpeechCompareEngine {
+  private etalonWords: string[] = [];
+  private currIndex = 0;
+  private matchedWords: string[] = [];
+  private status = '';
+  private asrResult = '';
 
-  if (!entry) return false;
-
-  for (const tvElm of entry.variants) {
-    if (normalizeText(casrr).includes(normalizeText(tvElm))) {
-      return true;
-    }
+  constructor(etalon: string) {
+    this.reset(etalon);
   }
 
-  return false;
-}
-
-/**
- * Props
- */
-type Props = {
-  etalon: string;
-  asrText: string | null;
-  variants: Tvariant[];
-  onMatched: () => void;
-  onCurrentWord?: (word: string) => void;
-};
-
-export default function SpeechCompare({
-  etalon,
-  asrText,
-  variants,
-  onMatched,
-  onCurrentWord,
-}: Props) {
-  const etalonWords = useMemo(() => {
-    return normalizeText(etalon).split(" ").filter(Boolean);
-  }, [etalon]);
-
-  const currIndex = useRef(0);
-
-  const [asrResult, setAsrResult] = useState("");
-  const [matchedWords, setMatchedWords] = useState<string[]>([]);
-  const [status, setStatus] = useState("");
-
-  // ============================================================
-  // Reset on new phrase
-  // ============================================================
-  useEffect(() => {
-    currIndex.current = 0;
-    setMatchedWords([]);
-    setStatus("");
-
-    // сообщаем первое слово
-    if (etalonWords.length > 0 && onCurrentWord) {
-      onCurrentWord(etalonWords[0]);
-    }
-  }, [etalon]);
-
-
-  useEffect(() => {
-    if (!asrText) return;
-    setAsrResult(asrText);
-    processCASRR(asrText);
-  }, [asrText]);
-
-
-  /**
-   * Mark word matched
-   */
-  function markWordMatched(word: string) {
-    setMatchedWords((prev) => [...prev, word]);
-    currIndex.current++;
-
-    // ✅ Фраза полностью завершена?
-    if (currIndex.current >= etalonWords.length) {
-      setStatus("Ответ засчитан");
-      onMatched();
-      return;
-    }
-
-    // сообщаем новое текущее слово
-    const nextWord = etalonWords[currIndex.current];
-    if (nextWord && onCurrentWord) {
-      onCurrentWord(nextWord);
-    }
+  reset(etalon: string) {
+    this.etalonWords = normalizeText(etalon).split(' ').filter(Boolean);
+    this.currIndex = 0;
+    this.matchedWords = [];
+    this.status = '';
+    this.asrResult = '';
   }
 
+  getCurrentWord(): string {
+    return this.etalonWords[this.currIndex] ?? '';
+  }
 
-  /**
-   * CASRR обработка
-   */
-  function processCASRR(casrr: string) {
-    const CASRRWords = normalizeText(casrr)
-      .split(" ")
-      .filter(Boolean);
+  getSnapshot(): SpeechCompareSnapshot {
+    return {
+      asrResult: this.asrResult,
+      matchedWords: [...this.matchedWords],
+      status: this.status,
+    };
+  }
 
-    let etalonWord = etalonWords[currIndex.current];
-    if (!etalonWord) return;
+  process(asrText: string | null, variants: Tvariant[]): boolean {
+    if (!asrText) return false;
 
-    // ============================================================
-    // 1) Шум: ничего нет
-    // ============================================================
-    if (CASRRWords.length === 0) {
-      if (checkVariants(etalonWord, variants, casrr)) {
-        markWordMatched(etalonWord);
-      }
-      return;
+    this.asrResult = asrText;
+    const casrrWords = normalizeText(asrText).split(' ').filter(Boolean);
+
+    let etalonWord = this.etalonWords[this.currIndex];
+    if (!etalonWord) return false;
+
+    if (casrrWords.length === 0) {
+      return this.tryMarkByVariant(etalonWord, variants, asrText);
     }
 
-    // ============================================================
-    // 1.2 Ищем совпадение текущего эталонного слова
-    // ============================================================
-    const foundIndex = CASRRWords.findIndex((w) => w === etalonWord);
+    const foundIndex = casrrWords.findIndex(w => w === etalonWord);
 
     if (foundIndex === -1) {
-      // ============================================================
-      // 2) Проверка по вариантам
-      // ============================================================
-      if (checkVariants(etalonWord, variants, casrr)) {
-        markWordMatched(etalonWord);
-      }
-      return;
+      return this.tryMarkByVariant(etalonWord, variants, asrText);
     }
 
-    // ============================================================
-    // 3) Сравнение следующих слов
-    // ============================================================
     let i = foundIndex;
+    let phraseMatched = false;
 
-    while (i < CASRRWords.length) {
-      etalonWord = etalonWords[currIndex.current];
+    while (i < casrrWords.length) {
+      etalonWord = this.etalonWords[this.currIndex];
       if (!etalonWord) break;
 
-      const spoken = CASRRWords[i];
+      const spoken = casrrWords[i];
 
       if (spoken === etalonWord) {
-        markWordMatched(etalonWord);
+        phraseMatched = this.markWordMatched(etalonWord) || phraseMatched;
         i++;
         continue;
       }
 
-      // ============================================================
-      // 4) fallback: variants
-      // ============================================================
-      if (checkVariants(etalonWord, variants, casrr)) {
-        markWordMatched(etalonWord);
-      }
-
+      phraseMatched =
+        this.tryMarkByVariant(etalonWord, variants, asrText) || phraseMatched;
       break;
     }
+
+    return phraseMatched;
   }
 
-  // ============================================================
-  // Render
-  // ============================================================
-  return (
-    <View>
-      <LinearGradient style={Fieldstyles.fieldCard}
-        colors={[
-          "rgba(20,30,48,1)",
-          "rgba(36,59,85,0.95)",
-        ]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={Fieldstyles.fieldCardInner}>
-          <Text style={Fieldstyles.fieldCaption}>Current ASR result:</Text>
-          <Text style={Fieldstyles.fieldValue}>{asrResult}</Text>
-        </View>
-      </LinearGradient>
-      <LinearGradient style={[Fieldstyles.fieldCard,{height:200}]}
-        colors={[
-          "rgba(20,30,48,1)",
-          "rgba(36,59,85,0.95)",
-        ]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={Fieldstyles.fieldCardInner}>
-          <Text style={Fieldstyles.fieldCaption}>Matched:</Text>
-          <Text style={Fieldstyles.fieldValue}>{matchedWords.join(" ")}</Text>
-        </View>
-        {status.length > 0 && <Text style={styles.status}>{status}</Text>}
-      </LinearGradient>
-    </View>
-  );
-}
+  private tryMarkByVariant(
+    etalonWord: string,
+    variants: Tvariant[],
+    casrr: string,
+  ): boolean {
+    if (!this.checkVariants(etalonWord, variants, casrr)) {
+      return false;
+    }
 
-const styles = StyleSheet.create({
-  box: {
-    padding: 12,
-    borderWidth: 1,
-    borderRadius: 12,
-    margin: 10,
-  },
-  title: {
-    fontWeight: "600",
-    marginTop: 6,
-  },
-  etalon: {
-    fontSize: 16,
-    width: 350,
-    height: 40,
-  },
-  matched: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginTop: 4,
-  },
-  status: {
-    marginLeft: 17,
-    color:"#06a81c",
-    fontSize: 18,
-    fontWeight: "800",
-  },
-});
+    return this.markWordMatched(etalonWord);
+  }
+
+  private markWordMatched(word: string): boolean {
+    this.matchedWords.push(word);
+    this.currIndex++;
+
+    if (this.currIndex >= this.etalonWords.length) {
+      this.status = 'Ответ засчитан';
+      return true;
+    }
+
+    return false;
+  }
+
+  private checkVariants(
+    etalonWord: string,
+    variants: Tvariant[],
+    casrr: string,
+  ): boolean {
+    const entry = variants.find(
+      v => normalizeText(v.word) === normalizeText(etalonWord),
+    );
+
+    if (!entry) return false;
+
+    for (const variantWord of entry.variants) {
+      if (normalizeText(casrr).includes(normalizeText(variantWord))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+}
