@@ -241,6 +241,7 @@ export default function SpeechTrainerPhrase() {
     const matched = compareEngineRef.current.process(
       lastAsrResult?.text ?? null,
       perAnswerVariants,
+      reverseMode
     );
 
     setCompareSnapshot(compareEngineRef.current.getSnapshot());

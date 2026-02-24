@@ -52,7 +52,7 @@ export class SpeechCompareEngine {
     };
   }
 
-  process(asrText: string | null, variants: Tvariant[]): boolean {
+  process(asrText: string | null, variants: Tvariant[], isTolerantCompare: boolean): boolean {
     // -A- / -B- / -Z-
     // Start processing ASR event; if text is missing, stop with no match.
     if (!asrText) return false;
@@ -64,12 +64,14 @@ export class SpeechCompareEngine {
     // -D-
     // Normalize ASR text and split into spoken words.
     const casrrWords = normalizeText(asrText).split(' ').filter(Boolean);
+    if(isTolerantCompare){
+        const tolerantCompare = (a:string[],b:string[]) => {return "";};
+        let result = tolerantCompare(casrrWords,this.etalonWords);
+    } 
+
 
     // -E- / -F-
     // Load the current expected word and stop if phrase is already exhausted.
-    if (this.currIndex >= this.etalonWords.length){
-      let s = 1;
-    }
     let etalonWord = this.etalonWords[this.currIndex];
 
     if (!etalonWord) return false;
@@ -107,10 +109,11 @@ export class SpeechCompareEngine {
       // -Q- / -M- / -M1- / -M2- / -M3- / -M4- / -S- / -T- / -U-
       // Exact match path: mark word, potentially complete phrase, advance scan.
       if (spoken === etalonWord) {
-        phraseMatched = this.markWordMatched(etalonWord) || phraseMatched;
-        i++;
+          phraseMatched = this.markWordMatched(etalonWord) || phraseMatched;
+          i++;
         continue;
       }
+
 
       // -V- / -W-
       // Mismatch path: attempt variant-based match once, then finish this pass.
