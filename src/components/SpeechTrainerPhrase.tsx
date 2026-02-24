@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
-import SpeechCompare from './SpeechCompare';
+import { normalizeText, SpeechCompareEngine, SpeechCompareSnapshot } from './SpeechCompare';
 import { speakAndListen } from '../speech/flow/speechOrchestrator';
 import { TtsService } from '../speech/tts/TtsService';
 import { AsrService } from '../speech/asr/AsrService';
@@ -36,17 +36,6 @@ import { AppContext } from '../../App';
 import { AppSettings, getAppSettingValue } from '../db/settings';
 import { getNextItemUid } from '../helpers/getNextItemUid';
 import { buildResultUpdate } from '../helpers/buildResultUpdate';
-
-/**
- * Normalize ASR text
- */
-function normalizeText(input: string): string {
-  return input
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
 /**
  * Variant statistics (UI only)
@@ -87,11 +76,17 @@ export default function SpeechTrainerPhrase() {
   // Current word (reported by SpeechCompare)
   // ============================================================
   const [currentWord, setCurrentWord] = useState('');
+  const [compareSnapshot, setCompareSnapshot] = useState<SpeechCompareSnapshot>({
+    asrResult: '',
+    matchedWords: [],
+    status: '',
+  });
   const [listeningStartedAt, setListeningStartedAt] = useState<number | null>(
     null,
   );
   const handlingMatchRef = useRef(false);
   const stoppingAfterErrorRef = useRef(false);
+  const compareEngineRef = useRef<SpeechCompareEngine>(new SpeechCompareEngine(''));
 
   // ============================================================
   // Current phrase
@@ -226,7 +221,31 @@ export default function SpeechTrainerPhrase() {
   useEffect(() => {
     setVariantBuffer(new Map());
     setLastAsrResult(null);
+
+    compareEngineRef.current.reset(currentAnswer);
+    setCompareSnapshot(compareEngineRef.current.getSnapshot());
+    setCurrentWord(compareEngineRef.current.getCurrentWord());
   }, [phraseIndex]);
+
+  useEffect(() => {
+    compareEngineRef.current.reset(currentAnswer);
+    setCompareSnapshot(compareEngineRef.current.getSnapshot());
+    setCurrentWord(compareEngineRef.current.getCurrentWord());
+  }, [currentAnswer]);
+
+  useEffect(() => {
+    const matched = compareEngineRef.current.process(
+      lastAsrResult?.text ?? null,
+      perAnswerVariants,
+    );
+
+    setCompareSnapshot(compareEngineRef.current.getSnapshot());
+    setCurrentWord(compareEngineRef.current.getCurrentWord());
+
+    if (matched) {
+      handleMatched();
+    }
+  }, [lastAsrResult, perAnswerVariants]);
 
   // ============================================================
   // Trainer loop
@@ -476,13 +495,31 @@ export default function SpeechTrainerPhrase() {
       )}
 
       <View style={styles.asrResultSection}>
-        <SpeechCompare
-          etalon={currentAnswer}
-          asrText={lastAsrResult?.text ?? null}
-          variants={perAnswerVariants}
-          onMatched={handleMatched}
-          onCurrentWord={setCurrentWord}
-        />
+        <View>
+          <LinearGradient
+            style={Fieldstyles.fieldCard}
+            colors={['rgba(20,30,48,1)', 'rgba(36,59,85,0.95)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}>
+            <View style={Fieldstyles.fieldCardInner}>
+              <Text style={Fieldstyles.fieldCaption}>Current ASR result:</Text>
+              <Text style={Fieldstyles.fieldValue}>{compareSnapshot.asrResult}</Text>
+            </View>
+          </LinearGradient>
+          <LinearGradient
+            style={[Fieldstyles.fieldCard, { height: 200 }]}
+            colors={['rgba(20,30,48,1)', 'rgba(36,59,85,0.95)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}>
+            <View style={Fieldstyles.fieldCardInner}>
+              <Text style={Fieldstyles.fieldCaption}>Matched:</Text>
+              <Text style={Fieldstyles.fieldValue}>{compareSnapshot.matchedWords.join(' ')}</Text>
+            </View>
+            {compareSnapshot.status.length > 0 && (
+              <Text style={styles.compareStatus}>{compareSnapshot.status}</Text>
+            )}
+          </LinearGradient>
+        </View>
       </View>
       <View style={styles.bottomSection}>
         <TouchableOpacity
@@ -617,6 +654,12 @@ const styles = StyleSheet.create({
     top: '50%',
     marginTop: -28,
     zIndex: 2,
+  },
+  compareStatus: {
+    marginLeft: 17,
+    color: '#06a81c',
+    fontSize: 18,
+    fontWeight: '800',
   },
   currentWord: {
     marginTop: 10,
