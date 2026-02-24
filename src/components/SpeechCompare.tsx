@@ -120,10 +120,6 @@ export default function SpeechCompare({
       .filter(Boolean);
 
     let etalonWord = etalonWords[currIndex.current];
-    if(!etalonWord && etalonWords.length>0) {
-      currIndex.current = 0;
-      etalonWord = etalonWords[currIndex.current];
-    }
     if (!etalonWord) return;
 
     // ============================================================

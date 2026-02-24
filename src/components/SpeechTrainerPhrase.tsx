@@ -491,7 +491,7 @@ export default function SpeechTrainerPhrase() {
             setLastAsrResult({
               engine: currentAsrId,
               type: 'final',
-              text: generatePseudoUniqueId() + " " + currentWord,
+              text: currentWord,
             });
           }}
           style={{ position: 'absolute', top: -40, left: 20 }}>
