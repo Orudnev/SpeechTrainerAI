@@ -101,7 +101,10 @@ export default function SpeechTrainerPhrase() {
   const currentQuestion = currentItem?.q ?? '';
 
   const currentAnswer = currentItem?.a ?? '';
-  const perAnswerVariants: Tvariant[] = rawItem?.variants ?? [];
+  const perAnswerVariants: Tvariant[] = useMemo(
+    () => rawItem?.variants ?? [],
+    [rawItem?.variants],
+  );
 
 
   function getAsrEngineId(): AsrEngineId {
