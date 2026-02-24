@@ -1,5 +1,4 @@
-import { clearDb, reseedDb, listAllRows, asrinit, asrshutdown, grantFullAccess } from "./debugCommands";
-
+import { clearDb, reseedDb, list,listc, asrinit, asrshutdown, grantFullAccess } from "./debugCommands";
 export const testReg = ()=>{
     console.log("blablabla");
 };
@@ -11,7 +10,8 @@ export function registerDebugApi() {
   (global as any).dbg = {
     clearDb,
     reseedDb,
-    listAllRows,
+    list,
+    listc,
     testReg,
     asrinit,
     asrshutdown,

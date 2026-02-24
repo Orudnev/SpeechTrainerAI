@@ -1,4 +1,4 @@
-import { saveAppSettingsToDb, setAppSettingValue } from "../db/settings";
+import { getAppSettingValue, saveAppSettingsToDb, setAppSettingValue } from "../db/settings";
 import {
   initSpeechDb,
   seedSpeechDbIfEmpty,
@@ -63,13 +63,8 @@ export async function synchLocalToCloud() {
   console.log("Local database synchronized to cloud");
 }
 
-export async function listAllRows(): Promise<void> {
-  const db = await openSpeechDb();
-
-  const res = await db.executeSql(`SELECT * FROM phrases ORDER BY topic;`);
-
-  const rows = res[0].rows;
-
+function printRows(rows: SpItem[],allDirections:boolean) {
+  const isReverse = getAppSettingValue<boolean>("reverseMode");
   const fml = (o:any, length: number) => {
     return o.toString().padEnd(length, " ").substr(0,length);
   };
@@ -77,12 +72,42 @@ export async function listAllRows(): Promise<void> {
     return o.toString().padStart(length, " ").substr(0,length);
   };
   for (let i = 0; i < rows.length; i++) {
-    let r = rows.item(i);
-    let str1 = `${fmr(i, 3)} ${fml(r.uid,15)}cntf:${fmr(r.cntf, 5)} df:${fmr(r.df.toFixed(0),6)} dwf:${fmr(r.dwf.toFixed(0),6)} correctf:${fmr(r.correctf, 5)} streakf:${fmr(r.streakf, 5)} mssf:${fmr(MSS(r),4)} ${r.q}`;
-    let str2 = `    ${fml(r.topic,15)}cntr:${fmr(r.cntr, 5)} dr:${fmr(r.dr.toFixed(0),6)} dwr:${fmr(r.dwr.toFixed(0),6)} correctr:${fmr(r.correctr, 5)} streakr:${fmr(r.streakr, 5)} mssr:${fmr(MSS(r,true),4)} ${r.a} variants:${r.variants}`;
-    console.log(`${str1}\n${str2}`);
+    let r:any = rows[i];
+    let lineNum = `${fmr(i, 3)}`;
+    let str1 = `${lineNum} ${fml(r.uid,15)}cntf:${fmr(r.cntf, 5)} df:${fmr(r.df.toFixed(0),5)} dwf:${fmr(r.dwf.toFixed(0),5)} correctf:${fmr(r.correctf, 5)} streakf:${fmr(r.streakf, 5)} intf:${fmr(r.intf, 10)} mssf:${fmr(MSS(r),4)} ${fml(r.q,50)}`;
+    let str2 = `${fml(r.topic,15)}cntr:${fmr(r.cntr, 5)} dr:${fmr(r.dr.toFixed(0),5)} dwr:${fmr(r.dwr.toFixed(0),5)} correctr:${fmr(r.correctr, 5)} streakr:${fmr(r.streakr, 5)} intr:${fmr(r.intr, 10)} mssr:${fmr(MSS(r,true),4)} ${r.a} variants:${r.variants}`;
+    if(allDirections){
+      console.log(`${str1}\n    ${str2}\n`);
+    } else if(isReverse){
+      console.log(`${lineNum} ${str2}`);
+    } else {  
+      console.log(str1);
+    }
   }
 }
+
+async function listimpl(predicate?:()=>boolean,allDirections:boolean=true) {
+  const db = await openSpeechDb();
+  const res = await db.executeSql(`SELECT * FROM phrases ORDER BY topic;`);
+  let allRows = res[0].rows;
+  let rows: SpItem[] = [];
+  for (let i = 0; i < allRows.length; i++){
+    rows.push(allRows.item(i));
+  }
+  if(predicate){
+    rows = rows.filter(predicate);
+  } 
+  printRows(rows,allDirections);
+}
+
+export async function list(predicate?:()=>boolean) {
+  listimpl(predicate,true);
+}
+
+export async function listc(predicate?:()=>boolean) {
+  listimpl(predicate,false);
+}
+
 
 export async function asrinit() {
   await AsrService.initAllEngines();

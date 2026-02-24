@@ -127,7 +127,7 @@ export async function initSpeechDb() {
       streakf INTEGER DEFAULT 0,
       streakr INTEGER DEFAULT 0,
       intf INTEGER DEFAULT 0,
-      intr INTEGER DEFAULT 0,
+      intr INTEGER DEFAULT 0
     );
   `);
 

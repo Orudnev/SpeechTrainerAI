@@ -6,8 +6,7 @@ type ResultUpdate = {
   resultToPersist: SpItemResult;
 };
 
-//export const minItemInterval = 1000 * 60 * 2; //2 минуты 
-export const minItemInterval = 5000; 
+export const minItemInterval = 60000 * 2; //2 минуты 
 
 function CalcInterval(item: SpItem,reverseMode:boolean,isError:boolean){
   const mss = MSS(item,reverseMode);
@@ -109,6 +108,8 @@ export function buildResultUpdate(
       correctr: patch.correctr ?? rawItem.correctr ?? 0,
       streakf: patch.streakf ?? rawItem.streakf ?? 0,
       streakr: patch.streakr ?? rawItem.streakr ?? 0,
+      intf: patch.intf ?? rawItem.intf ?? 0,
+      intr: patch.intr ?? rawItem.intr ?? 0,
     },
   };
 }

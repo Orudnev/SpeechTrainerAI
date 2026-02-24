@@ -25,6 +25,7 @@ import {
   saveVariantsToPhrase,
   saveResultToPhrase,
   SpItemResult,
+  generatePseudoUniqueId,
 } from '../db/speechDb';
 
 import { AnchoredOverlay } from './AnchoredOverlay';
@@ -148,7 +149,7 @@ export default function SpeechTrainerPhrase() {
         return;
       }
 
-      const nextItemUid = getNextItemUid(data,reverseMode);
+      const nextItemUid = getNextItemUid(data,reverseMode,"");
       const initialIndex = data.findIndex(itm=>itm.uid == nextItemUid);
 
       setItems(data);
@@ -312,7 +313,8 @@ export default function SpeechTrainerPhrase() {
       //   rawItem.uid,
       //   reverseMode,
       // );
-      const nextItemUid = getNextItemUid(updatedItems,reverseMode);
+      
+      const nextItemUid = getNextItemUid(updatedItems,reverseMode,rawItem.uid);
       const nextIndex = updatedItems.findIndex(itm=>itm.uid == nextItemUid);
 
       setListeningStartedAt(null);
@@ -392,7 +394,7 @@ export default function SpeechTrainerPhrase() {
     //   rawItem.uid,
     //   reverseMode,
     // );
-    const nextItemUid = getNextItemUid(items,reverseMode);
+    const nextItemUid = getNextItemUid(items,reverseMode,rawItem.uid);
     const nextIndex = items.findIndex(itm=>itm.uid == nextItemUid);
 
 
@@ -489,7 +491,7 @@ export default function SpeechTrainerPhrase() {
             setLastAsrResult({
               engine: currentAsrId,
               type: 'final',
-              text: currentWord,
+              text: generatePseudoUniqueId() + " " + currentWord,
             });
           }}
           style={{ position: 'absolute', top: -40, left: 20 }}>

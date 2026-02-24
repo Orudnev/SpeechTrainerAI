@@ -38,7 +38,7 @@ function randNoise() {
 
 // -----------------------------------------------------
 
-export function getNextItemUid(allItems: SpItem[],isReverse = false): string {
+export function getNextItemUid(allItems: SpItem[],isReverse = false,currentItemUid:string): string {
 
   // -A- Start getNextItem
 
@@ -57,6 +57,8 @@ export function getNextItemUid(allItems: SpItem[],isReverse = false): string {
 
     // -F- Select weakest
     overdue.sort((a, b) => {
+      if(a.uid == currentItemUid) return 1; // a - текущий элемент, сдвинуть его вниз списка 
+      if(b.uid == currentItemUid) return -1; // b - текущий элемент, сдвинуть его вниз списка
       const m = MSS(a,isReverse) - MSS(b, isReverse);
       if (m !== 0) return m;
 
