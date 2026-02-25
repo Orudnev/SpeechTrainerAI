@@ -430,7 +430,10 @@ export default function SpeechTrainerPhrase() {
     setListeningStartedAt(null);
     setPhraseIndex(nextIndex);
   }
-  const openWordDisabled = phase != 'listening';
+  const openWordDisabled = phase !== 'listening';
+  const isLandscape = screenSize.width > screenSize.height;
+  const styles = isLandscape ? lStyles : pStyles;
+  const Fieldstyles = pFieldstyles;
   const openWordStyle = openWordDisabled ? { opacity: 0.5 } : {};
   // ============================================================
   // Render
@@ -493,7 +496,7 @@ export default function SpeechTrainerPhrase() {
           </Portal>
 
           <View style={styles.questionSection}>
-            <ImageBackground source={require('../assets/backgr1.png')} imageStyle={{ borderRadius: 18, borderColor: 'gray', borderWidth: 1, left: 10, right: 10, height: 200 }} resizeMode='stretch'  >
+            <ImageBackground source={require('../assets/backgr1.png')} imageStyle={styles.questionSection} resizeMode='stretch'  >
               <View style={Fieldstyles.fieldCardInner}>
                 <Text style={Fieldstyles.fieldCaption}>Current question:</Text>
                 <Text style={Fieldstyles.fieldValue}>{currentQuestion}</Text>
@@ -582,7 +585,7 @@ export default function SpeechTrainerPhrase() {
 // ============================================================
 // Styles
 // ============================================================
-export const Fieldstyles = StyleSheet.create({
+export const pFieldstyles = StyleSheet.create({
   modalDetailsOfItem: {
     borderRadius: 18,
     overflow: 'hidden',
@@ -626,12 +629,63 @@ export const Fieldstyles = StyleSheet.create({
   },
 });
 
-const styles = StyleSheet.create({
+const pStyles = StyleSheet.create({
   root: {
     flex: 1,
   },
   questionSection: {
     flex: 30,
+    borderRadius: 18, 
+    borderColor: 'gray', 
+    borderWidth: 1, 
+    left: 10, 
+    right: 10, 
+    height: 200 
+  },
+  asrResultSection: {
+    flex: 60,
+  },
+  bottomSection: {
+    flex: 10,
+  },
+  manualStartButton: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '50%',
+    marginTop: -28,
+    zIndex: 2,
+  },
+  compareStatus: {
+    marginLeft: 17,
+    color: '#06a81c',
+    fontSize: 18, 
+    fontWeight: '800',
+  },
+  currentWord: {
+    marginTop: 10,
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  phase: {
+    fontSize: 16,
+    marginTop: 10,
+    marginBottom: 10,
+    fontWeight: '600',
+  },
+});
+
+const lStyles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  questionSection: {
+    flex: 30,
+    borderRadius: 18, 
+    borderColor: 'gray', 
+    borderWidth: 1, 
+    left: 10, 
+    right: 10, 
+    height: 50 
   },
   asrResultSection: {
     flex: 60,
