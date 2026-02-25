@@ -5,6 +5,7 @@ import {
   StyleSheet,
   useWindowDimensions,
   Image,
+  ImageBackground,
   TouchableOpacity,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -327,10 +328,10 @@ export default function SpeechTrainerPhrase() {
 
       setItems(updatedItems);
       if (!resetStreakOnError) {
-          console.log('✅ Phrase complete!');      
-          const id = await TtsService.speak('Correct!');
-          await TtsService.waitFinish(id);
-      } 
+        console.log('✅ Phrase complete!');
+        const id = await TtsService.speak('Correct!');
+        await TtsService.waitFinish(id);
+      }
 
       const historyLimit = Math.max(
         3,
@@ -429,7 +430,8 @@ export default function SpeechTrainerPhrase() {
     setListeningStartedAt(null);
     setPhraseIndex(nextIndex);
   }
-
+  const openWordDisabled = phase != 'listening';
+  const openWordStyle = openWordDisabled ? { opacity: 0.5 } : {};
   // ============================================================
   // Render
   // ============================================================
@@ -472,6 +474,7 @@ export default function SpeechTrainerPhrase() {
               }}
             />
           </Toolbar>
+          {/* Всплывающее окно с подсказкой */}
           <Portal>
             <Modal visible={showCurrentItem} onDismiss={() => setShowCurrentItem(false)} contentContainerStyle={{ justifyContent: 'center', alignItems: 'center' }}>
               <LinearGradient
@@ -488,38 +491,28 @@ export default function SpeechTrainerPhrase() {
               </LinearGradient>
             </Modal>
           </Portal>
+
           <View style={styles.questionSection}>
-            <LinearGradient
-              style={[Fieldstyles.fieldCard, { height: 200 }]}
-              colors={['rgba(20,30,48,1)', 'rgba(36,59,85,0.95)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}>
+            <ImageBackground source={require('../assets/backgr1.png')} imageStyle={{ borderRadius: 18, borderColor: 'gray', borderWidth: 1, left: 10, right: 10, height: 200 }} resizeMode='stretch'  >
               <View style={Fieldstyles.fieldCardInner}>
                 <Text style={Fieldstyles.fieldCaption}>Current question:</Text>
                 <Text style={Fieldstyles.fieldValue}>{currentQuestion}</Text>
               </View>
-            </LinearGradient>
+            </ImageBackground>
           </View>
         </>
       )}
 
       <View style={styles.asrResultSection}>
-        <View>
-          <LinearGradient
-            style={Fieldstyles.fieldCard}
-            colors={['rgba(20,30,48,1)', 'rgba(36,59,85,0.95)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}>
+        <View >
+          <ImageBackground source={require('../assets/backgr1.png')} imageStyle={{ borderRadius: 18, borderColor: 'gray', borderWidth: 1, left: 10, right: 10, height: 100 }} resizeMode='stretch'  >
             <View style={Fieldstyles.fieldCardInner}>
               <Text style={Fieldstyles.fieldCaption}>Current ASR result:</Text>
               <Text style={Fieldstyles.fieldValue}>{compareSnapshot.asrResult}</Text>
             </View>
-          </LinearGradient>
-          <LinearGradient
-            style={[Fieldstyles.fieldCard, { height: 200 }]}
-            colors={['rgba(20,30,48,1)', 'rgba(36,59,85,0.95)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}>
+          </ImageBackground>
+          <View style={{ top: 50 }} >
+          <ImageBackground source={require('../assets/backgr1.png')} imageStyle={{ borderRadius: 18, borderColor: 'gray', borderWidth: 1, left: 10,right: 10, height: 200 }} resizeMode='stretch'  >
             <View style={Fieldstyles.fieldCardInner}>
               <Text style={Fieldstyles.fieldCaption}>Matched:</Text>
               <Text style={Fieldstyles.fieldValue}>{compareSnapshot.matchedWords.join(' ')}</Text>
@@ -527,7 +520,8 @@ export default function SpeechTrainerPhrase() {
             {compareSnapshot.status.length > 0 && (
               <Text style={styles.compareStatus}>{compareSnapshot.status}</Text>
             )}
-          </LinearGradient>
+          </ImageBackground>
+          </View>
         </View>
       </View>
       <View style={styles.bottomSection}>
@@ -544,9 +538,9 @@ export default function SpeechTrainerPhrase() {
 
         <TouchableOpacity
           onPress={handleNextPhrasePress}
-          style={{ position: 'absolute', top: -40, left: 20 }}>
+          style={{ position: 'absolute', top: -40, left: -35 }}>
           <Image
-            style={{ width: 150 }}
+            style={{ height: 80 }}
             source={require('../assets/skipphrase.png')}
             resizeMode="contain"
           />
@@ -555,15 +549,15 @@ export default function SpeechTrainerPhrase() {
           onPress={() => {
             handleMatched(true)
           }}
-          style={{ position: 'absolute', top: -40, right: 20 }}>
+          style={{ position: 'absolute', top: -40, right: -35 }}>
           <Image
-            style={{ width: 150 }}
+            style={{ height: 80 }}
             source={require('../assets/cannotremember.png')}
             resizeMode="contain"
           />
         </TouchableOpacity>
-        {phase == 'listening' && (
           <TouchableOpacity
+            disabled={openWordDisabled}
             onPress={() => {
               if (!currentWord) return;
               setLastAsrResult({
@@ -573,16 +567,13 @@ export default function SpeechTrainerPhrase() {
               });
               setOpenWordCounter(prev => prev + 1); // Увеличиваем счетчик при открытии слова
             }}
-            style={{ position: 'absolute', top: 40, right: 20 }}>
+            style={{ position: 'absolute', top: -40, left: 93.5}}>
             <Image
-              style={{ width: 150 }}
+              style={[{ height: 80 }, openWordStyle]}
               source={require('../assets/openword.png')}
               resizeMode="contain"
             />
           </TouchableOpacity>
-        )}
-
-
       </View>
     </View>
   );
@@ -601,12 +592,6 @@ export const Fieldstyles = StyleSheet.create({
     minHeight: 300,
     borderColor: "gray",
 
-    // тень (Android + iOS)
-    elevation: 8,
-    shadowColor: '#00E5FF',
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
     marginTop: 15,
     marginLeft: 15,
     marginRight: 15,
@@ -615,23 +600,16 @@ export const Fieldstyles = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
 
-    // glass / modern look
     borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: '#636161',
 
-    // тень (Android + iOS)
-    elevation: 8,
-    shadowColor: '#00E5FF',
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
     marginTop: 15,
     marginLeft: 15,
     marginRight: 15,
   },
 
   fieldCardInner: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 25,
     paddingVertical: 16,
   },
   fieldCaption: {
@@ -653,13 +631,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   questionSection: {
-    flex: 3,
+    flex: 30,
   },
   asrResultSection: {
-    flex: 5,
+    flex: 60,
   },
   bottomSection: {
-    flex: 2,
+    flex: 10,
   },
   manualStartButton: {
     position: 'absolute',
