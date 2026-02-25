@@ -1,4 +1,4 @@
-import { clearDb, reseedDb, list,listc, asrinit, asrshutdown, grantFullAccess } from "./debugCommands";
+import { clearDb, reseedDb, list,listc, asrinit, asrshutdown, grantFullAccess, fireSpeechResultEvent } from "./debugCommands";
 export const testReg = ()=>{
     console.log("blablabla");
 };
@@ -16,6 +16,7 @@ export function registerDebugApi() {
     asrinit,
     asrshutdown,
     grantFullAccess,
+    fireSpeechResultEvent
   };
 
   console.log("✅ Debug API registered: globalThis.dbg");

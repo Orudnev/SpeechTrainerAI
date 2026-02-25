@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from "react-native";
 import { getAppSettingValue, saveAppSettingsToDb, setAppSettingValue } from "../db/settings";
 import {
   initSpeechDb,
@@ -107,6 +108,15 @@ export async function list(predicate?:()=>boolean) {
 export async function listc(predicate?:()=>boolean) {
   listimpl(predicate,false);
 }
+
+export function fireSpeechResultEvent(asrResultText: string) {
+  DeviceEventEmitter.emit("SpeechResult", JSON.stringify({
+    type: "partial",
+    text: asrResultText,
+    isError: false,
+  }));
+}
+
 
 
 export async function asrinit() {

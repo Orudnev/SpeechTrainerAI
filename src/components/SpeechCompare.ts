@@ -14,7 +14,7 @@ export function normalizeText(input: string): string {
   if (!input) return '';
   return input
     .toLowerCase()
-    .replace(/ё/g, 'e')
+    .replace(/ё/g, 'е')
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
