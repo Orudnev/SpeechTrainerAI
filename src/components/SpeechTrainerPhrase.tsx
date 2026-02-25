@@ -531,25 +531,6 @@ export default function SpeechTrainerPhrase() {
         </View>
       </View>
       <View style={styles.bottomSection}>
-        {phase == 'listening' && (
-          <TouchableOpacity
-            onPress={() => {
-              if (!currentWord) return;
-              setLastAsrResult({
-                engine: currentAsrId,
-                type: 'final',
-                text: currentWord,
-              });
-              setOpenWordCounter(prev => prev + 1); // Увеличиваем счетчик при открытии слова
-            }}
-            style={{ position: 'absolute', top: -40, left: 20 }}>
-            <Image
-              style={{ width: 150 }}
-              source={require('../assets/openword.png')}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        )}
 
         {phase === 'idle' && (
           <View style={styles.manualStartButton}>
@@ -563,7 +544,7 @@ export default function SpeechTrainerPhrase() {
 
         <TouchableOpacity
           onPress={handleNextPhrasePress}
-          style={{ position: 'absolute', top: -40, right: 20 }}>
+          style={{ position: 'absolute', top: -40, left: 20 }}>
           <Image
             style={{ width: 150 }}
             source={require('../assets/skipphrase.png')}
@@ -574,13 +555,33 @@ export default function SpeechTrainerPhrase() {
           onPress={() => {
             handleMatched(true)
           }}
-          style={{ position: 'absolute', top: 40, right: 20 }}>
+          style={{ position: 'absolute', top: -40, right: 20 }}>
           <Image
             style={{ width: 150 }}
             source={require('../assets/cannotremember.png')}
             resizeMode="contain"
           />
         </TouchableOpacity>
+        {phase == 'listening' && (
+          <TouchableOpacity
+            onPress={() => {
+              if (!currentWord) return;
+              setLastAsrResult({
+                engine: currentAsrId,
+                type: 'final',
+                text: currentWord,
+              });
+              setOpenWordCounter(prev => prev + 1); // Увеличиваем счетчик при открытии слова
+            }}
+            style={{ position: 'absolute', top: 40, right: 20 }}>
+            <Image
+              style={{ width: 150 }}
+              source={require('../assets/openword.png')}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        )}
+
 
       </View>
     </View>
