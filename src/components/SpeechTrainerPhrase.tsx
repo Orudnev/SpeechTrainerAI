@@ -14,7 +14,7 @@ import { normalizeText, SpeechCompareEngine, SpeechCompareSnapshot } from './Spe
 import { speakAndListen } from '../speech/flow/speechOrchestrator';
 import { TtsService } from '../speech/tts/TtsService';
 import { AsrService } from '../speech/asr/AsrService';
-import { AsrEngineId, AsrResultEvent } from '../speech/asr/types';
+import { AsrResultEvent } from '../speech/asr/types';
 
 import {
   initSpeechDb,
@@ -37,7 +37,7 @@ import { AppContext } from '../../App';
 import { AppSettings, getAppSettingValue } from '../db/settings';
 import { getNextItemUid } from '../helpers/getNextItemUid';
 import { buildResultUpdate } from '../helpers/buildResultUpdate';
-
+import { getAsrEngineId } from '../speech/asr/AsrService';
 /**
  * Variant statistics (UI only)
  */
@@ -109,21 +109,7 @@ export default function SpeechTrainerPhrase() {
   );
 
 
-  function getAsrEngineId(): AsrEngineId {
-    if (getAppSettingValue<string>('asrModelType') === 'vosk') {
-      if (getAppSettingValue<boolean>('reverseMode')) {
-        return 'vosk-ru';
-      } else {
-        return 'vosk-en';
-      }
-    } else {
-      if (getAppSettingValue<boolean>('reverseMode')) {
-        return 'android-ru';
-      } else {
-        return 'android-en';
-      }
-    }
-  }
+
 
   // ============================================================
   // Load DB

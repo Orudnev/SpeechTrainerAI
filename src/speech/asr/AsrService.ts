@@ -2,8 +2,27 @@ import { NativeModules, DeviceEventEmitter } from "react-native";
 import { SupportedEngines } from "./engines";
 import { AsrEngineId, AsrResultEvent, AsrSessionConfig } from "./types";
 import { ensureAudioPermission } from "../permissions/audioPermission";
+import { getAppSettingValue } from "../../db/settings";
 
 const { RnJavaConnector } = NativeModules;
+
+
+
+export function getAsrEngineId(): AsrEngineId {
+  if (getAppSettingValue<string>('asrModelType') === 'vosk') {
+    if (getAppSettingValue<boolean>('reverseMode')) {
+      return 'vosk-ru';
+    } else {
+      return 'vosk-en';
+    }
+  } else {
+    if (getAppSettingValue<boolean>('reverseMode')) {
+      return 'android-ru';
+    } else {
+      return 'android-en';
+    }
+  }
+}
 
 /**
  * Центральный сервис управления ASR.
@@ -18,8 +37,8 @@ class AsrServiceImpl {
     console.log("🚀 Initializing ASR engines...");
 
     await RnJavaConnector.init();
-
-    const defaultModelPath = await RnJavaConnector.prepareModel("vosk-en");
+    const asrModelId = getAsrEngineId();
+    const defaultModelPath = await RnJavaConnector.prepareModel(asrModelId);
     console.log("📦 Vosk EN model installed:", defaultModelPath);
 
     await RnJavaConnector.loadModel(defaultModelPath);
