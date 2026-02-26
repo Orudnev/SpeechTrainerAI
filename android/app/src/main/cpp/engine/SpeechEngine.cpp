@@ -93,10 +93,30 @@ bool SpeechEngine::loadModel(const std::string& path) {
     LOGI("loadModel() requested path=%s, current modelPath_=%s, model ptr=%p",
          path.c_str(), modelPath_.c_str(), model_);
 
-    if (model_ != nullptr) {
-        LOGI("Model already loaded, ignoring new path=%s and keeping old modelPath_=%s",
-             path.c_str(), modelPath_.c_str());
+    if (path.empty()) {
+        LOGE("loadModel() failed: empty model path");
+        return false;
+    }
+
+    if (model_ != nullptr && modelPath_ == path) {
+        LOGI("Model already loaded for path=%s, reusing current model", path.c_str());
         return true;
+    }
+
+    if (model_ != nullptr) {
+        LOGI("Switching model from %s to %s", modelPath_.c_str(), path.c_str());
+
+        // Ensure no recognition thread is using the current recognizer/model.
+        stopRecognition();
+
+        if (recognizer_) {
+            vosk_recognizer_free(recognizer_);
+            recognizer_ = nullptr;
+        }
+
+        vosk_model_free(model_);
+        model_ = nullptr;
+        modelPath_.clear();
     }
 
     LOGI("Loading Vosk model from: %s", path.c_str());
@@ -300,5 +320,4 @@ void SpeechEngine::recognitionLoop() {
 
     LOGI("Recognition thread stopped");
 }
-
 
