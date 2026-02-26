@@ -65,10 +65,15 @@ export class SpeechCompareEngine {
     let etalonWord = this.etalonWords[this.currIndex];
     const casrrWords = normalizeText(asrText).split(' ').filter(Boolean);
     const foundIndex = casrrWords.findIndex(w => stemmer.stem(w) === stemmer.stem(etalonWord));
+    if (foundIndex === -1) {
+      return this.tryMarkByVariant(etalonWord, variants, asrText);
+    }
+
     if (foundIndex === -1){
       //no words in ASR result matched to current etalon words
       return false;
     }
+
     let i = foundIndex;
     let phraseMatched = false;
     while (i < casrrWords.length) {
