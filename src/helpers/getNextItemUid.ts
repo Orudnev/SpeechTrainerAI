@@ -47,14 +47,26 @@ export function getNextItemUid(allItems: SpItem[],isReverse = false,currentItemU
 
   const now = Date.now();
 
+  // В первую очередь выбираем новые элементы
+  const fresh = items.filter(itm =>
+    getInterval(itm,isReverse) < minItemInterval
+  );
+
+  if (fresh.length > 0) {
+    const r = Math.random();
+    const ind = Math.floor(r * fresh.length);    
+    console.log(`*** Fresh:${fresh[ind].uid}`);
+    return fresh[ind].uid; // -Z-
+  }
+
+
   // -D- Build overdue list
   const overdue = items.filter(itm =>
     isOverdue(itm, isReverse, now)
   );
 
   // -E- Overdue exists?
-  if (overdue.length > 0) {
-
+  if (overdue.length > 0) {   
     // -F- Select weakest
     overdue.sort((a, b) => {
       if(a.uid == currentItemUid) return 1; // a - текущий элемент, сдвинуть его вниз списка 
@@ -108,21 +120,6 @@ export function getNextItemUid(allItems: SpItem[],isReverse = false,currentItemU
     console.log(`*** Maintenance:${maintenance[index].uid}`);
     return maintenance[index].uid; // -Z-
   }
-
-  // -O- New list
-  const fresh = items.filter(itm =>
-    getCnt(itm,isReverse) == 0
-  );
-
-  // -P- Exists?
-  if (fresh.length > 0) {
-    // -Q- Random new
-    const r = Math.random();
-    const ind = Math.floor(r * fresh.length);    
-    console.log(`*** Fresh:${fresh[ind].uid}`);
-    return fresh[ind].uid; // -Z-
-  }
-
   // -R- Fallback
   const fallBackItems = items.filter(itm => itm.uid !== currentItemUid);
   const index = Math.floor(Math.random() * fallBackItems.length);

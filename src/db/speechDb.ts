@@ -1,4 +1,5 @@
 import SQLite, { SQLiteDatabase } from "react-native-sqlite-storage";
+import { reseedDb } from "../debug/debugCommands";
 
 SQLite.enablePromise(true);
 
@@ -301,27 +302,6 @@ export async function seedSpeechDbIfEmpty() {
   if (count > 0) return;
 
   console.log("Seeding database...");
-
-  const seed: Omit<SpItem, "uid">[] = [
-    {
-      topic: "test",
-      q: "Здравствуй мир",
-      a: "hello world",
-      variants: [],
-    },
-  ];
-
-  for (const item of seed) {
-    await db.executeSql(
-      `INSERT INTO phrases(uid, topic, q, a, variants)
-       VALUES(?, ?, ?, ?, ?);`,
-      [
-        generatePseudoUniqueId(),
-        item.topic,
-        item.q,
-        item.a,
-        JSON.stringify(item.variants ?? []),
-      ]
-    );
-  }
+  reseedDb();
 }
+

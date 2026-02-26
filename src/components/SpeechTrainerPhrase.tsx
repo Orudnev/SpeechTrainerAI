@@ -34,7 +34,7 @@ import { VariantPicker } from './VariantPicker';
 import Toolbar from './Toolbar';
 import { Appbar, FAB, Portal, Modal } from 'react-native-paper';
 import { AppContext } from '../../App';
-import { AppSettings, getAppSettingValue } from '../db/settings';
+import { AppSettings, getAppSettingValue, setAppSettingValue } from '../db/settings';
 import { getNextItemUid } from '../helpers/getNextItemUid';
 import { buildResultUpdate } from '../helpers/buildResultUpdate';
 import { getAsrEngineId } from '../speech/asr/AsrService';
@@ -54,7 +54,7 @@ export default function SpeechTrainerPhrase() {
   const screenSize = useWindowDimensions();
   const scw = (scwUnits: number) => (screenSize.width / 100) * scwUnits;
   const sch = (scwUnits: number) => (screenSize.height / 100) * scwUnits;
-
+ 
   // ============================================================
   // Core trainer state
   // ============================================================
@@ -117,19 +117,22 @@ export default function SpeechTrainerPhrase() {
   useEffect(() => {
     async function load() {
       console.log('📦 Loading phrases from SQLite...');
-
+ 
       await initSpeechDb();
       await seedSpeechDbIfEmpty();
+      const selectedTopics = getAppSettingValue<string[]>('selectedTopics');
       const data = (await loadAllPhrases()).filter(item => {
         if (!item.topic) {
           return false;
         }
-        const selectedTopics = getAppSettingValue<string[]>('selectedTopics');
-        let result = selectedTopics.includes(item.topic);
-        return result;
+        if(selectedTopics.length>0){
+          let result = selectedTopics.includes(item.topic);
+          return result;
+        } 
+        return true;
       });
-
       if (data.length === 0) {
+      setAppSettingValue('selectedTopics',[]);  
         setItems(data);
         setPhraseIndex(0);
         return;
@@ -727,7 +730,7 @@ const pStyles = StyleSheet.create({
     zIndex: 2,
   },
   compareStatus: {
-    marginLeft: 17,
+    marginLeft: 25,
     color: '#06a81c',
     fontSize: 18,
     fontWeight: '800',
@@ -776,7 +779,7 @@ const lStyles = StyleSheet.create({
     zIndex: 2,
   },
   compareStatus: {
-    marginLeft: 17,
+    marginLeft: 142,
     color: '#06a81c',
     fontSize: 18,
     fontWeight: '800',
