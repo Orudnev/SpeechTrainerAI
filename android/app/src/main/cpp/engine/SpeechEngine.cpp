@@ -90,8 +90,12 @@ bool SpeechEngine::isInitialized() const {
 
 bool SpeechEngine::loadModel(const std::string& path) {
 
+    LOGI("loadModel() requested path=%s, current modelPath_=%s, model ptr=%p",
+         path.c_str(), modelPath_.c_str(), model_);
+
     if (model_ != nullptr) {
-        LOGI("Model already loaded, ignoring");
+        LOGI("Model already loaded, ignoring new path=%s and keeping old modelPath_=%s",
+             path.c_str(), modelPath_.c_str());
         return true;
     }
 
@@ -112,9 +116,11 @@ bool SpeechEngine::loadModel(const std::string& path) {
     vosk_recognizer_set_max_alternatives(recognizer_, 0);
     vosk_recognizer_set_words(recognizer_, 1);
 
+    modelPath_ = path;
+
     state_ = EngineState::MODEL_LOADED;
 
-    LOGI("Vosk model loaded OK");
+    LOGI("Vosk model loaded OK, modelPath_=%s, model ptr=%p", modelPath_.c_str(), model_);
     return true;
 }
 
@@ -129,6 +135,9 @@ void SpeechEngine::setResultCallback(void (*cb)(const char*)) {
 }
 
 bool SpeechEngine::startRecognition() {
+    LOGI("startRecognition() with state=%s, modelPath_=%s, model ptr=%p, recognizer ptr=%p",
+         toString(state_), modelPath_.c_str(), model_, recognizer_);
+
     if (state_ == EngineState::RECOGNIZING) {
         LOGI("startRecognition() already running");
         return true;
@@ -291,6 +300,5 @@ void SpeechEngine::recognitionLoop() {
 
     LOGI("Recognition thread stopped");
 }
-
 
 
