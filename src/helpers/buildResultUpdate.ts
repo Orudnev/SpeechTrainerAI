@@ -20,6 +20,9 @@ function CalcInterval(item: SpItem,reverseMode:boolean,isError:boolean){
   else if(mss > 70) days = 7;
   else if(mss > 50) days = 3;
   else if(mss > 40) days = 1;
+  else if(mss > 19) return minItemInterval*300; // 10 часов
+  else if(mss > 15) return minItemInterval*30; // 1 час
+  else if(mss > 10) return minItemInterval*10; // 20 минут
   else if(mss > 5) return minItemInterval; // -F4- 2 минуты для новых слов
   const result = days * dayInMs; // -E7- Рассчитать новый интервал
   return result;  
