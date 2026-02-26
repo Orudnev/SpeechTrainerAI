@@ -240,6 +240,10 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void loadModel(String path, Promise p) {
 
+        Log.i("RnJavaConnector", "📥 loadModel() requested path=" + path
+                + ", currentModelPath(before)=" + currentModelPath
+                + ", currentEngine=" + (currentEngine != null ? currentEngine.getId() : "null"));
+
         currentModelPath = path;
 
         if (currentEngine != null) {
@@ -247,6 +251,9 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
         } else {
             nativeLoadModel(path);
         }
+
+        Log.i("RnJavaConnector", "✅ loadModel() finished path=" + path
+                + ", currentModelPath(after)=" + currentModelPath);
 
         p.resolve(true);
     }
@@ -410,6 +417,10 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void startRecognition(String engineId, Promise p) {
+
+        Log.i("RnJavaConnector", "🎤 startRecognition() requested engineId=" + engineId
+                + ", currentEngine=" + (currentEngine != null ? currentEngine.getId() : "null")
+                + ", currentModelPath=" + currentModelPath);
 
         if (currentEngine == null) {
             p.reject("NO_ENGINE", "Call setCurrentEngine() first");

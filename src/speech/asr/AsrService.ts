@@ -39,8 +39,9 @@ class AsrServiceImpl {
     await RnJavaConnector.init();
     const asrModelId = getAsrEngineId();
     const defaultModelPath = await RnJavaConnector.prepareModel(asrModelId);
-    console.log("📦 Vosk EN model installed:", defaultModelPath);
+    console.log("📦 Initial Vosk model prepared:", asrModelId, defaultModelPath);
 
+    console.log("📥 Loading initial model into native layer:", defaultModelPath);
     await RnJavaConnector.loadModel(defaultModelPath);
 
     console.log("✅ ASR engines ready:", SupportedEngines);
@@ -61,6 +62,7 @@ class AsrServiceImpl {
     if (cfg.engineId === "vosk-en" || cfg.engineId === "vosk-ru") {
       const modelPath = await RnJavaConnector.prepareModel(cfg.engineId);
       console.log("📦 Vosk model installed:", cfg.engineId, modelPath);
+      console.log("📥 Loading session model into native layer:", cfg.engineId, modelPath);
       await RnJavaConnector.loadModel(modelPath);
     }
 
