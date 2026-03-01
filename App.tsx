@@ -9,7 +9,6 @@ import {
   StyleSheet,
 } from 'react-native';
 import {useEffect, useState, createContext} from 'react';
-import {useSpeechResults} from './src/speech/asr/useSpeechResults';
 import SpeechTrainerPhrase from './src/components/SpeechTrainerPhrase';
 import {speakAndListen} from './src/speech/flow/speechOrchestrator';
 import {registerDebugApi} from './src/debug/registerDebugApi';
@@ -30,13 +29,9 @@ export const AppContext = createContext<AppContextType | null>(null);
 
 export default function App() {
   const isDark = useColorScheme() === 'dark';
-  useEffect(() => {
-    // 🔹 запускаем тест один раз
+  useEffect( () => {
     AsrService.initAllEngines();
     registerDebugApi();
-    loadAppSettingsFromDb().catch(err => {
-      console.warn('Failed to load app settings', err);
-    });
   }, []);
   const [currPage, setCurrPage] = useState<TPages>('main');
 
