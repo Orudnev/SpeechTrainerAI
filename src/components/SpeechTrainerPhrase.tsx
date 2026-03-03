@@ -54,7 +54,7 @@ export default function SpeechTrainerPhrase() {
   const screenSize = useWindowDimensions();
   const scw = (scwUnits: number) => (screenSize.width / 100) * scwUnits;
   const sch = (scwUnits: number) => (screenSize.height / 100) * scwUnits;
- 
+
   // ============================================================
   // Core trainer state
   // ============================================================
@@ -117,7 +117,7 @@ export default function SpeechTrainerPhrase() {
   useEffect(() => {
     async function load() {
       console.log('📦 Loading phrases from SQLite...');
- 
+
       await initSpeechDb();
       await seedSpeechDbIfEmpty();
       await loadAppSettingsFromDb().catch(err => {
@@ -130,14 +130,14 @@ export default function SpeechTrainerPhrase() {
         if (!item.topic) {
           return false;
         }
-        if(selectedTopics.length>0){
+        if (selectedTopics.length > 0) {
           let result = selectedTopics.includes(item.topic);
           return result;
-        } 
+        }
         return true;
       });
       if (data.length === 0) {
-      setAppSettingValue('selectedTopics',[]);  
+        setAppSettingValue('selectedTopics', []);
         setItems(data);
         setPhraseIndex(0);
         return;
@@ -429,6 +429,8 @@ export default function SpeechTrainerPhrase() {
   const styles = isLandscape ? lStyles : pStyles;
   const fieldStyles = isLandscape ? lFieldstyles : pFieldstyles;
   const openWordStyle = openWordDisabled ? { opacity: 0.5 } : {};
+  const matchedText = compareSnapshot.matchedWords.join(' ');
+  const matchedTextDlm = matchedText ? "  " : "";
   // ============================================================
   // Render
   // ============================================================
@@ -480,9 +482,9 @@ export default function SpeechTrainerPhrase() {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}>
                 <View style={{ width: screenSize.width * 0.9, padding: 20 }}>
-                  <Text style={pFieldstyles.fieldCaption}>Current question:</Text>
+                  <Text style={[pFieldstyles.fieldCaption, fieldStylesCommon.fldCaptionColor]}>Current question:</Text>
                   <Text style={pFieldstyles.fieldValue}>{currentQuestion}</Text>
-                  <Text style={[pFieldstyles.fieldCaption, { marginTop: 20 }]}>Current answer:</Text>
+                  <Text style={[pFieldstyles.fieldCaption, fieldStylesCommon.fldCaptionColor, { marginTop: 20 }]}>Current answer:</Text>
                   <Text style={pFieldstyles.fieldValue}>{currentAnswer}</Text>
                 </View>
               </LinearGradient>
@@ -492,7 +494,7 @@ export default function SpeechTrainerPhrase() {
           <View style={styles.questionSection}>
             <ImageBackground source={require('../assets/backgr1.png')} imageStyle={[fieldStylesCommon.field, fieldStyles.fldQuestion]} resizeMode='stretch'  >
               <View style={fieldStyles.fieldCardInnerQuestion}>
-                <Text style={fieldStyles.fieldCaption}>Current question:</Text>
+                <Text style={[fieldStyles.fieldCaption, fieldStylesCommon.fldCaptionColor, { marginTop: 10 }]}>Current question:</Text>
                 <Text style={fieldStyles.fieldValue}>{currentQuestion}</Text>
               </View>
             </ImageBackground>
@@ -504,21 +506,18 @@ export default function SpeechTrainerPhrase() {
         <View >
           <ImageBackground source={require('../assets/backgr1.png')} imageStyle={[fieldStylesCommon.field, fieldStyles.fldAsrResult]} resizeMode='stretch'  >
             <View style={fieldStyles.fieldCardInnerAsrResult}>
-              <Text style={fieldStyles.fieldCaption}>Current ASR result:</Text>
-              <Text style={fieldStyles.fieldValue}>{compareSnapshot.asrResult}</Text>
+              <Text style={[fieldStyles.fieldCaption, fieldStylesCommon.fldCaptionColor, { marginTop: 5 }]}>
+                Current ASR result:
+              </Text>
+              <Text style={[fieldStyles.fieldValue]}>
+                {matchedText}
+                <Text style={[fieldStyles.fieldValue, fieldStylesCommon.fldCaptionColor]}>{matchedTextDlm + compareSnapshot.asrResult}</Text>
+              </Text>
             </View>
           </ImageBackground>
-          <View style={fieldStyles.fldMatchedPosition} >
-            <ImageBackground source={require('../assets/backgr1.png')} imageStyle={[fieldStylesCommon.field, fieldStyles.fldMatched]} resizeMode='stretch'  >
-              <View style={fieldStyles.fieldCardInnerMatched}>
-                <Text style={fieldStyles.fieldCaption}>Matched:</Text>
-                <Text style={fieldStyles.fieldValue}>{compareSnapshot.matchedWords.join(' ')}</Text>
-              </View>
-              {compareSnapshot.status.length > 0 && (
-                <Text style={styles.compareStatus}>{compareSnapshot.status}</Text>
-              )}
-            </ImageBackground>
-          </View>
+          {compareSnapshot.status.length > 0 && (
+            <Text style={styles.compareStatus}>{compareSnapshot.status}</Text>
+          )}
         </View>
       </View>
       <View style={styles.buttonSection}>
@@ -605,118 +604,21 @@ const fieldStylesCommon = StyleSheet.create({
     marginLeft: 15,
     marginRight: 15,
   },
-
+  fldCaptionColor: {
+    color: '#9AA3B2',
+  },
   field: { borderRadius: 18, borderColor: 'gray', borderWidth: 1, left: 10, right: 10, }
 });
-const lFieldstyles = StyleSheet.create({
-  fieldCardInner: {
-    paddingHorizontal: 25,
-    paddingVertical: 16,
-  },
-  fieldCardInnerQuestion:{
-    paddingHorizontal: 25,
-    paddingVertical: 25,
-  },
-  fieldCardInnerAsrResult:{
-    paddingHorizontal: 25,
-    paddingVertical: 25,
-  },
-  fieldCardInnerMatched:{
-    paddingHorizontal: 25,
-    paddingVertical: 25,
-  },
-  fieldCaption: {
-    fontSize: 13,
-    color: '#9AA3B2',
-    marginTop: -8,
-    backgroundColor: 'transparent',
-  },
-  fieldValue: {
-    marginTop: -21,
-    marginLeft: 120,
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#E6F1FF',
-    lineHeight: 24,
-  },
-
-
-  fldQuestion: {
-    marginTop:10,
-    height: 80
-  },
-  fldAsrResult: {
-    top:15,
-    height: 60
-  },
-  fldMatched: {
-    top:15,
-    height: 80
-  },
-  fldMatchedPosition: {
-    top: 20
-  }
-
-});
-
-const pFieldstyles = StyleSheet.create({
-  fieldCardInner: {
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-  },
-  fieldCardInnerQuestion:{
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-  },
-  fieldCardInnerAsrResult:{
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-  },
-  fieldCardInnerMatched:{
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-  },
-  fieldCaption: {
-    fontSize: 13,
-    color: '#9AA3B2',
-    marginBottom: 6,
-    backgroundColor: 'transparent',
-  },
-  fieldValue: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#E6F1FF',
-    lineHeight: 24,
-  },
-
-  fldQuestion: {
-    height: 200
-  },
-  fldAsrResult: {
-    height: 100
-  },
-  fldMatched: {
-    marginTop: -5,
-    height: 200,
-  },
-  fldMatchedPosition: {
-    top: 70
-  }
-
-
-});
-
-
 
 const pStyles = StyleSheet.create({
   root: {
     flex: 1,
   },
   questionSection: {
-    flex: 30,
+    flex: 29,
   },
   asrResultSection: {
-    flex: 55,
+    flex: 56,
   },
   buttonSection: {
     flex: 15,
@@ -735,7 +637,9 @@ const pStyles = StyleSheet.create({
     zIndex: 2,
   },
   compareStatus: {
-    marginLeft: 25,
+    position: "absolute",
+    top: 160,
+    left: 25,
     color: '#06a81c',
     fontSize: 18,
     fontWeight: '800',
@@ -758,7 +662,7 @@ const lStyles = StyleSheet.create({
     flex: 1,
   },
   questionSection: {
-    flex: 35,
+    flex: 28,
     width: "85%",
   },
   asrResultSection: {
@@ -784,7 +688,9 @@ const lStyles = StyleSheet.create({
     zIndex: 2,
   },
   compareStatus: {
-    marginLeft: 142,
+    position:"absolute",
+    top: 60,
+    left: 145,
     color: '#06a81c',
     fontSize: 18,
     fontWeight: '800',
@@ -801,3 +707,89 @@ const lStyles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+const pFieldstyles = StyleSheet.create({
+  fieldCardInner: {
+    paddingHorizontal: 25,
+    paddingVertical: 10,
+  },
+  fieldCardInnerQuestion: {
+    paddingHorizontal: 25,
+    paddingVertical: 10,
+  },
+  fieldCardInnerAsrResult: {
+    paddingHorizontal: 25,
+    paddingVertical: 10,
+  },
+  fieldCaption: {
+    fontSize: 13,
+    marginBottom: 6,
+    backgroundColor: 'transparent',
+  },
+  fieldValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#E6F1FF',
+    lineHeight: 24,
+  },
+
+  fldQuestion: {
+    marginTop: 5,
+    height: 200
+  },
+  fldAsrResult: {
+    height: 200
+  },
+  fldMatched: {
+    marginTop: -5,
+    height: 200,
+  },
+
+
+});
+
+const lFieldstyles = StyleSheet.create({
+  fieldCardInner: {
+    paddingHorizontal: 25,
+    paddingVertical: 16,
+  },
+  fieldCardInnerQuestion: {
+    paddingHorizontal: 25,
+    paddingVertical: 25,
+  },
+  fieldCardInnerAsrResult: {
+    paddingHorizontal: 25,
+    paddingVertical: 25,
+  },
+  fieldCaption: {
+    fontSize: 13,
+    marginTop: -8,
+    backgroundColor: 'transparent',
+  },
+  fieldValue: {
+    marginTop: -21,
+    marginLeft: 120,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#E6F1FF',
+    lineHeight: 24,
+  },
+  fldQuestion: {
+    marginTop: 10,
+    height: 80
+  },
+  fldAsrResult: {
+    top: 15,
+    height: 80
+  },
+  fldMatched: {
+    top: 15,
+    height: 80
+  },
+
+});
+
+
+
+
+
