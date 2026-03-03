@@ -15,14 +15,15 @@ export function normalizeText(input: string): string {
   return input
     .toLowerCase()
     .replace(/ё/g, 'е')
+    .replace(/'/g, '')
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 export type tolerantCompareDictItem = {
-  keyWord:string,
-  wordForms:string[]
+  keyWord: string,
+  wordForms: string[]
 }
 
 const stemmer = Snowball.newStemmer('russian');
@@ -69,7 +70,7 @@ export class SpeechCompareEngine {
       return this.tryMarkByVariant(etalonWord, variants, asrText);
     }
 
-    if (foundIndex === -1){
+    if (foundIndex === -1) {
       //no words in ASR result matched to current etalon words
       return false;
     }
@@ -91,7 +92,7 @@ export class SpeechCompareEngine {
       }
       phraseMatched =
         this.tryMarkByVariant(etalonWord, variants, asrText) || phraseMatched;
-      break;    
+      break;
     }
     return phraseMatched;
   }
@@ -109,7 +110,7 @@ export class SpeechCompareEngine {
     // Normalize ASR text and split into spoken words.
     const casrrWords = normalizeText(asrText).split(' ').filter(Boolean);
     if (isTolerantCompare) {
-      return this.tolerantCompare(asrText,variants,isTolerantCompare);
+      return this.tolerantCompare(asrText, variants, isTolerantCompare);
     }
 
 
