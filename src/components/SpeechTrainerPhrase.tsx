@@ -38,6 +38,8 @@ import { AppSettings, getAppSettingValue, loadAppSettingsFromDb, setAppSettingVa
 import { getNextItemUid } from '../helpers/getNextItemUid';
 import { buildResultUpdate } from '../helpers/buildResultUpdate';
 import { getAsrEngineId } from '../speech/asr/AsrService';
+import Svg from 'react-native-svg';
+import SvgTest from './SvgTest';
 /**
  * Variant statistics (UI only)
  */
@@ -520,8 +522,10 @@ export default function SpeechTrainerPhrase() {
           )}
         </View>
       </View>
+      <View style={styles.statisticsSection}>
+        <SvgTest />
+      </View>            
       <View style={styles.buttonSection}>
-
         {phase === 'idle' && (
           <View style={styles.manualStartButton}>
             <FAB
@@ -618,7 +622,10 @@ const pStyles = StyleSheet.create({
     flex: 29,
   },
   asrResultSection: {
-    flex: 56,
+    flex: 29,
+  },
+  statisticsSection: {
+    flex: 27,
   },
   buttonSection: {
     flex: 15,
@@ -666,7 +673,11 @@ const lStyles = StyleSheet.create({
     width: "85%",
   },
   asrResultSection: {
-    flex: 65,
+    flex: 28,
+    width: "85%",
+  },
+  statisticsSection: {
+    flex: 24,
     width: "85%",
   },
   buttonSection: {
@@ -688,7 +699,7 @@ const lStyles = StyleSheet.create({
     zIndex: 2,
   },
   compareStatus: {
-    position:"absolute",
+    position: "absolute",
     top: 60,
     left: 145,
     color: '#06a81c',
