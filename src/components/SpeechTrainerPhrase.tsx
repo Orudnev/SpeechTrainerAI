@@ -40,6 +40,7 @@ import { buildResultUpdate } from '../helpers/buildResultUpdate';
 import { getAsrEngineId } from '../speech/asr/AsrService';
 import Svg from 'react-native-svg';
 import SvgTest from './SvgTest';
+import { BarChart } from './BarChart';
 /**
  * Variant statistics (UI only)
  */
@@ -523,8 +524,52 @@ export default function SpeechTrainerPhrase() {
         </View>
       </View>
       <View style={styles.statisticsSection}>
-        <SvgTest />
-      </View>            
+        <BarChart
+          title='Memory Strength Score'
+          width={350}
+          height={160}
+          colorStep={25}
+          colors={[
+            "#3b82f6",
+            "#10b981",
+            "#f59e0b",
+            "#ef4444",
+          ]}
+          data={[
+            { bottomLabel: "01", value: 10 },
+            { bottomLabel: "02", value: 15 },
+            { bottomLabel: "03", value: 20 },
+            { bottomLabel: "04", value: 88 },
+            { bottomLabel: "05", value: 60 },
+            { bottomLabel: "06", value: 45 },
+            { bottomLabel: "07", value: 72 },
+            { bottomLabel: "08", value: 30 },
+            { bottomLabel: "09", value: 88 },
+            { bottomLabel: "10", value: 60 },            
+            { bottomLabel: "11", value: 60 },
+            { bottomLabel: "12", value: 45 },
+            { bottomLabel: "13", value: 72 },
+            { bottomLabel: "14", value: 30 },
+            { bottomLabel: "15", value: 88 },
+            { bottomLabel: "16", value: 10 },
+            { bottomLabel: "17", value: 15 },
+            { bottomLabel: "18", value: 20 },
+            { bottomLabel: "19", value: 88 },
+            { bottomLabel: "20", value: 60 },
+            { bottomLabel: "21", value: 45 },
+            { bottomLabel: "22", value: 72 },
+            { bottomLabel: "23", value: 30 },
+            { bottomLabel: "24", value: 88 },
+            { bottomLabel: "25", value: 60 },            
+            { bottomLabel: "26", value: 60 },
+            { bottomLabel: "27", value: 45 },
+            { bottomLabel: "28", value: 72 },
+            { bottomLabel: "29", value: 30 },
+            { bottomLabel: "30", value: 88 }
+
+          ]}
+        />
+      </View>
       <View style={styles.buttonSection}>
         {phase === 'idle' && (
           <View style={styles.manualStartButton}>
