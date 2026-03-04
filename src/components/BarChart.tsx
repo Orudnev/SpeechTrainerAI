@@ -1,190 +1,254 @@
 import React from "react";
 import { ScrollView, View, Text as RNText } from "react-native";
 import Svg, {
-  Rect,
-  Text,
-  Defs,
-  LinearGradient,
-  Stop,
-  G,
-  Line
+    Rect,
+    Text,
+    Defs,
+    LinearGradient,
+    Stop,
+    G,
+    Line
 } from "react-native-svg";
 
-type BarChartItem = {
-  bottomLabel: string;
-  value: number;
+type TBarChartItem = {
+    bottomLabel: string;
+    value: number;
 };
 
 type TBarChartProps = {
-  title: string;
-  width: number;
-  height: number;
-  data: BarChartItem[];
-  colors: string[];
-  colorStep: number;
+    title: string;
+    width: number;
+    height: number;
+    data: (TBarChartItem | string)[];
+    colors: string[];
+    colorStep: number;
 };
 
-export const BarChart: React.FC<TBarChartProps> = ({
-  title,
-  width,
-  height,
-  data,
-  colors,
-  colorStep
+type TBarChartBarProps = {
+    index: number;
+    item: TBarChartItem;
+    maxValue: number;
+    barWidth: number;
+    gap: number;
+    topPadding: number;
+    bottomPadding: number;
+    chartHeight: number;
+    height: number;
+    colors: string[];
+    colorStep: number;
+};
+
+/* ============================
+   BarChartBar
+============================ */
+
+const BarChartItem: React.FC<TBarChartBarProps> = ({
+    index,
+    item,
+    maxValue,
+    barWidth,
+    gap,
+    topPadding,
+    chartHeight,
+    height,
+    colors,
+    colorStep
 }) => {
 
-  const maxValue = Math.max(...data.map(x => x.value));
+    const barHeight =
+        (item.value / maxValue) * chartHeight;
 
-  const topPadding = 20;
-  const bottomPadding = 30;
+    const x = index * (barWidth + gap);
 
-  const chartHeight = height - bottomPadding - topPadding;
+    const y =
+        topPadding + chartHeight - barHeight;
 
-  const barWidth = 18;
-  const gap = 8;
+    const valueText =
+        Math.round(item.value)
+            .toString()
+            .padStart(2, "0");
 
-  const chartWidth = data.length * (barWidth + gap);
+    const labelInside = barHeight > 22;
 
-  const svgWidth = Math.max(width, chartWidth);
+    const steps = Math.min(
+        colors.length,
+        Math.floor(item.value / colorStep) + 1
+    );
 
-  return (
-    <View>
+    const usedColors = colors.slice(0, steps);
 
-      {/* TITLE (не скроллится) */}
-      <RNText
-        style={{
-          fontSize: 16,
-          textDecorationLine:"underline",          
-          fontWeight: "600",
-          color: "#e2e8f0",
-          marginBottom: 8,
-          textAlign:"center"
-        }}
-      >
-        {title}
-      </RNText>
+    return (
+        <G>
 
-      {/* SCROLLABLE CHART */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <Svg
-          width={svgWidth}
-          height={height}
-          viewBox={`0 0 ${svgWidth} ${height}`}
-        >
-
-          {/* GRID */}
-          {[0.25, 0.5, 0.75, 1].map((p, i) => {
-
-            const y = topPadding + chartHeight * (1 - p);
-
-            return (
-              <Line
-                key={i}
-                x1="0"
-                x2={svgWidth}
-                y1={y}
-                y2={y}
-                stroke="#334155"
-                strokeWidth="1"
-                opacity="0.3"
-              />
-            );
-          })}
-
-          {/* GRADIENTS */}
-          <Defs>
-            {data.map((item, i) => {
-
-              const steps = Math.min(
-                colors.length,
-                Math.floor(item.value / colorStep) + 1
-              );
-
-              const usedColors = colors.slice(0, steps);
-
-              return (
+            <Defs>
                 <LinearGradient
-                  key={i}
-                  id={`grad${i}`}
-                  x1="0"
-                  y1="1"
-                  x2="0"
-                  y2="0"
+                    id={`grad${index}`}
+                    x1="0"
+                    y1="1"
+                    x2="0"
+                    y2="0"
                 >
-                  {usedColors.map((c, idx) => {
+                    {usedColors.map((c, idx) => {
 
-                    const offset =
-                      usedColors.length === 1
-                        ? 0
-                        : idx / (usedColors.length - 1);
+                        const offset =
+                            usedColors.length === 1
+                                ? 0
+                                : idx / (usedColors.length - 1);
 
-                    return (
-                      <Stop
-                        key={idx}
-                        offset={offset}
-                        stopColor={c}
-                      />
-                    );
-                  })}
+                        return (
+                            <Stop
+                                key={idx}
+                                offset={offset}
+                                stopColor={c}
+                            />
+                        );
+                    })}
                 </LinearGradient>
-              );
-            })}
-          </Defs>
+            </Defs>
 
-          {/* BARS */}
-          {data.map((item, i) => {
+            {/* BAR */}
+            <Rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barHeight}
+                rx="4"
+                fill={`url(#grad${index})`}
+            />
 
-            const barHeight =
-              (item.value / maxValue) * chartHeight;
+            {/* VALUE */}
+            <Text
+                x={x + barWidth / 2}
+                y={labelInside ? y + 12 : y - 4}
+                fontSize="10"
+                fill={labelInside ? "#fff" : "#e2e8f0"}
+                textAnchor="middle"
+            >
+                {valueText}
+            </Text>
 
-            const x = i * (barWidth + gap);
-            const y = topPadding + chartHeight - barHeight;
+            {/* BOTTOM LABEL */}
+            <Text
+                x={x + barWidth / 2}
+                y={height - 10}
+                fontSize="10"
+                fill="#94a3b8"
+                textAnchor="middle"
+            >
+                {item.bottomLabel}
+            </Text>
 
-            const valueText =
-              Math.round(item.value)
-                .toString()
-                .padStart(2, "0");
+        </G>
+    );
+};
 
-            const labelInside = barHeight > 22;
+/* ============================
+   BarChart
+============================ */
 
-            return (
-              <G key={i}>
+export const BarChart: React.FC<TBarChartProps> = ({
+    title,
+    width,
+    height,
+    data,
+    colors,
+    colorStep
+}) => {
 
-                <Rect
-                  x={x}
-                  y={y}
-                  width={barWidth}
-                  height={barHeight}
-                  rx="4"
-                  fill={`url(#grad${i})`}
-                />
+    const maxValue =
+        Math.max(...data.filter(itm => typeof (itm) !== 'string').map(x => x.value));
 
-                <Text
-                  x={x + barWidth / 2}
-                  y={labelInside ? y + 12 : y - 4}
-                  fontSize="10"
-                  fill={labelInside ? "#fff" : "#e2e8f0"}
-                  textAnchor="middle"
+    const topPadding = 20;
+    const bottomPadding = 30;
+
+    const chartHeight =
+        height - bottomPadding - topPadding;
+
+    const barWidth = 18;
+    const gap = 8;
+
+    const chartWidth =
+        data.length * (barWidth + gap);
+
+    const svgWidth =
+        Math.max(width, chartWidth);
+
+    return (
+        <View>
+
+            {/* TITLE */}
+            <RNText
+                style={{
+                    fontSize: 16,
+                    textDecorationLine: "underline",
+                    fontWeight: "600",
+                    color: "#e2e8f0",
+                    marginBottom: 8,
+                    textAlign: "center"
+                }}
+            >
+                {title}
+            </RNText>
+
+            {/* CHART */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+            >
+
+                <Svg
+                    width={svgWidth}
+                    height={height}
+                    viewBox={`0 0 ${svgWidth} ${height}`}
                 >
-                  {valueText}
-                </Text>
 
-                <Text
-                  x={x + barWidth / 2}
-                  y={height - 10}
-                  fontSize="10"
-                  fill="#94a3b8"
-                  textAnchor="middle"
-                >
-                  {item.bottomLabel}
-                </Text>
+                    {/* GRID */}
+                    {[0.25, 0.5, 0.75, 1].map((p, i) => {
 
-              </G>
-            );
-          })}
+                        const y =
+                            topPadding +
+                            chartHeight * (1 - p);
 
-        </Svg>
-      </ScrollView>
-    </View>
-  );
+                        return (
+                            <Line
+                                key={i}
+                                x1="0"
+                                x2={svgWidth}
+                                y1={y}
+                                y2={y}
+                                stroke="#334155"
+                                strokeWidth="1"
+                                opacity="0.3"
+                            />
+                        );
+                    })}
+
+                    {/* BARS */}
+                    {data.map((item, i) => {
+                        if (typeof (item) !== 'string') {
+                            return (
+                                <BarChartItem
+                                    key={i}
+                                    index={i}
+                                    item={item}
+                                    maxValue={maxValue}
+                                    barWidth={barWidth}
+                                    gap={gap}
+                                    topPadding={topPadding}
+                                    bottomPadding={bottomPadding}
+                                    chartHeight={chartHeight}
+                                    height={height}
+                                    colors={colors}
+                                    colorStep={colorStep}
+                                />)
+                        }
+                        //todo
+                        return (<></>);
+                    })}
+                </Svg>
+
+            </ScrollView>
+
+        </View>
+    );
 };
