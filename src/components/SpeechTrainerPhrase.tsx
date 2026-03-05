@@ -546,6 +546,7 @@ export default function SpeechTrainerPhrase() {
             { bottomLabel: "08", value: 30 },
             { bottomLabel: "09", value: 88 },
             { bottomLabel: "10", value: 60 },            
+             "Feb 2026",
             { bottomLabel: "11", value: 60 },
             { bottomLabel: "12", value: 45 },
             { bottomLabel: "13", value: 72 },

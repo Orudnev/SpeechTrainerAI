@@ -142,6 +142,56 @@ const BarChartItem: React.FC<TBarChartBarProps> = ({
     );
 };
 
+type TVerticalLabelProps = {
+    index: number;
+    label: string;
+    barWidth: number;
+    gap: number;
+    height: number;
+};
+
+const VerticalLabel: React.FC<TVerticalLabelProps> = ({
+    index,
+    label,
+    barWidth,
+    gap,
+    height
+}) => {
+
+    const x = index * (barWidth + gap);
+
+    return (
+        <G>
+
+            {/* background */}
+            <Rect
+                x={x}
+                y={0}
+                width={barWidth*1.2}
+                height={height - 8}
+                rx="4"
+                stroke="#918e8e"
+                opacity="1"
+            />
+
+            {/* vertical text */}
+            <Text
+                x={x + barWidth / 2}
+                y={height / 2}
+                fontSize="14"
+                fill="#ffffff"
+                textAnchor="middle"
+                alignmentBaseline="middle"
+                rotation="-90"
+                origin={`${x + barWidth*1.2 / 2}, ${height / 2}`}
+            >
+                {label}
+            </Text>
+
+        </G>
+    );
+};
+
 /* ============================
    BarChart
 ============================ */
@@ -242,8 +292,16 @@ export const BarChart: React.FC<TBarChartProps> = ({
                                     colorStep={colorStep}
                                 />)
                         }
-                        //todo
-                        return (<></>);
+                        return (
+                            <VerticalLabel
+                                key={i}
+                                index={i}
+                                label={item}
+                                barWidth={barWidth}
+                                gap={gap}
+                                height={height}
+                            />
+                        );
                     })}
                 </Svg>
 
