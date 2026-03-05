@@ -137,6 +137,18 @@ export async function initSpeechDb() {
       settings TEXT DEFAULT NULL
     );
   `);
+
+  await db.executeSql(`
+    CREATE TABLE IF NOT EXISTS result (
+      uid TEXT,
+      tsf INTEGER DEFAULT 0,
+      tsr INTEGER DEFAULT 0,
+      mssf REAL DEFAULT 0,
+      mssr REAL DEFAULT 0
+    );
+  `);
+
+
 }
 
 
@@ -181,10 +193,11 @@ export async function saveVariantsToPhrase(
 /**
  * Save learning result into DB
  */
-export async function saveResultToPhrase(
-  uid: string,
+export async function saveResult(
+  srcItem: SpItem,
   result: SpItemResult
 ) {
+  const uid = srcItem.uid;
   const db = await openSpeechDb();
 
   await db.executeSql(
@@ -209,6 +222,19 @@ export async function saveResultToPhrase(
       uid,
     ]
   );
+
+  const newResultRow = { ...srcItem, ...result };
+  await db.executeSql(
+    `INSERT INTO result(uid, tsf, tsr, mssf, mssr) VALUES (?, ?, ?, ?, ?);`,
+    [
+      uid,
+      newResultRow.tsf ?? 0,
+      newResultRow.tsr ?? 0,
+      MSS(newResultRow, false),
+      MSS(newResultRow, true),
+    ]
+  );
+  console.log(`saveResult() : ${newResultRow.a} \r\nmssf:${MSS(newResultRow, false)}, ${MSS(newResultRow, true)}`);
 }
 
 /**
@@ -305,3 +331,12 @@ export async function seedSpeechDbIfEmpty() {
   reseedDb();
 }
 
+export async function executeSql(sql: string) {
+  const db = await openSpeechDb();
+  const res = await db.executeSql(sql);
+  const rows = res[0].rows;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows.item(i);
+    console.log(JSON.stringify(row));
+  }
+}

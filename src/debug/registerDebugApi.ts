@@ -1,3 +1,4 @@
+import { executeSql } from "../db/speechDb";
 import { clearDb, reseedDb, list,listc, asrinit, asrshutdown, grantFullAccess, fireSpeechResultEvent } from "./debugCommands";
 export const testReg = ()=>{
     console.log("blablabla");
@@ -16,7 +17,8 @@ export function registerDebugApi() {
     asrinit,
     asrshutdown,
     grantFullAccess,
-    fireSpeechResultEvent
+    fireSpeechResultEvent,
+    executeSql
   };
 
   console.log("✅ Debug API registered: globalThis.dbg");

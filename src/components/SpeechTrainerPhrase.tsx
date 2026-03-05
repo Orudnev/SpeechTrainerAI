@@ -24,7 +24,7 @@ import {
   Tvariant,
   toReverse,
   saveVariantsToPhrase,
-  saveResultToPhrase,
+  saveResult,
   SpItemResult,
   generatePseudoUniqueId,
 } from '../db/speechDb';
@@ -330,7 +330,7 @@ export default function SpeechTrainerPhrase() {
         resetStreakOnError
       );
 
-      await saveResultToPhrase(rawItem.uid, resultToPersist);
+      await saveResult(rawItem, resultToPersist);
 
       const updatedItems = items.map(it =>
         it.uid === rawItem.uid ? { ...it, ...patch } : it,

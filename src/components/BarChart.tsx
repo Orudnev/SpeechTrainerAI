@@ -227,6 +227,7 @@ export const BarChart: React.FC<TBarChartProps> = ({
         <View>
 
             {/* TITLE */}
+            {title && (
             <RNText
                 style={{
                     fontSize: 16,
@@ -239,6 +240,7 @@ export const BarChart: React.FC<TBarChartProps> = ({
             >
                 {title}
             </RNText>
+            )}
 
             {/* CHART */}
             <ScrollView
