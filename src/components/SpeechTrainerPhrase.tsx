@@ -55,8 +55,21 @@ export type VariantStat = {
 export default function SpeechTrainerPhrase() {
   const ctx = useContext(AppContext);
   const screenSize = useWindowDimensions();
-  const scw = (scwUnits: number) => (screenSize.width / 100) * scwUnits;
-  const sch = (scwUnits: number) => (screenSize.height / 100) * scwUnits;
+  const isLandscape = screenSize.width > screenSize.height;
+  const scw = (scwUnitsPortrait: number, scwUnitsLandscape: number) => {
+    if (isLandscape) {
+      return (screenSize.width / 100) * scwUnitsLandscape;
+    } else {
+      return (screenSize.width / 100) * scwUnitsPortrait;
+    }
+  }
+  const sch = (scwUnitsPortrait: number, scwUnitsLandscape: number) => {
+    if (isLandscape) {
+      return (screenSize.height / 100) * scwUnitsLandscape;
+    } else {
+      return (screenSize.height / 100) * scwUnitsPortrait;
+    }
+  };
 
   // ============================================================
   // Core trainer state
@@ -428,7 +441,6 @@ export default function SpeechTrainerPhrase() {
     setPhraseIndex(nextIndex);
   }
   const openWordDisabled = phase !== 'listening';
-  const isLandscape = screenSize.width > screenSize.height;
   const styles = isLandscape ? lStyles : pStyles;
   const fieldStyles = isLandscape ? lFieldstyles : pFieldstyles;
   const openWordStyle = openWordDisabled ? { opacity: 0.5 } : {};
@@ -525,9 +537,9 @@ export default function SpeechTrainerPhrase() {
       </View>
       <View style={styles.statisticsSection}>
         <BarChart
-          title='Memory Strength Score'
-          width={350}
-          height={160}
+          title={isLandscape ? '' : 'Memory Strength Score'}
+          width={scw(100,100)}
+          height={sch(20,24)}
           colorStep={25}
           colors={[
             "#3b82f6",
@@ -545,8 +557,8 @@ export default function SpeechTrainerPhrase() {
             { bottomLabel: "07", value: 72 },
             { bottomLabel: "08", value: 30 },
             { bottomLabel: "09", value: 88 },
-            { bottomLabel: "10", value: 60 },            
-             "Feb 2026",
+            { bottomLabel: "10", value: 60 },
+            isLandscape?"Feb 26":"Feb 2026",
             { bottomLabel: "11", value: 60 },
             { bottomLabel: "12", value: 45 },
             { bottomLabel: "13", value: 72 },
@@ -561,7 +573,7 @@ export default function SpeechTrainerPhrase() {
             { bottomLabel: "22", value: 72 },
             { bottomLabel: "23", value: 30 },
             { bottomLabel: "24", value: 88 },
-            { bottomLabel: "25", value: 60 },            
+            { bottomLabel: "25", value: 60 },
             { bottomLabel: "26", value: 60 },
             { bottomLabel: "27", value: 45 },
             { bottomLabel: "28", value: 72 },
@@ -715,16 +727,15 @@ const lStyles = StyleSheet.create({
     flex: 1,
   },
   questionSection: {
-    flex: 28,
+    flex: 22,
     width: "85%",
   },
   asrResultSection: {
-    flex: 28,
+    flex: 22,
     width: "85%",
   },
   statisticsSection: {
-    flex: 24,
-    width: "85%",
+    width: "83.5%",
   },
   buttonSection: {
     flex: 1,
@@ -812,11 +823,11 @@ const lFieldstyles = StyleSheet.create({
   },
   fieldCardInnerQuestion: {
     paddingHorizontal: 25,
-    paddingVertical: 25,
+    paddingVertical: 10,
   },
   fieldCardInnerAsrResult: {
     paddingHorizontal: 25,
-    paddingVertical: 25,
+    paddingVertical: 15,
   },
   fieldCaption: {
     fontSize: 13,
