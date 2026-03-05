@@ -40,7 +40,8 @@ import { buildResultUpdate } from '../helpers/buildResultUpdate';
 import { getAsrEngineId } from '../speech/asr/AsrService';
 import Svg from 'react-native-svg';
 import SvgTest from './SvgTest';
-import { BarChart } from './BarChart';
+import { BarChart, TBarChartDataItem } from './BarChart';
+import { DiagramPeriod, getDataForBarDiagram } from '../helpers/statistics';
 /**
  * Variant statistics (UI only)
  */
@@ -81,6 +82,7 @@ export default function SpeechTrainerPhrase() {
   const reverseMode = getAppSettingValue<boolean>('reverseMode');
   const [showCurrentItem, setShowCurrentItem] = useState(false);
   const [openWordCounter, setOpenWordCounter] = useState(0); // Счетчик для принудительного обновления при открытии слова
+  const [barDiagramItems,setBarDiagramItems] = useState<TBarChartDataItem[]>([]);
   // ============================================================
   // ASR integration (SINGLE SOURCE)
   // ============================================================
@@ -164,6 +166,7 @@ export default function SpeechTrainerPhrase() {
 
       setItems(data);
       setPhraseIndex(initialIndex);
+      refreshDiagram(data[initialIndex]);
     }
 
     load();
@@ -358,6 +361,8 @@ export default function SpeechTrainerPhrase() {
 
       setListeningStartedAt(null);
       setPhraseIndex(nextIndex);
+      refreshDiagram(updatedItems[nextIndex]);
+
     } finally {
       handlingMatchRef.current = false;
     }
@@ -420,6 +425,14 @@ export default function SpeechTrainerPhrase() {
     }
   }
 
+  function refreshDiagram(item:SpItem){
+    async function refreshDiargamImpl(){
+      let items:TBarChartDataItem[] = await getDataForBarDiagram(item,DiagramPeriod.min1,reverseMode);
+      setBarDiagramItems(items);
+    }
+    refreshDiargamImpl();
+  }
+
   function handleNextPhrasePress() {
     if (!hasData) return;
 
@@ -439,6 +452,7 @@ export default function SpeechTrainerPhrase() {
 
     setListeningStartedAt(null);
     setPhraseIndex(nextIndex);
+    refreshDiagram(items[nextIndex]);
   }
   const openWordDisabled = phase !== 'listening';
   const styles = isLandscape ? lStyles : pStyles;
@@ -547,40 +561,8 @@ export default function SpeechTrainerPhrase() {
             "#f59e0b",
             "#ef4444",
           ]}
-          data={[
-            { bottomLabel: "01", value: 10 },
-            { bottomLabel: "02", value: 15 },
-            { bottomLabel: "03", value: 20 },
-            { bottomLabel: "04", value: 88 },
-            { bottomLabel: "05", value: 60 },
-            { bottomLabel: "06", value: 45 },
-            { bottomLabel: "07", value: 72 },
-            { bottomLabel: "08", value: 30 },
-            { bottomLabel: "09", value: 88 },
-            { bottomLabel: "10", value: 60 },
-            isLandscape?"Feb 26":"Feb 2026",
-            { bottomLabel: "11", value: 60 },
-            { bottomLabel: "12", value: 45 },
-            { bottomLabel: "13", value: 72 },
-            { bottomLabel: "14", value: 30 },
-            { bottomLabel: "15", value: 88 },
-            { bottomLabel: "16", value: 10 },
-            { bottomLabel: "17", value: 15 },
-            { bottomLabel: "18", value: 20 },
-            { bottomLabel: "19", value: 88 },
-            { bottomLabel: "20", value: 60 },
-            { bottomLabel: "21", value: 45 },
-            { bottomLabel: "22", value: 72 },
-            { bottomLabel: "23", value: 30 },
-            { bottomLabel: "24", value: 88 },
-            { bottomLabel: "25", value: 60 },
-            { bottomLabel: "26", value: 60 },
-            { bottomLabel: "27", value: 45 },
-            { bottomLabel: "28", value: 72 },
-            { bottomLabel: "29", value: 30 },
-            { bottomLabel: "30", value: 88 }
-
-          ]}
+          data={barDiagramItems}
+          valueFormat='99.99'
         />
       </View>
       <View style={styles.buttonSection}>
@@ -857,6 +839,42 @@ const lFieldstyles = StyleSheet.create({
 
 });
 
+
+
+          // data={[
+          //   { bottomLabel: "01", value: 10 },
+          //   { bottomLabel: "02", value: 15 },
+          //   { bottomLabel: "03", value: 20 },
+          //   { bottomLabel: "04", value: 88 },
+          //   { bottomLabel: "05", value: 60 },
+          //   { bottomLabel: "06", value: 45 },
+          //   { bottomLabel: "07", value: 72 },
+          //   { bottomLabel: "08", value: 30 },
+          //   { bottomLabel: "09", value: 88 },
+          //   { bottomLabel: "10", value: 60 },
+          //   isLandscape?"Feb 26":"Feb 2026",
+          //   { bottomLabel: "11", value: 60 },
+          //   { bottomLabel: "12", value: 45 },
+          //   { bottomLabel: "13", value: 72 },
+          //   { bottomLabel: "14", value: 30 },
+          //   { bottomLabel: "15", value: 88 },
+          //   { bottomLabel: "16", value: 10 },
+          //   { bottomLabel: "17", value: 15 },
+          //   { bottomLabel: "18", value: 20 },
+          //   { bottomLabel: "19", value: 88 },
+          //   { bottomLabel: "20", value: 60 },
+          //   { bottomLabel: "21", value: 45 },
+          //   { bottomLabel: "22", value: 72 },
+          //   { bottomLabel: "23", value: 30 },
+          //   { bottomLabel: "24", value: 88 },
+          //   { bottomLabel: "25", value: 60 },
+          //   { bottomLabel: "26", value: 60 },
+          //   { bottomLabel: "27", value: 45 },
+          //   { bottomLabel: "28", value: 72 },
+          //   { bottomLabel: "29", value: 30 },
+          //   { bottomLabel: "30", value: 88 }
+
+          // ]}
 
 
 

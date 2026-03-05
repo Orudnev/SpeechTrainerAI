@@ -10,16 +10,19 @@ import Svg, {
     Line
 } from "react-native-svg";
 
-type TBarChartItem = {
+export type TBarChartItem = {
     bottomLabel: string;
     value: number;
 };
+
+export type TBarChartDataItem = TBarChartItem | string;
 
 type TBarChartProps = {
     title: string;
     width: number;
     height: number;
-    data: (TBarChartItem | string)[];
+    data: TBarChartDataItem[];
+    valueFormat:string;
     colors: string[];
     colorStep: number;
 };
@@ -27,6 +30,7 @@ type TBarChartProps = {
 type TBarChartBarProps = {
     index: number;
     item: TBarChartItem;
+    valueFormat:string;
     maxValue: number;
     barWidth: number;
     gap: number;
@@ -38,6 +42,27 @@ type TBarChartBarProps = {
     colorStep: number;
 };
 
+export function formatNumber(value: number, format: string): string {
+    const parts = format.split(".");
+    const intDigits = parts[0].length;
+    const fracDigits = parts.length > 1 ? parts[1].length : 0;
+
+    const rounded = fracDigits > 0
+        ? value.toFixed(fracDigits)
+        : Math.round(value).toString();
+
+    let [intPart, fracPart = ""] = rounded.split(".");
+
+    intPart = intPart.padStart(intDigits, "0");
+
+    if (fracDigits > 0) {
+        fracPart = fracPart.padEnd(fracDigits, "0");
+        return `${intPart}.${fracPart}`;
+    }
+
+    return intPart;
+}
+
 /* ============================
    BarChartBar
 ============================ */
@@ -45,6 +70,7 @@ type TBarChartBarProps = {
 const BarChartItem: React.FC<TBarChartBarProps> = ({
     index,
     item,
+    valueFormat,
     maxValue,
     barWidth,
     gap,
@@ -63,10 +89,10 @@ const BarChartItem: React.FC<TBarChartBarProps> = ({
     const y =
         topPadding + chartHeight - barHeight;
 
-    const valueText =
-        Math.round(item.value)
-            .toString()
-            .padStart(2, "0");
+    // const valueText =
+    //     Math.round(item.value)
+    //         .toString()
+    //         .padStart(2, "0");
 
     const labelInside = barHeight > 22;
 
@@ -124,7 +150,7 @@ const BarChartItem: React.FC<TBarChartBarProps> = ({
                 fill={labelInside ? "#fff" : "#e2e8f0"}
                 textAnchor="middle"
             >
-                {valueText}
+                {formatNumber(item.value,valueFormat)}
             </Text>
 
             {/* BOTTOM LABEL */}
@@ -201,6 +227,7 @@ export const BarChart: React.FC<TBarChartProps> = ({
     width,
     height,
     data,
+    valueFormat,
     colors,
     colorStep
 }) => {
@@ -214,7 +241,7 @@ export const BarChart: React.FC<TBarChartProps> = ({
     const chartHeight =
         height - bottomPadding - topPadding;
 
-    const barWidth = 18;
+    const barWidth = 18*(valueFormat.length-2)*0.5;
     const gap = 8;
 
     const chartWidth =
@@ -283,6 +310,7 @@ export const BarChart: React.FC<TBarChartProps> = ({
                                     key={i}
                                     index={i}
                                     item={item}
+                                    valueFormat={valueFormat}
                                     maxValue={maxValue}
                                     barWidth={barWidth}
                                     gap={gap}
