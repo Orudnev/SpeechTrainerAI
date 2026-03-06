@@ -2,11 +2,32 @@ import { TBarChartDataItem, TBarChartItem } from "../components/BarChart";
 import { openSpeechDb, SpItem } from "../db/speechDb";
 
 
-export enum DiagramPeriod {
-    min1 = 60 * 1000,
-    min5 = 5 * 60 * 1000,
-    min30 = 30 * 60 * 1000,
-    hour = 60 * 60 * 1000
+// export enum DiagramPeriod {
+//     min1 = 60 * 1000,
+//     min5 = 5 * 60 * 1000,
+//     min30 = 30 * 60 * 1000,
+//     hour = 60 * 60 * 1000
+// }
+
+export type TDiagramPeriodName = "1 minute"|"5 minutes"|"30 minutes"|"1 hour"|"1 day"|"5 days";
+export const AllDiagramPeriods = '"1 minute"|"5 minutes"|"30 minutes"|"1 hour"|"1 day"|"5 days"'.replace(/"/g,"").split("|");
+export function getDiagramPeriodValue(period:TDiagramPeriodName){
+    switch (period){
+        case "1 minute":
+            return 60 * 1000;
+        case "5 minutes":
+            return 5 * 60 * 1000;     
+        case "30 minutes":
+            return 30 * 60 * 1000;     
+        case "1 hour":
+            return 60 * 60 * 1000;     
+        case "1 day":
+            return 24 * 60 * 60 * 1000;     
+        case "5 days":
+            return 24 * 60 * 60 * 1000;     
+        default:
+            throw `Wrong period ${period}`;                
+    }
 }
 
 export type TResultData = {
@@ -16,9 +37,10 @@ export type TResultData = {
     mss:number
 }
 
-export async function getDataForBarDiagram(currItem: SpItem, period: DiagramPeriod, isReverse: boolean) {
+export async function getDataForBarDiagram(currItem: SpItem, periodName: TDiagramPeriodName, isReverse: boolean) {
     const ts = isReverse ? "tsr" : "tsf";
     const mss = isReverse ? "mssr" : "mssf";
+    const period = getDiagramPeriodValue(periodName);
     const slqQuery = `
         SELECT 
             uid,

@@ -1,5 +1,5 @@
-import React from "react";
-import { ScrollView, View, Text as RNText } from "react-native";
+import React,{useState} from "react";
+import { ScrollView, View, Text as RNText, TouchableOpacity } from "react-native";
 import Svg, {
     Rect,
     Text,
@@ -9,6 +9,9 @@ import Svg, {
     G,
     Line
 } from "react-native-svg";
+import { RadioButton } from 'react-native-paper';
+import { AnchoredOverlay } from "./AnchoredOverlay";
+import { AllDiagramPeriods, TDiagramPeriodName } from "../helpers/statistics";
 
 export type TBarChartItem = {
     bottomLabel: string;
@@ -22,7 +25,7 @@ type TBarChartProps = {
     width: number;
     height: number;
     data: TBarChartDataItem[];
-    valueFormat:string;
+    valueFormat: string;
     colors: string[];
     colorStep: number;
 };
@@ -30,7 +33,7 @@ type TBarChartProps = {
 type TBarChartBarProps = {
     index: number;
     item: TBarChartItem;
-    valueFormat:string;
+    valueFormat: string;
     maxValue: number;
     barWidth: number;
     gap: number;
@@ -150,7 +153,7 @@ const BarChartItem: React.FC<TBarChartBarProps> = ({
                 fill={labelInside ? "#fff" : "#e2e8f0"}
                 textAnchor="middle"
             >
-                {formatNumber(item.value,valueFormat)}
+                {formatNumber(item.value, valueFormat)}
             </Text>
 
             {/* BOTTOM LABEL */}
@@ -176,6 +179,45 @@ type TVerticalLabelProps = {
     height: number;
 };
 
+export type TModeButtonProps = {
+    text: string,
+    width: number,
+    onPress: () => void
+}
+export default function ModeButton({ text, width, onPress }: TModeButtonProps) {
+    const height = 20;
+    const borderRadius = 10;
+
+    return (
+        <TouchableOpacity onPress={() => onPress()}>
+            <Svg width={width} height={height}>
+                <Rect
+                    x="0"
+                    y="0"
+                    width={width}
+                    height={height}
+                    rx={borderRadius}
+                    ry={borderRadius}
+                    stroke={"#ffffff"}
+                    fill={"#000000"}
+                />
+
+                <Text
+                    x={width / 2}
+                    y={height / 2 + 2}
+                    fill={"#ffffff"}
+                    fontSize={14}
+                    fontWeight="bold"
+                    textAnchor="middle"
+                    alignmentBaseline="middle"
+                >
+                    {text}
+                </Text>
+            </Svg>
+        </TouchableOpacity>
+    );
+}
+
 const VerticalLabel: React.FC<TVerticalLabelProps> = ({
     index,
     label,
@@ -193,7 +235,7 @@ const VerticalLabel: React.FC<TVerticalLabelProps> = ({
             <Rect
                 x={x}
                 y={0}
-                width={barWidth*1.2}
+                width={barWidth * 1.2}
                 height={height - 8}
                 rx="4"
                 stroke="#918e8e"
@@ -209,7 +251,7 @@ const VerticalLabel: React.FC<TVerticalLabelProps> = ({
                 textAnchor="middle"
                 alignmentBaseline="middle"
                 rotation="-90"
-                origin={`${x + barWidth*1.2 / 2}, ${height / 2}`}
+                origin={`${x + barWidth * 1.2 / 2}, ${height / 2}`}
             >
                 {label}
             </Text>
@@ -241,7 +283,7 @@ export const BarChart: React.FC<TBarChartProps> = ({
     const chartHeight =
         height - bottomPadding - topPadding;
 
-    const barWidth = 18*(valueFormat.length-2)*0.5;
+    const barWidth = 18 * (valueFormat.length - 2) * 0.5;
     const gap = 8;
 
     const chartWidth =
@@ -249,30 +291,64 @@ export const BarChart: React.FC<TBarChartProps> = ({
 
     const svgWidth =
         Math.max(width, chartWidth);
+    const [period, setPeriod] = useState<TDiagramPeriodName>('1 day');
+
+    function getPeriodItems(){
+        let items = AllDiagramPeriods.map((pn,idx)=>{
+           return(
+            <RadioButton.Item
+                key = {"item"+idx}
+                style={{ height: 35 }}
+                label={pn}
+                value={pn}
+                status={period === pn ? 'checked' : 'unchecked'}
+                onPress={() => setPeriod(pn as TDiagramPeriodName)}
+            />                
+           );     
+        });
+        return items
+    }
 
     return (
         <View>
-
             {/* TITLE */}
             {title && (
-            <RNText
-                style={{
-                    fontSize: 16,
-                    textDecorationLine: "underline",
-                    fontWeight: "600",
-                    color: "#e2e8f0",
-                    marginBottom: 8,
-                    textAlign: "center"
-                }}
-            >
-                {title}
-            </RNText>
+                <View style={{ height: 28, flexDirection: "row", gap: 10, alignItems: "center", paddingRight: 10 }}>
+                    <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                        <RNText
+                            style={{
+                                fontSize: 16,
+                                textDecorationLine: "underline",
+                                fontWeight: "600",
+                                color: "#e2e8f0",
+                                marginBottom: 8,
+                                paddingLeft: 5,
+                                textAlign: "left"
+                            }}
+                        >
+                            {title}
+                        </RNText>
+                    </TouchableOpacity>
+                    <AnchoredOverlay
+                        anchor={({ onPress }) => (
+                            <ModeButton text="1 min" width={50} onPress={() => {
+                                onPress();
+                            }} />
+                        )}>
+                        {({ close }) => (
+                            <View style={{ width: 200 }}>
+                                {getPeriodItems()}
+                            </View>
+                        )}
+                    </AnchoredOverlay>
+                    <ModeButton text="Selected topics" width={110} onPress={() => { }} />
+                </View>
             )}
-
             {/* CHART */}
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                style={{ marginLeft: 5 }}
             >
 
                 <Svg

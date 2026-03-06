@@ -41,7 +41,7 @@ import { getAsrEngineId } from '../speech/asr/AsrService';
 import Svg from 'react-native-svg';
 import SvgTest from './SvgTest';
 import { BarChart, TBarChartDataItem } from './BarChart';
-import { DiagramPeriod, getDataForBarDiagram } from '../helpers/statistics';
+import {  getDataForBarDiagram } from '../helpers/statistics';
 /**
  * Variant statistics (UI only)
  */
@@ -427,7 +427,7 @@ export default function SpeechTrainerPhrase() {
 
   function refreshDiagram(item:SpItem){
     async function refreshDiargamImpl(){
-      let items:TBarChartDataItem[] = await getDataForBarDiagram(item,DiagramPeriod.min1,reverseMode);
+      let items:TBarChartDataItem[] = await getDataForBarDiagram(item,'1 day',reverseMode);
       setBarDiagramItems(items);
     }
     refreshDiargamImpl();
