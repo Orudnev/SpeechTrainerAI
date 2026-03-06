@@ -28,8 +28,8 @@ export async function getDataForBarDiagram(currItem: SpItem, period: DiagramPeri
         FROM result 
         WHERE ${ts} > 0 
         AND uid = '${currItem.uid}' 
-        AND ${ts} >= strftime('%s', 'now', 'start of day', 'localtime') * 1000 
-        AND ${ts} < strftime('%s', 'now', 'start of day', '+1 day', 'localtime') * 1000  
+        AND ${ts} >= strftime('%s', 'now', 'localtime','start of day','utc') * 1000 
+        AND ${ts} < strftime('%s', 'now', 'localtime','start of day','utc','+1 day') * 1000  
         GROUP BY (${ts} / ${period}) 
         ORDER BY ts;
             `;
