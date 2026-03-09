@@ -41,7 +41,7 @@ import { getAsrEngineId } from '../speech/asr/AsrService';
 import Svg from 'react-native-svg';
 import SvgTest from './SvgTest';
 import { BarChart, TBarChartDataItem } from './BarChart';
-import {  getDataForBarDiagram } from '../helpers/statistics';
+import {  getDataForBarDiagram, TDiagramPeriodName, TDiagramScopeName } from '../helpers/statistics';
 /**
  * Variant statistics (UI only)
  */
@@ -114,9 +114,9 @@ export default function SpeechTrainerPhrase() {
   const hasData = items.length > 0;
   const rawItem = hasData ? items[phraseIndex] : null;
   const currentItem = useMemo(() => {
-    if (!rawItem) return null;
-    return reverseMode ? toReverse(rawItem) : rawItem;
-  }, [rawItem, reverseMode]);
+  if (!rawItem) return null;
+  return reverseMode ? toReverse(rawItem) : rawItem;
+}, [rawItem, reverseMode]);
   const currentAsrId = getAsrEngineId();
   const currentQuestion = currentItem?.q ?? '';
 
@@ -425,9 +425,9 @@ export default function SpeechTrainerPhrase() {
     }
   }
 
-  function refreshDiagram(item:SpItem){
+  function refreshDiagram(item?:SpItem){
     async function refreshDiargamImpl(){
-      let items:TBarChartDataItem[] = await getDataForBarDiagram(item,'1 day',reverseMode);
+      let items:TBarChartDataItem[] = await getDataForBarDiagram(reverseMode,item);
       setBarDiagramItems(items);
     }
     refreshDiargamImpl();
@@ -563,6 +563,7 @@ export default function SpeechTrainerPhrase() {
           ]}
           data={barDiagramItems}
           valueFormat='99.99'
+          onGroupingsChanged={()=>{return refreshDiagram(currentItem?currentItem:undefined);}}
         />
       </View>
       <View style={styles.buttonSection}>

@@ -29,6 +29,7 @@ type TBarChartProps = {
     valueFormat: string;
     colors: string[];
     colorStep: number;
+    onGroupingsChanged:(periodName:TDiagramPeriodName,scopeName:TDiagramScopeName)=>void;
 };
 
 type TBarChartBarProps = {
@@ -272,7 +273,8 @@ export const BarChart: React.FC<TBarChartProps> = ({
     data,
     valueFormat,
     colors,
-    colorStep
+    colorStep,
+    onGroupingsChanged
 }) => {
 
     const maxValue =
@@ -381,6 +383,7 @@ export const BarChart: React.FC<TBarChartProps> = ({
                                     (selItemName) => {
                                         setGroupingPeriod(selItemName);
                                         close();
+                                        onGroupingsChanged(selItemName,groupingScope);
                                     }
                                 )}
                             </View>
@@ -399,6 +402,7 @@ export const BarChart: React.FC<TBarChartProps> = ({
                                     (selItemName) => {
                                         setGroupingScope(selItemName);
                                         close();
+                                        onGroupingsChanged(groupingPeriod,selItemName);
                                     }
                                 )}
                             </View>
