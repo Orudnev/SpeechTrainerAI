@@ -1,4 +1,4 @@
-import React,{useState} from "react";
+import React, { useEffect, useState } from "react";
 import { ScrollView, View, Text as RNText, TouchableOpacity } from "react-native";
 import Svg, {
     Rect,
@@ -11,7 +11,8 @@ import Svg, {
 } from "react-native-svg";
 import { RadioButton } from 'react-native-paper';
 import { AnchoredOverlay } from "./AnchoredOverlay";
-import { AllDiagramPeriods, TDiagramPeriodName } from "../helpers/statistics";
+import { AllDiagramPeriods, AllDiagramScopes, TDiagramPeriodName, TDiagramScopeName } from "../helpers/statistics";
+import { getAppSettingValue, loadAppSettingsFromDb, saveAppSettingsToDb, setAppSettingValue } from "../db/settings";
 
 export type TBarChartItem = {
     bottomLabel: string;
@@ -184,7 +185,7 @@ export type TModeButtonProps = {
     width: number,
     onPress: () => void
 }
-export default function ModeButton({ text, width, onPress }: TModeButtonProps) {
+export default function GroupButton({ text, width, onPress }: TModeButtonProps) {
     const height = 20;
     const borderRadius = 10;
 
@@ -291,22 +292,60 @@ export const BarChart: React.FC<TBarChartProps> = ({
 
     const svgWidth =
         Math.max(width, chartWidth);
-    const [period, setPeriod] = useState<TDiagramPeriodName>('1 day');
 
-    function getPeriodItems(){
-        let items = AllDiagramPeriods.map((pn,idx)=>{
-           return(
-            <RadioButton.Item
-                key = {"item"+idx}
-                style={{ height: 35 }}
-                label={pn}
-                value={pn}
-                status={period === pn ? 'checked' : 'unchecked'}
-                onPress={() => setPeriod(pn as TDiagramPeriodName)}
-            />                
-           );     
+    // STATES    
+    const [groupingPeriod, setGroupingPeriod] = useState<TDiagramPeriodName>(getAppSettingValue('groupingPeriod'));
+    const [groupingScope, setGroupingScope] = useState<TDiagramScopeName>(getAppSettingValue('groupingScope'));
+    useEffect(() => {
+        async function loadSettings() {
+            await loadAppSettingsFromDb();
+            setGroupingPeriod(getAppSettingValue('groupingPeriod'));
+            setGroupingScope(getAppSettingValue('groupingScope'));
+        }
+        loadSettings();
+    }, [])
+
+
+    function getPeriodItems(onPeriodSelected: (selItemName: TDiagramPeriodName) => void) {
+        let items = AllDiagramPeriods.map((pn, idx) => {
+            return (
+                <RadioButton.Item
+                    key={"item" + idx}
+                    style={{ height: 35, paddingVertical: 0 }}
+                    label={pn}
+                    value={pn}
+                    status={groupingPeriod === pn ? 'checked' : 'unchecked'}
+                    onPress={async () => {
+                        setGroupingPeriod(pn as TDiagramPeriodName);
+                        setAppSettingValue('groupingPeriod', pn);
+                        await saveAppSettingsToDb()
+                        onPeriodSelected(pn as TDiagramPeriodName);
+                    }}
+                />
+            );
         });
         return items
+    }
+
+    function getScopeItems(onScopeSelected: (selItemName: TDiagramScopeName)=>void){
+        let items = AllDiagramScopes.map((pn, idx) => {
+            return (
+                <RadioButton.Item
+                    key={"item" + idx}
+                    style={{ height: 35, paddingVertical: 0 }}
+                    label={pn}
+                    value={pn}
+                    status={groupingScope === pn ? 'checked' : 'unchecked'}
+                    onPress={async () => {
+                        setGroupingScope(pn as TDiagramScopeName);
+                        setAppSettingValue('groupingScope', pn);
+                        await saveAppSettingsToDb()
+                        onScopeSelected(pn as TDiagramScopeName);
+                    }}
+                />
+            );
+        });
+        return items        
     }
 
     return (
@@ -331,17 +370,40 @@ export const BarChart: React.FC<TBarChartProps> = ({
                     </TouchableOpacity>
                     <AnchoredOverlay
                         anchor={({ onPress }) => (
-                            <ModeButton text="1 min" width={50} onPress={() => {
+                            <GroupButton key="SetPeriodButton" text={groupingPeriod} width={groupingPeriod.length * 9} onPress={() => {
                                 onPress();
                             }} />
                         )}>
                         {({ close }) => (
                             <View style={{ width: 200 }}>
-                                {getPeriodItems()}
+                                {getPeriodItems(
+                                    //onPeriodSelected
+                                    (selItemName) => {
+                                        setGroupingPeriod(selItemName);
+                                        close();
+                                    }
+                                )}
                             </View>
                         )}
                     </AnchoredOverlay>
-                    <ModeButton text="Selected topics" width={110} onPress={() => { }} />
+                    <AnchoredOverlay
+                        anchor={({ onPress }) => (
+                            <GroupButton key="SetScopeButton" text={groupingScope} width={groupingScope.length * 9} onPress={() => {
+                                onPress();
+                            }} />
+                        )}>
+                        {({ close }) => (
+                            <View style={{ width: 200 }}>
+                                {getScopeItems(
+                                    //onScopeSelected
+                                    (selItemName) => {
+                                        setGroupingScope(selItemName);
+                                        close();
+                                    }
+                                )}
+                            </View>
+                        )}
+                    </AnchoredOverlay>
                 </View>
             )}
             {/* CHART */}

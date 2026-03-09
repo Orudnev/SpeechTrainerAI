@@ -152,7 +152,7 @@ export default function SpeechTrainerPhrase() {
           let result = selectedTopics.includes(item.topic);
           return result;
         }
-        return true;
+        return true; 
       });
       if (data.length === 0) {
         setAppSettingValue('selectedTopics', []);

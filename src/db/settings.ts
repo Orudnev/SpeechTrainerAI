@@ -1,12 +1,17 @@
+import {initSpeechDb, openSpeechDb} from './speechDb';
+import { TDiagramPeriodName } from '../helpers/statistics';
+
 export type TSettingName =
   | 'fullAccess'
   | 'asrModelType'
   | 'reverseMode'
   | 'rowsCloudDataSource'
-  | 'selectedTopics';
+  | 'selectedTopics'
+  | 'groupingPeriod'
+  | 'groupingScope' // phrase|current topic|all selected topics
 export type TServiceCommandName = 'downloadRowsFromCloud' | 'uploadRowsToCloud';
 
-import {initSpeechDb, openSpeechDb} from './speechDb';
+
 
 export type TsettingsItem = {
   name: TSettingName;
@@ -36,6 +41,16 @@ export const AppSettings: TsettingsItem[] = [
     name: 'rowsCloudDataSource',
     defaultValue: '',
     needAdvancedRights: true,
+  },
+  {
+    name:'groupingPeriod',
+    defaultValue: '1 minute',
+    needAdvancedRights: false
+  },
+  {
+    name:'groupingScope',
+    defaultValue: 'Phrase',
+    needAdvancedRights: false
   },
 ];
 

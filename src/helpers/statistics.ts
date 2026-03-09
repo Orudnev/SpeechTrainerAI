@@ -1,23 +1,15 @@
 import { TBarChartDataItem, TBarChartItem } from "../components/BarChart";
 import { openSpeechDb, SpItem } from "../db/speechDb";
 
-
-// export enum DiagramPeriod {
-//     min1 = 60 * 1000,
-//     min5 = 5 * 60 * 1000,
-//     min30 = 30 * 60 * 1000,
-//     hour = 60 * 60 * 1000
-// }
-
-export type TDiagramPeriodName = "1 minute"|"5 minutes"|"30 minutes"|"1 hour"|"1 day"|"5 days";
-export const AllDiagramPeriods = '"1 minute"|"5 minutes"|"30 minutes"|"1 hour"|"1 day"|"5 days"'.replace(/"/g,"").split("|");
+export type TDiagramPeriodName = "1 min"|"5 min"|"30 min"|"1 hour"|"1 day"|"5 days";
+export const AllDiagramPeriods = '"1 min"|"5 min"|"30 min"|"1 hour"|"1 day"|"5 days"'.replace(/"/g,"").split("|");
 export function getDiagramPeriodValue(period:TDiagramPeriodName){
     switch (period){
-        case "1 minute":
+        case "1 min":
             return 60 * 1000;
-        case "5 minutes":
+        case "5 min":
             return 5 * 60 * 1000;     
-        case "30 minutes":
+        case "30 min":
             return 30 * 60 * 1000;     
         case "1 hour":
             return 60 * 60 * 1000;     
@@ -29,6 +21,9 @@ export function getDiagramPeriodValue(period:TDiagramPeriodName){
             throw `Wrong period ${period}`;                
     }
 }
+
+export type TDiagramScopeName = "Phrase"|"Current Topic"|"All Selected";
+export const AllDiagramScopes = '"Phrase"|"Current Topic"|"All Selected"'.replace(/"/g,"").split("|");
 
 export type TResultData = {
     uid:string,
