@@ -42,6 +42,7 @@ import Svg from 'react-native-svg';
 import SvgTest from './SvgTest';
 import { BarChart, TBarChartDataItem } from './BarChart';
 import {  getDataForBarDiagram, TDiagramPeriodName, TDiagramScopeName } from '../helpers/statistics';
+import { SvgButton } from './SvgButton';
 /**
  * Variant statistics (UI only)
  */
@@ -576,8 +577,21 @@ export default function SpeechTrainerPhrase() {
             />
           </View>
         )}
-
-        <TouchableOpacity style={styles.button}
+        <SvgButton title="Skip Phrase" iconId='skipPhrase' onPress={handleNextPhrasePress}  />
+        <SvgButton title="Can't Remember" iconId='cantRemember' onPress={()=>{handleMatched(true);}}  />
+        <SvgButton title="Open Word" iconId='openWord' onPress={()=>{
+            if (!currentWord) return;
+            setLastAsrResult({
+              engine: currentAsrId,
+              type: 'final',
+              text: currentWord,
+            });
+            setOpenWordCounter(prev => prev + 1); // Увеличиваем счетчик при открытии слова
+        }}  />
+        <SvgButton title="Say Word" iconId='sayWord' onPress={()=>{
+          
+        }}  />
+        {/* <TouchableOpacity style={styles.button}
           onPress={handleNextPhrasePress}
         >
           <Image
@@ -615,7 +629,7 @@ export default function SpeechTrainerPhrase() {
             source={require('../assets/openword.png')}
             resizeMode="contain"
           />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </View>
   );
@@ -671,8 +685,11 @@ const pStyles = StyleSheet.create({
   buttonSection: {
     flex: 15,
     flexDirection: "row",
-    marginLeft: -25,
-    gap: 20
+    flexWrap:'wrap',
+    alignContent:'space-around',
+    borderColor:'white',
+    borderWidth:1,
+    width:"100%"
   },
   button: {
     width: 100,
