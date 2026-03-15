@@ -577,8 +577,8 @@ export default function SpeechTrainerPhrase() {
             />
           </View>
         )}
-        <SvgButton title="Skip Phrase" iconId='skipPhrase' onPress={handleNextPhrasePress}  />
-        <SvgButton title="Can't Remember" iconId='cantRemember' onPress={()=>{handleMatched(true);}}  />
+        <SvgButton title="Skip Phrase" iconId='skipPhrase' onPress={handleNextPhrasePress} width={isLandscape?120:150} />
+        <SvgButton title="Can't Remember" iconId='cantRemember' onPress={()=>{handleMatched(true);}} width={isLandscape?120:150}  />
         <SvgButton title="Open Word" iconId='openWord' onPress={()=>{
             if (!currentWord) return;
             setLastAsrResult({
@@ -587,10 +587,10 @@ export default function SpeechTrainerPhrase() {
               text: currentWord,
             });
             setOpenWordCounter(prev => prev + 1); // Увеличиваем счетчик при открытии слова
-        }}  />
-        <SvgButton title="Say Word" iconId='sayWord' onPress={()=>{
-          
-        }}  />
+        }} width={isLandscape?120:150}  />
+        <SvgButton title="Say Word" iconId='sayWord' onPress={async ()=>{
+            await speakAndListen(currentWord, getAsrEngineId());
+        }} width={isLandscape?120:150}  />
         {/* <TouchableOpacity style={styles.button}
           onPress={handleNextPhrasePress}
         >
@@ -684,12 +684,10 @@ const pStyles = StyleSheet.create({
   },
   buttonSection: {
     flex: 15,
-    flexDirection: "row",
+    flexDirection:'row',
     flexWrap:'wrap',
-    alignContent:'space-around',
-    borderColor:'white',
-    borderWidth:1,
-    width:"100%"
+    justifyContent:'center',
+    gap:10
   },
   button: {
     width: 100,
@@ -740,8 +738,8 @@ const lStyles = StyleSheet.create({
   buttonSection: {
     flex: 1,
     position: "absolute",
-    top: 75,
-    right: 60,
+    top: 71,
+    right: 25,
     width: 100,
     gap: 10,
   },

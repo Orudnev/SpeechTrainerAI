@@ -1,5 +1,5 @@
 import React from "react";
-import { TouchableOpacity } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 
 import Svg, {
     Rect,
@@ -20,8 +20,8 @@ const ICONS = {
 
     skipPhrase: () => (
         <>
-            <Polygon points="0,10 10,0 10,20" fill="#00f0ff" />
-            <Polygon points="15,10 25,0 25,20" fill="#00f0ff" />
+            <Polygon points="25,10 15,0 15,20" fill="#00f0ff" />
+            <Polygon points="10,10 0,0 0,20" fill="#00f0ff" />
         </>
     ),
 
@@ -58,13 +58,13 @@ type SvgButtonProps = {
     iconId: keyof typeof ICONS;
     width?: number;
     height?: number;
-    onPress:()=>void;
+    onPress: () => void;
 };
 
 export const SvgButton: React.FC<SvgButtonProps> = ({
     title,
     iconId,
-    width = 198,
+    width = 150,
     height = 50,
     onPress
 }) => {
@@ -72,53 +72,55 @@ export const SvgButton: React.FC<SvgButtonProps> = ({
     const Icon = ICONS[iconId];
 
     return (
-        <TouchableOpacity onPress={onPress}>
-            <Svg width={width} height={height} viewBox="0 0 200 70">
+        <View style={{ width }} >
+            <TouchableOpacity onPress={onPress} >
+                <Svg width="100%" height={height} viewBox="0 0 200 70">
 
-                <Defs>
-                    <LinearGradient id="borderGradient" y2="100%">
-                        <Stop offset="0" stopColor="#00f0ff" />
-                        <Stop offset="0.5" stopColor="#ffffff" />
-                        <Stop offset="1" stopColor="#08e6ff" />
-                    </LinearGradient>
+                    <Defs>
+                        <LinearGradient id="borderGradient" y2="100%">
+                            <Stop offset="0" stopColor="#00f0ff" />
+                            <Stop offset="0.5" stopColor="#ffffff" />
+                            <Stop offset="1" stopColor="#08e6ff" />
+                        </LinearGradient>
 
-                    <LinearGradient id="buttonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <Stop offset="0" stopColor="#999" />
-                        <Stop offset="0.4" stopColor="#1a1a1a" />
-                        <Stop offset="0.6" stopColor="#1a1a1a" />
-                        <Stop offset="1" stopColor="#999" />
-                    </LinearGradient>
-                </Defs>
+                        <LinearGradient id="buttonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <Stop offset="0" stopColor="#4d7a9e" />
+                            <Stop offset="0.4" stopColor="#0b1725" />
+                            <Stop offset="0.6" stopColor="#0b1725" />
+                            <Stop offset="1" stopColor="#4d7a9e" />
+                        </LinearGradient>
+                    </Defs>
 
-                {/* button background */}
-                <Rect
-                    x="0"
-                    y="0"
-                    width="200"
-                    height="70"
-                    rx="16"
-                    fill="url(#buttonGradient)"
-                    stroke="url(#borderGradient)"
-                    strokeWidth="3"
-                />
+                    {/* button background */}
+                    <Rect
+                        x="0"
+                        y="0"
+                        width="200"
+                        height="70"
+                        rx="16"
+                        fill="url(#buttonGradient)"
+                        stroke="url(#borderGradient)"
+                        strokeWidth="3"
+                    />
 
-                {/* icon */}
-                <G x="30" y="25">
-                    <Icon />
-                </G>
+                    {/* icon */}
+                    <G x="30" y="25">
+                        <Icon />
+                    </G>
 
-                {/* text */}
-                <Text
-                    x="80"
-                    y="35"
-                    fill="#fff"
-                    fontSize="15"
-                    alignmentBaseline="middle"
-                >
-                    {title}
-                </Text>
+                    {/* text */}
+                    <Text
+                        x="80"
+                        y="35"
+                        fill="#fff"
+                        fontSize="15"
+                        alignmentBaseline="middle"
+                    >
+                        {title}
+                    </Text>
 
-            </Svg>
-        </TouchableOpacity>
+                </Svg>
+            </TouchableOpacity>
+        </View>
     );
 };
