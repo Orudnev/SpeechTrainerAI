@@ -58,6 +58,7 @@ export function getNextItemUid(allItems: SpItem[], isReverse = false, currentIte
 
   // В первую очередь выбираем новые элементы
   let fresh = items.filter(itm =>
+    itm.uid !== currentItemUid &&
     getInterval(itm, isReverse) < minItemInterval
   );
   if (fresh.length > 0) {
