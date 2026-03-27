@@ -1,5 +1,6 @@
 import SQLite, { SQLiteDatabase } from "react-native-sqlite-storage";
 import { reseedDb } from "../debug/debugCommands";
+import { clamp } from "../helpers/getNextItemUid";
 
 SQLite.enablePromise(true);
 
@@ -60,15 +61,11 @@ export type SpItemExport = SpItem & {
 
 
 export function MSS(row: SpItem, isReverse = false) {
-  function clamp(value: number, minValue: number, maxValue: number) {
-    if (value < minValue) return minValue;
-    if (value > maxValue) return maxValue;
-    return value;
-  }
   let correct = (isReverse ? row.correctr : row.correctf) ?? 0;
   let dw = (isReverse ? row.dwr : row.dwf) ?? 0;
   let streak = (isReverse ? row.streakr : row.streakf) ?? 0;
   let cnt = (isReverse ? row.cntr : row.cntf) ?? 0;
+  if (cnt == 0) return 0;
   let ts = (isReverse ? row.tsr : row.tsf) ?? 0;
   let interval = (isReverse ? row.intr : row.intf) ?? 0;
 

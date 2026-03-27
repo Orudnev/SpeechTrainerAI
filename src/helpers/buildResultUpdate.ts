@@ -1,5 +1,6 @@
 import { normalizeText } from "../components/SpeechCompare";
 import { MSS, SpItem, SpItemResult } from "../db/speechDb";
+import { clamp, getCnt, getInterval, getStreak } from "./getNextItemUid";
 
 type ResultUpdate = {
   patch: Partial<SpItem>;
@@ -8,24 +9,64 @@ type ResultUpdate = {
 
 export const minItemInterval = 60000 * 2; //2 минуты 
 
-function CalcInterval(item: SpItem,reverseMode:boolean,isError:boolean){
-  const mss = MSS(item,reverseMode);
-  const dayInMs = 86400000;
-  let days = 0;
-  if(isError){
-    return minItemInterval; // -F4 Сбросить интервал
+function CalcInterval(item: SpItem, reverseMode: boolean, isError: boolean) {
+  const MIN = 60000;
+  const HOUR = 3600000;
+  const DAY = 86400000;
+
+  const cnt = reverseMode ? item.cntr ?? 0 : item.cntf ?? 0;
+  const prevInterval = reverseMode ? item.intr ?? 0 : item.intf ?? 0;
+  const streak = reverseMode ? item.streakr ?? 0 : item.streakf ?? 0;
+  const dw = reverseMode ? item.dwr ?? 800 : item.dwf ?? 800;
+  function decay(interval: number): number {
+    const days = interval / DAY;
+
+    if (days < 30) return 1;       // быстрый рост
+    if (days < 180) return 0.8;    // замедление
+    if (days < 365) return 0.6;
+    return 0.4;                    // почти плато
   }
-  if(mss > 90) days = 90
-  else if(mss > 80) days = 21;
-  else if(mss > 70) days = 7;
-  else if(mss > 50) days = 3;
-  else if(mss > 40) days = 1;
-  else if(mss > 19) return minItemInterval*300; // 10 часов
-  else if(mss > 15) return minItemInterval*30; // 1 час
-  else if(mss > 10) return minItemInterval*10; // 20 минут
-  else if(mss > 5) return minItemInterval; // -F4- 2 минуты для новых слов
-  const result = days * dayInMs; // -E7- Рассчитать новый интервал
-  return result;  
+  // -------------------------
+  // LEARNING PHASE
+  // -------------------------
+  if (prevInterval < DAY) {
+    const steps = [
+      10 * MIN,
+      1 * HOUR,
+      1 * DAY
+    ];
+
+    if (isError) {
+      // откат на предыдущий шаг
+      return steps[Math.max(0, cnt - 1)];
+    }
+
+    return steps[cnt];
+  }
+
+  // -------------------------
+  // REVIEW PHASE
+  // -------------------------
+
+  const MAX_INTERVAL = 1 * 365 * DAY;
+  if (isError) {
+    return 1 * DAY;
+  }
+  let growth = 1.7;
+  // скорость
+  const speedFactor = clamp(1 - dw / 1200, 0, 1);
+  growth += speedFactor * 0.5;
+  // серия
+  growth += Math.min(streak / 20, 0.3);
+  // ограничение роста
+  growth = clamp(growth, 1.3, 2.5);
+  // замедление роста
+  const decayFactor = decay(prevInterval);
+  let next = prevInterval * growth * decayFactor;
+  // hard cap
+  next = Math.min(next, MAX_INTERVAL);
+  // защита от слишком малого роста
+  return Math.round(Math.max(next, 1 * DAY));
 }
 
 export function buildResultUpdate(
@@ -54,11 +95,11 @@ export function buildResultUpdate(
   const nextCorrectCount = prevCorrectCount + 1;
 
   const prevStreak = reverseMode ? rawItem.streakr ?? 0 : rawItem.streakf ?? 0;
-  const nextStreak = resetStreakOnError 
-        ? Math.floor(prevStreak / 2) // -F2- Уменьшить streak
-        : prevStreak + 1;            // -E4- Увеличить streak
-      
-  let interval = CalcInterval(rawItem,reverseMode,resetStreakOnError); // -E5- Вычислить новый интервал
+  const nextStreak = resetStreakOnError
+    ? Math.floor(prevStreak / 2) // -F2- Уменьшить streak
+    : prevStreak + 1;            // -E4- Увеличить streak
+
+  let interval = CalcInterval(rawItem, reverseMode, resetStreakOnError); // -E5- Вычислить новый интервал
   if (resetStreakOnError) {
     interval = minItemInterval; // -F3- Минимальный интервал 5 минут
   }
@@ -83,7 +124,7 @@ export function buildResultUpdate(
       dwr: nextWordAvg,
       tsr: now,
       correctr: nextCorrectCount,
-      streakr: nextStreak,  
+      streakr: nextStreak,
       intr: interval,
     }
     : {
@@ -92,7 +133,7 @@ export function buildResultUpdate(
       dwf: nextWordAvg,
       tsf: now,
       correctf: nextCorrectCount,
-      streakf: nextStreak,        
+      streakf: nextStreak,
       intf: interval,
     };
 
