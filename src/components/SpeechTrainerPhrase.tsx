@@ -41,7 +41,7 @@ import { getAsrEngineId } from '../speech/asr/AsrService';
 import Svg from 'react-native-svg';
 import SvgTest from './SvgTest';
 import { BarChart, TBarChartDataItem } from './BarChart';
-import {  getDataForBarDiagram, TDiagramPeriodName, TDiagramScopeName } from '../helpers/statistics';
+import { getDataForBarDiagram, TDiagramPeriodName, TDiagramScopeName } from '../helpers/statistics';
 import { SvgButton } from './SvgButton';
 import { GradientPanel } from './GradientPanel';
 /**
@@ -84,7 +84,7 @@ export default function SpeechTrainerPhrase() {
   const reverseMode = getAppSettingValue<boolean>('reverseMode');
   const [showCurrentItem, setShowCurrentItem] = useState(false);
   const [openWordCounter, setOpenWordCounter] = useState(0); // Счетчик для принудительного обновления при открытии слова
-  const [barDiagramItems,setBarDiagramItems] = useState<TBarChartDataItem[]>([]);
+  const [barDiagramItems, setBarDiagramItems] = useState<TBarChartDataItem[]>([]);
   // ============================================================
   // ASR integration (SINGLE SOURCE)
   // ============================================================
@@ -116,9 +116,9 @@ export default function SpeechTrainerPhrase() {
   const hasData = items.length > 0;
   const rawItem = hasData ? items[phraseIndex] : null;
   const currentItem = useMemo(() => {
-  if (!rawItem) return null;
-  return reverseMode ? toReverse(rawItem) : rawItem;
-}, [rawItem, reverseMode]);
+    if (!rawItem) return null;
+    return reverseMode ? toReverse(rawItem) : rawItem;
+  }, [rawItem, reverseMode]);
   const currentAsrId = getAsrEngineId();
   const currentQuestion = currentItem?.q ?? '';
 
@@ -154,7 +154,7 @@ export default function SpeechTrainerPhrase() {
           let result = selectedTopics.includes(item.topic);
           return result;
         }
-        return true; 
+        return true;
       });
       if (data.length === 0) {
         setAppSettingValue('selectedTopics', []);
@@ -427,9 +427,9 @@ export default function SpeechTrainerPhrase() {
     }
   }
 
-  function refreshDiagram(item?:SpItem){
-    async function refreshDiargamImpl(){
-      let items:TBarChartDataItem[] = await getDataForBarDiagram(reverseMode,item);
+  function refreshDiagram(item?: SpItem) {
+    async function refreshDiargamImpl() {
+      let items: TBarChartDataItem[] = await getDataForBarDiagram(reverseMode, item);
       setBarDiagramItems(items);
     }
     refreshDiargamImpl();
@@ -472,10 +472,6 @@ export default function SpeechTrainerPhrase() {
       {hasData && (
         <>
           <Toolbar>
-            <Appbar.Action
-              icon="eye-outline"
-              onPress={() => { setShowCurrentItem(true); }}
-            />
             {(savedVariantsForCurrentWord.length > 0 ||
               variantStatsFromASR.length > 0) && (
 
@@ -521,41 +517,25 @@ export default function SpeechTrainerPhrase() {
               </LinearGradient>
             </Modal>
           </Portal>
-          <GradientPanel label="Current question:" text={currentQuestion}  onPress={()=>{setShowCurrentItem(true);}} width={screenSize.width - 8} />    
-          {/* <View style={styles.questionSection}>
-            <ImageBackground source={require('../assets/backgr1.png')} imageStyle={[fieldStylesCommon.field, fieldStyles.fldQuestion]} resizeMode='stretch'  >
-              <View style={fieldStyles.fieldCardInnerQuestion}>
-                <Text style={[fieldStyles.fieldCaption, fieldStylesCommon.fldCaptionColor, { marginTop: 10 }]}>Current question:</Text>
-                <Text style={fieldStyles.fieldValue}>{currentQuestion}</Text>
-              </View>
-            </ImageBackground>
-          </View> */}
+          <View style={styles.questionSection}>
+            <GradientPanel label="Current question:" mainText={currentQuestion} 
+            onPress={() => { setShowCurrentItem(true); }} />
+          </View>
         </>
       )}
-
       <View style={styles.asrResultSection}>
-        <View >
-          <ImageBackground source={require('../assets/backgr1.png')} imageStyle={[fieldStylesCommon.field, fieldStyles.fldAsrResult]} resizeMode='stretch'  >
-            <View style={fieldStyles.fieldCardInnerAsrResult}>
-              <Text style={[fieldStyles.fieldCaption, fieldStylesCommon.fldCaptionColor, { marginTop: 5 }]}>
-                Current ASR result:
-              </Text>
-              <Text style={[fieldStyles.fieldValue]}>
-                {matchedText}
-                <Text style={[fieldStyles.fieldValue, fieldStylesCommon.fldCaptionColor]}>{matchedTextDlm + compareSnapshot.asrResult}</Text>
-              </Text>
-            </View>
-          </ImageBackground>
-          {compareSnapshot.status.length > 0 && (
-            <Text style={styles.compareStatus}>{compareSnapshot.status}</Text>
-          )}
-        </View>
+        <GradientPanel label="Current ASR result:"
+          mainText={matchedText}
+          suffixText={compareSnapshot.asrResult}
+          statusText={compareSnapshot.status}
+          onPress={() => { setShowCurrentItem(true); }}
+          />
       </View>
       <View style={styles.statisticsSection}>
         <BarChart
           title={isLandscape ? '' : 'Memory Strength Score'}
-          width={scw(100,100)}
-          height={sch(20,24)}
+          width={scw(100, 100)}
+          height={sch(20, 24)}
           colorStep={25}
           colors={[
             "#3b82f6",
@@ -565,7 +545,7 @@ export default function SpeechTrainerPhrase() {
           ]}
           data={barDiagramItems}
           valueFormat='99.99'
-          onGroupingsChanged={()=>{return refreshDiagram(currentItem?currentItem:undefined);}}
+          onGroupingsChanged={() => { return refreshDiagram(currentItem ? currentItem : undefined); }}
         />
       </View>
       <View style={styles.buttonSection}>
@@ -578,59 +558,20 @@ export default function SpeechTrainerPhrase() {
             />
           </View>
         )}
-        <SvgButton title="Skip Phrase" iconId='skipPhrase' onPress={handleNextPhrasePress} width={isLandscape?120:150} />
-        <SvgButton title="Can't Remember" iconId='cantRemember' onPress={()=>{handleMatched(true);}} width={isLandscape?120:150}  />
-        <SvgButton title="Open Word" iconId='openWord' onPress={()=>{
-            if (!currentWord) return;
-            setLastAsrResult({
-              engine: currentAsrId,
-              type: 'final',
-              text: currentWord,
-            });
-            setOpenWordCounter(prev => prev + 1); // Увеличиваем счетчик при открытии слова
-        }} width={isLandscape?120:150}  />
-        <SvgButton title="Say Word" iconId='sayWord' onPress={async ()=>{
-            await speakAndListen(currentWord, getAsrEngineId());
-        }} width={isLandscape?120:150}  />
-        {/* <TouchableOpacity style={styles.button}
-          onPress={handleNextPhrasePress}
-        >
-          <Image
-            style={{ height: 80 }}
-            source={require('../assets/skipphrase.png')}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button}
-          onPress={() => {
-            handleMatched(true)
-          }}
-        >
-          <Image
-            style={{ height: 80 }}
-            source={require('../assets/cannotremember.png')}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button}
-          disabled={openWordDisabled}
-          onPress={() => {
-            if (!currentWord) return;
-            setLastAsrResult({
-              engine: currentAsrId,
-              type: 'final',
-              text: currentWord,
-            });
-            setOpenWordCounter(prev => prev + 1); // Увеличиваем счетчик при открытии слова
-          }}
-        >
-          <Image
-            style={[{ height: 80 }, openWordStyle]}
-            source={require('../assets/openword.png')}
-            resizeMode="contain"
-          />
-        </TouchableOpacity> */}
+        <SvgButton title="Skip Phrase" iconId='skipPhrase' onPress={handleNextPhrasePress} width={isLandscape ? 120 : 150} />
+        <SvgButton title="Can't Remember" iconId='cantRemember' onPress={() => { handleMatched(true); }} width={isLandscape ? 120 : 150} />
+        <SvgButton title="Open Word" iconId='openWord' onPress={() => {
+          if (!currentWord) return;
+          setLastAsrResult({
+            engine: currentAsrId,
+            type: 'final',
+            text: currentWord,
+          });
+          setOpenWordCounter(prev => prev + 1); // Увеличиваем счетчик при открытии слова
+        }} width={isLandscape ? 120 : 150} />
+        <SvgButton title="Say Word" iconId='sayWord' onPress={async () => {
+          await speakAndListen(currentWord, getAsrEngineId());
+        }} width={isLandscape ? 120 : 150} />
       </View>
     </View>
   );
@@ -685,10 +626,10 @@ const pStyles = StyleSheet.create({
   },
   buttonSection: {
     flex: 15,
-    flexDirection:'row',
-    flexWrap:'wrap',
-    justifyContent:'center',
-    gap:10
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10
   },
   button: {
     width: 100,
@@ -858,40 +799,40 @@ const lFieldstyles = StyleSheet.create({
 
 
 
-          // data={[
-          //   { bottomLabel: "01", value: 10 },
-          //   { bottomLabel: "02", value: 15 },
-          //   { bottomLabel: "03", value: 20 },
-          //   { bottomLabel: "04", value: 88 },
-          //   { bottomLabel: "05", value: 60 },
-          //   { bottomLabel: "06", value: 45 },
-          //   { bottomLabel: "07", value: 72 },
-          //   { bottomLabel: "08", value: 30 },
-          //   { bottomLabel: "09", value: 88 },
-          //   { bottomLabel: "10", value: 60 },
-          //   isLandscape?"Feb 26":"Feb 2026",
-          //   { bottomLabel: "11", value: 60 },
-          //   { bottomLabel: "12", value: 45 },
-          //   { bottomLabel: "13", value: 72 },
-          //   { bottomLabel: "14", value: 30 },
-          //   { bottomLabel: "15", value: 88 },
-          //   { bottomLabel: "16", value: 10 },
-          //   { bottomLabel: "17", value: 15 },
-          //   { bottomLabel: "18", value: 20 },
-          //   { bottomLabel: "19", value: 88 },
-          //   { bottomLabel: "20", value: 60 },
-          //   { bottomLabel: "21", value: 45 },
-          //   { bottomLabel: "22", value: 72 },
-          //   { bottomLabel: "23", value: 30 },
-          //   { bottomLabel: "24", value: 88 },
-          //   { bottomLabel: "25", value: 60 },
-          //   { bottomLabel: "26", value: 60 },
-          //   { bottomLabel: "27", value: 45 },
-          //   { bottomLabel: "28", value: 72 },
-          //   { bottomLabel: "29", value: 30 },
-          //   { bottomLabel: "30", value: 88 }
+// data={[
+//   { bottomLabel: "01", value: 10 },
+//   { bottomLabel: "02", value: 15 },
+//   { bottomLabel: "03", value: 20 },
+//   { bottomLabel: "04", value: 88 },
+//   { bottomLabel: "05", value: 60 },
+//   { bottomLabel: "06", value: 45 },
+//   { bottomLabel: "07", value: 72 },
+//   { bottomLabel: "08", value: 30 },
+//   { bottomLabel: "09", value: 88 },
+//   { bottomLabel: "10", value: 60 },
+//   isLandscape?"Feb 26":"Feb 2026",
+//   { bottomLabel: "11", value: 60 },
+//   { bottomLabel: "12", value: 45 },
+//   { bottomLabel: "13", value: 72 },
+//   { bottomLabel: "14", value: 30 },
+//   { bottomLabel: "15", value: 88 },
+//   { bottomLabel: "16", value: 10 },
+//   { bottomLabel: "17", value: 15 },
+//   { bottomLabel: "18", value: 20 },
+//   { bottomLabel: "19", value: 88 },
+//   { bottomLabel: "20", value: 60 },
+//   { bottomLabel: "21", value: 45 },
+//   { bottomLabel: "22", value: 72 },
+//   { bottomLabel: "23", value: 30 },
+//   { bottomLabel: "24", value: 88 },
+//   { bottomLabel: "25", value: 60 },
+//   { bottomLabel: "26", value: 60 },
+//   { bottomLabel: "27", value: 45 },
+//   { bottomLabel: "28", value: 72 },
+//   { bottomLabel: "29", value: 30 },
+//   { bottomLabel: "30", value: 88 }
 
-          // ]}
+// ]}
 
 
 

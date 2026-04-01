@@ -1,5 +1,5 @@
 import React from "react";
-import { TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View,useWindowDimensions } from "react-native";
 
 import Svg, {
     Rect,
@@ -12,64 +12,43 @@ import Svg, {
 } from "react-native-svg";
 
 import { Text } from 'react-native';
-
-
-
-const ICONS = {
-    openWord: () => (
-        <Polygon points="0,0 0,20 20,10" fill="#00f0ff" />
-    ),
-
-    skipPhrase: () => (
-        <>
-            <Polygon points="25,10 15,0 15,20" fill="#00f0ff" />
-            <Polygon points="10,10 0,0 0,20" fill="#00f0ff" />
-        </>
-    ),
-
-    cantRemember: () => (
-        <Path
-            d="M0 0 L20 20 M20 0 L0 20"
-            stroke="#ff6b6b"
-            strokeWidth={4}
-            strokeLinecap="round"
-        />
-    ),
-
-    sayWord: () => (
-        <>
-            <Polygon
-                points="0,5 10,5 20,-5 20,25 10,15 0,15"
-                fill="#00f0ff"
-            />
-            <Path
-                d="M25 5 Q35 10 25 15"
-                stroke="#00f0ff"
-                strokeWidth={2}
-                fill="none"
-            />
-        </>
-    )
-};
-
-
-
+import { white } from "react-native-paper/lib/typescript/styles/themes/v2/colors";
 
 type GradientPanelProps = {
-    label: string;
-    text: string;
-    width?: number;
-    height?: number;
-    onPress: () => void;
+    label: string,
+    mainText: string,
+    suffixText?: string,
+    statusText?: string,
+    width?: number,
+    height?: number,
+    onPress: () => void
 };
 
 export const GradientPanel: React.FC<GradientPanelProps> = ({
     label,
-    text,
+    mainText,
+    suffixText,
+    statusText,
     width = 400,
     height = 170,
     onPress
 }) => {
+    const screenSize = useWindowDimensions();
+    const isLandscape = screenSize.width > screenSize.height; 
+    let labelTop = 10;
+    let labelLeft = 10;
+    let textTop = 35;
+    let textLeft = 12;   
+    if(isLandscape){
+        width = screenSize.width - 150; 
+        labelLeft = 20;
+        textTop = 8;
+        textLeft = 155
+        height = 85;
+    } else {
+        width = screenSize.width - 8;
+        height = 210;
+    }
     return (
         <View style={{ width: '100%' }} onTouchEnd={onPress}>
             <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
@@ -100,25 +79,32 @@ export const GradientPanel: React.FC<GradientPanelProps> = ({
                     stroke="url(#borderGradient)"
                     strokeWidth="3"
                 />
-                {/* text */}
-                {/* <Text
-                        x="10"
-                        y="30"
-                        fill="#9AA3B2"
-                        fontSize="15"
-                    >
-                        {label}
-                    </Text> */}
             </Svg>
-            <Text style={{ color: '#9AA3B2', fontSize: 15, position: 'absolute', top: 10, left: 10 }} >{label}</Text>
-            <View style={{ position: 'absolute', top: 35, left: 12,   }}>
+            <Text style={{ color: '#9AA3B2', fontSize: 15, position: 'absolute', top: labelTop, left: labelLeft }} >{label}</Text>
+            <View style={{ position: 'absolute', top: textTop, left: textLeft }}>
                 <Text style={{ color: '#E6F1FF', fontSize: 18, fontWeight: '600', lineHeight: 24 }}   >
-                    {text}
-                    <Text style={{ color: '#8b8383', fontSize: 18, fontWeight: '600' }}   >
-                        {" " + "blablabla jhkjhjkh khkhkhkj"}
-                    </Text>
+                    {mainText}
+                    {suffixText && (
+                        <Text style={{ color: '#8b8383', fontSize: 18, fontWeight: '600' }}   >
+                            {" " + suffixText}
+                        </Text>
+                    )}
                 </Text>
             </View>
+            {statusText && (
+                <View style={{
+                    borderWidth: 1,
+                    borderColor: '#FFFFFF', 
+                    backgroundColor: "#087e2b", 
+                    borderRadius: 15, 
+                    width: 200, 
+                    height: 50, 
+                    position: "absolute", 
+                    bottom: 10, left: 10, alignItems: "center"
+                }}>
+                    <Text style={{ fontSize: 18, lineHeight: 45, fontWeight: 800, color: "FFFFFF" }}>{statusText}</Text>
+                </View>
+            )}
         </View>
     );
 };
