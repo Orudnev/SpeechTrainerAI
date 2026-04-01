@@ -36,9 +36,18 @@ function CalcInterval(item: SpItem, reverseMode: boolean, isError: boolean) {
       1 * DAY
     ];
 
+    if(streak >= steps.length -1 ) {
+      // перейти в фазу повторения
+      return 1 * DAY;
+    }
+
     if (isError) {
       // откат на предыдущий шаг
-      return steps[Math.max(0, cnt - 1)];
+      const nextStreak = getNextStreak(item, reverseMode, isError);
+      if(nextStreak> steps.length -1) {
+        return 1 * DAY;
+      }
+      return steps[nextStreak];
     }
 
     return steps[cnt];
@@ -69,6 +78,22 @@ function CalcInterval(item: SpItem, reverseMode: boolean, isError: boolean) {
   return Math.round(Math.max(next, 1 * DAY));
 }
 
+function getSpiNumProp(item: SpItem, reverseMode: boolean, fprop:string, rprop:string): number {
+  const value = reverseMode ? item[rprop as keyof SpItem] : item[fprop as keyof SpItem];
+  if(isNaN(Number(value))){
+    return 0;
+  }
+  return Number(value)
+}
+
+function getNextStreak(item: SpItem, reverseMode: boolean,isError: boolean): number {
+  const prevStreak = getSpiNumProp(item, reverseMode, "streakf", "streakr");
+  const nextStreak = isError
+    ? Math.floor(prevStreak / 2) // -F2- Уменьшить streak
+    : prevStreak + 1;            // -E4- Увеличить streak
+  return nextStreak;
+}
+
 export function buildResultUpdate(
   rawItem: SpItem,
   currentAnswer: string,
@@ -88,24 +113,21 @@ export function buildResultUpdate(
   // -B- Вычисление параметров
   const durationPerWord = durationMs / answerWordCount;
 
-  const prevCount = reverseMode ? rawItem.cntr ?? 0 : rawItem.cntf ?? 0;
+  const prevCount = getSpiNumProp(rawItem,reverseMode, "cntf", "cntr");
   const nextCount = prevCount + 1;
 
-  const prevCorrectCount = reverseMode ? rawItem.correctr ?? 0 : rawItem.correctf ?? 0;
+  const prevCorrectCount = getSpiNumProp(rawItem, reverseMode, "correctf", "correctr");
   const nextCorrectCount = prevCorrectCount + 1;
 
-  const prevStreak = reverseMode ? rawItem.streakr ?? 0 : rawItem.streakf ?? 0;
-  const nextStreak = resetStreakOnError
-    ? Math.floor(prevStreak / 2) // -F2- Уменьшить streak
-    : prevStreak + 1;            // -E4- Увеличить streak
+  const nextStreak = getNextStreak(rawItem, reverseMode, resetStreakOnError);
 
   let interval = CalcInterval(rawItem, reverseMode, resetStreakOnError); // -E5- Вычислить новый интервал
   if (resetStreakOnError) {
     interval = minItemInterval; // -F3- Минимальный интервал 5 минут
   }
 
-  const prevDurationAvg = reverseMode ? rawItem.dr ?? 0 : rawItem.df ?? 0;
-  const prevWordAvg = reverseMode ? rawItem.dwr ?? 0 : rawItem.dwf ?? 0;
+  const prevDurationAvg = getSpiNumProp(rawItem,reverseMode,"df","dr");
+  const prevWordAvg = getSpiNumProp(rawItem, reverseMode, "dwf", "dwr");
 
   const nextDurationAvg =
     nextCount === 1
