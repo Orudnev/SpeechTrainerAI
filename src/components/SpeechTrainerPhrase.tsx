@@ -43,6 +43,7 @@ import SvgTest from './SvgTest';
 import { BarChart, TBarChartDataItem } from './BarChart';
 import {  getDataForBarDiagram, TDiagramPeriodName, TDiagramScopeName } from '../helpers/statistics';
 import { SvgButton } from './SvgButton';
+import { GradientPanel } from './GradientPanel';
 /**
  * Variant statistics (UI only)
  */
@@ -520,15 +521,15 @@ export default function SpeechTrainerPhrase() {
               </LinearGradient>
             </Modal>
           </Portal>
-
-          <View style={styles.questionSection}>
+          <GradientPanel label="Current question:" text={currentQuestion}  onPress={()=>{setShowCurrentItem(true);}} width={screenSize.width - 8} />    
+          {/* <View style={styles.questionSection}>
             <ImageBackground source={require('../assets/backgr1.png')} imageStyle={[fieldStylesCommon.field, fieldStyles.fldQuestion]} resizeMode='stretch'  >
               <View style={fieldStyles.fieldCardInnerQuestion}>
                 <Text style={[fieldStyles.fieldCaption, fieldStylesCommon.fldCaptionColor, { marginTop: 10 }]}>Current question:</Text>
                 <Text style={fieldStyles.fieldValue}>{currentQuestion}</Text>
               </View>
             </ImageBackground>
-          </View>
+          </View> */}
         </>
       )}
 
