@@ -174,25 +174,25 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
     }
 
     private void sendSessionUpdate(WebSocket socket) throws JSONException {
-        JSONObject transcription = new JSONObject();
-        transcription.put("model", REALTIME_MODEL);
-        transcription.put("language", languageCode);
-
-        JSONObject input = new JSONObject();
-        input.put("format", new JSONObject()
-                .put("type", "audio/pcm")
-                .put("rate", 24000));
-        input.put("transcription", transcription);
-        input.put("turn_detection", new JSONObject().put("type", "server_vad"));
-
         JSONObject session = new JSONObject();
-        session.put("type", "transcription");
-        session.put("audio", new JSONObject().put("input", input));
+        session.put("input_audio_format", "pcm16");
+        session.put("input_audio_noise_reduction", new JSONObject().put("type", "near_field"));
+        session.put("input_audio_transcription", new JSONObject()
+                .put("model", REALTIME_MODEL)
+                .put("language", languageCode));
+        session.put("turn_detection", new JSONObject()
+                .put("type", "server_vad")
+                .put("threshold", 0.5)
+                .put("prefix_padding_ms", 300)
+                .put("silence_duration_ms", 500));
+        session.put("include", new org.json.JSONArray()
+                .put("item.input_audio_transcription.logprobs"));
 
         JSONObject event = new JSONObject();
-        event.put("type", "session.update");
+        event.put("type", "transcription_session.update");
         event.put("session", session);
 
+        Log.i(TAG, "Sending session.update: " + event);
         socket.send(event.toString());
     }
 
@@ -200,6 +200,22 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
         try {
             JSONObject event = new JSONObject(text);
             String type = event.optString("type", "");
+
+            if ("session.created".equals(type)
+                    || "session.updated".equals(type)
+                    || "transcription_session.created".equals(type)
+                    || "transcription_session.updated".equals(type)) {
+                sessionReady.set(true);
+                Log.i(TAG, "OpenAI session ready via " + type + ": " + text);
+                return;
+            }
+
+            if ("input_audio_buffer.speech_started".equals(type)
+                    || "input_audio_buffer.speech_stopped".equals(type)
+                    || "input_audio_buffer.committed".equals(type)) {
+                Log.i(TAG, "OpenAI audio event: " + text);
+                return;
+            }
 
             if ("conversation.item.input_audio_transcription.delta".equals(type)) {
                 String itemId = event.optString("item_id", "");
@@ -222,11 +238,15 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
                 if (!itemId.isEmpty()) {
                     partialsByItemId.remove(itemId);
                 }
+                Log.w(TAG, "OpenAI server error event: " + text);
                 JSONObject error = event.optJSONObject("error");
                 emitError(500, error != null
                         ? error.optString("message", "OpenAI realtime error")
                         : "OpenAI realtime error");
+                return;
             }
+
+            Log.d(TAG, "Ignoring OpenAI realtime event: " + type);
         } catch (JSONException e) {
             Log.e(TAG, "Failed to parse OpenAI realtime event: " + text, e);
             emitError(500, "Failed to parse OpenAI event");
@@ -291,18 +311,19 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
     }
 
     private short[] upsample16kTo24k(short[] source, int frames) {
-        if (frames <= 0) {
+        int safeFrames = Math.min(frames, source != null ? source.length : 0);
+        if (safeFrames <= 0) {
             return new short[0];
         }
 
-        short[] output = new short[frames + Math.max(0, frames - 1) / 2];
+        short[] output = new short[safeFrames + (safeFrames / 2)];
         int outIndex = 0;
 
-        for (int i = 0; i < frames; i++) {
+        for (int i = 0; i < safeFrames; i++) {
             short current = source[i];
             output[outIndex++] = current;
 
-            if (i < frames - 1 && i % 2 == 0) {
+            if (i < safeFrames - 1 && i % 2 == 0) {
                 short next = source[i + 1];
                 output[outIndex++] = (short) ((current + next) / 2);
             }
@@ -315,8 +336,8 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
         @Override
         public void onOpen(WebSocket webSocket, Response response) {
             try {
+                Log.i(TAG, "OpenAI realtime socket opened");
                 sendSessionUpdate(webSocket);
-                sessionReady.set(true);
             } catch (JSONException e) {
                 Log.e(TAG, "Failed to send session.update", e);
                 emitError(500, "Failed to configure OpenAI session");
