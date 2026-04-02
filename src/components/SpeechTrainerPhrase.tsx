@@ -458,7 +458,6 @@ export default function SpeechTrainerPhrase() {
   }
   const openWordDisabled = phase !== 'listening';
   const styles = isLandscape ? lStyles : pStyles;
-  const fieldStyles = isLandscape ? lFieldstyles : pFieldstyles;
   const openWordStyle = openWordDisabled ? { opacity: 0.5 } : {};
   const matchedText = compareSnapshot.matchedWords.join(' ');
   const matchedTextDlm = matchedText ? "  " : "";
@@ -594,21 +593,9 @@ const fieldStylesCommon = StyleSheet.create({
     marginLeft: 15,
     marginRight: 15,
   },
-  fieldCard: {
-    borderRadius: 18,
-    overflow: 'hidden',
-
-    borderWidth: 3,
-    borderColor: '#636161',
-
-    marginTop: 15,
-    marginLeft: 15,
-    marginRight: 15,
-  },
   fldCaptionColor: {
     color: '#9AA3B2',
   },
-  field: { borderRadius: 18, borderColor: 'gray', borderWidth: 1, left: 10, right: 10, }
 });
 
 const pStyles = StyleSheet.create({
@@ -631,34 +618,12 @@ const pStyles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10
   },
-  button: {
-    width: 100,
-  },
   manualStartButton: {
     position: 'absolute',
     alignSelf: 'center',
     top: '50%',
     marginTop: -28,
     zIndex: 2,
-  },
-  compareStatus: {
-    position: "absolute",
-    top: 160,
-    left: 25,
-    color: '#06a81c',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  currentWord: {
-    marginTop: 10,
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  phase: {
-    fontSize: 16,
-    marginTop: 10,
-    marginBottom: 10,
-    fontWeight: '600',
   },
 });
 
@@ -685,9 +650,6 @@ const lStyles = StyleSheet.create({
     width: 100,
     gap: 10,
   },
-  button: {
-    width: 100,
-  },
   manualStartButton: {
     position: 'absolute',
     alignSelf: 'center',
@@ -695,40 +657,9 @@ const lStyles = StyleSheet.create({
     marginTop: -28,
     zIndex: 2,
   },
-  compareStatus: {
-    position: "absolute",
-    top: 60,
-    left: 145,
-    color: '#06a81c',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  currentWord: {
-    marginTop: 10,
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  phase: {
-    fontSize: 16,
-    marginTop: 10,
-    marginBottom: 10,
-    fontWeight: '600',
-  },
 });
 
 const pFieldstyles = StyleSheet.create({
-  fieldCardInner: {
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-  },
-  fieldCardInnerQuestion: {
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-  },
-  fieldCardInnerAsrResult: {
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-  },
   fieldCaption: {
     fontSize: 13,
     marginBottom: 6,
@@ -740,61 +671,6 @@ const pFieldstyles = StyleSheet.create({
     color: '#E6F1FF',
     lineHeight: 24,
   },
-
-  fldQuestion: {
-    marginTop: 5,
-    height: 200
-  },
-  fldAsrResult: {
-    height: 200
-  },
-  fldMatched: {
-    marginTop: -5,
-    height: 200,
-  },
-
-
-});
-
-const lFieldstyles = StyleSheet.create({
-  fieldCardInner: {
-    paddingHorizontal: 25,
-    paddingVertical: 16,
-  },
-  fieldCardInnerQuestion: {
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-  },
-  fieldCardInnerAsrResult: {
-    paddingHorizontal: 25,
-    paddingVertical: 15,
-  },
-  fieldCaption: {
-    fontSize: 13,
-    marginTop: -8,
-    backgroundColor: 'transparent',
-  },
-  fieldValue: {
-    marginTop: -21,
-    marginLeft: 120,
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#E6F1FF',
-    lineHeight: 24,
-  },
-  fldQuestion: {
-    marginTop: 10,
-    height: 80
-  },
-  fldAsrResult: {
-    top: 15,
-    height: 80
-  },
-  fldMatched: {
-    top: 15,
-    height: 80
-  },
-
 });
 
 
