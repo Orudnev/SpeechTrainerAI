@@ -527,7 +527,11 @@ export default function SpeechTrainerPhrase() {
           mainText={matchedText}
           suffixText={compareSnapshot.asrResult}
           statusText={compareSnapshot.status}
-          onPress={() => { setShowCurrentItem(true); }}
+          onPress={async () => { 
+            if(currentItem){
+              await speakAndListen(currentItem?.a, getAsrEngineId());
+            }
+          }}
           />
       </View>
       <View style={styles.statisticsSection}>
