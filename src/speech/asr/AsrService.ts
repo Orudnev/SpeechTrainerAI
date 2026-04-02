@@ -9,19 +9,18 @@ const { RnJavaConnector } = NativeModules;
 
 
 export function getAsrEngineId(): AsrEngineId {
-  if (getAppSettingValue<string>('asrModelType') === 'vosk') {
-    if (getAppSettingValue<boolean>('reverseMode')) {
-      return 'vosk-ru';
-    } else {
-      return 'vosk-en';
-    }
-  } else {
-    if (getAppSettingValue<boolean>('reverseMode')) {
-      return 'android-ru';
-    } else {
-      return 'android-en';
-    }
+  const asrModelType = getAppSettingValue<string>('asrModelType');
+  const reverseMode = getAppSettingValue<boolean>('reverseMode');
+
+  if (asrModelType === 'vosk') {
+    return reverseMode ? 'vosk-ru' : 'vosk-en';
   }
+
+  if (asrModelType === 'openai') {
+    return reverseMode ? 'openai-ru' : 'openai-en';
+  }
+
+  return reverseMode ? 'android-ru' : 'android-en';
 }
 
 /**
@@ -38,11 +37,13 @@ class AsrServiceImpl {
 
     await RnJavaConnector.init();
     const asrModelId = getAsrEngineId();
-    const defaultModelPath = await RnJavaConnector.prepareModel(asrModelId);
-    console.log("📦 Initial Vosk model prepared:", asrModelId, defaultModelPath);
+    if (asrModelId === "vosk-en" || asrModelId === "vosk-ru") {
+      const defaultModelPath = await RnJavaConnector.prepareModel(asrModelId);
+      console.log("📦 Initial Vosk model prepared:", asrModelId, defaultModelPath);
 
-    console.log("📥 Loading initial model into native layer:", defaultModelPath);
-    await RnJavaConnector.loadModel(defaultModelPath);
+      console.log("📥 Loading initial model into native layer:", defaultModelPath);
+      await RnJavaConnector.loadModel(defaultModelPath);
+    }
 
     console.log("✅ ASR engines ready:", SupportedEngines);
   }
@@ -58,6 +59,14 @@ class AsrServiceImpl {
   async startSession(cfg: AsrSessionConfig) {
     const ok = await ensureAudioPermission();
     if (!ok) throw new Error("Mic permission denied");
+
+    if (cfg.engineId === "openai-en" || cfg.engineId === "openai-ru") {
+      const apiKey = getAppSettingValue<string>("openAiApiKey").trim();
+      if (!apiKey) {
+        throw new Error("OpenAI API key is missing");
+      }
+      await RnJavaConnector.setOpenAiApiKey(apiKey);
+    }
 
     if (cfg.engineId === "vosk-en" || cfg.engineId === "vosk-ru") {
       const modelPath = await RnJavaConnector.prepareModel(cfg.engineId);

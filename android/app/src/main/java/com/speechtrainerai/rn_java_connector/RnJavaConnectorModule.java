@@ -31,6 +31,7 @@ import com.facebook.react.bridge.WritableMap;
 
 import com.speechtrainerai.asr.AsrEngine;
 import com.speechtrainerai.asr.AsrEngineManager;
+import com.speechtrainerai.asr.OpenAiRealtimeAsrEngine;
 
 public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
 
@@ -258,6 +259,22 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
         p.resolve(true);
     }
 
+    @ReactMethod
+    public void setOpenAiApiKey(String apiKey, Promise p) {
+        AsrEngine openAiEn = asrManager.getEngine("openai-en");
+        AsrEngine openAiRu = asrManager.getEngine("openai-ru");
+
+        if (openAiEn instanceof OpenAiRealtimeAsrEngine) {
+            ((OpenAiRealtimeAsrEngine) openAiEn).setApiKey(apiKey);
+        }
+
+        if (openAiRu instanceof OpenAiRealtimeAsrEngine) {
+            ((OpenAiRealtimeAsrEngine) openAiRu).setApiKey(apiKey);
+        }
+
+        p.resolve(true);
+    }
+
     // ============================================================
     // PERMISSIONS
     // ============================================================
@@ -375,7 +392,7 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
             // ============================================================
             // 5) Если модель уже установлена → загружаем заново
             // ============================================================
-            if (currentModelPath != null) {
+            if (currentModelPath != null && !"openai-en".equals(engineId) && !"openai-ru".equals(engineId)) {
 
                 Log.i("RnJavaConnector", "Reloading model: " + currentModelPath);
 
@@ -512,7 +529,10 @@ public class RnJavaConnectorModule extends ReactContextBaseJavaModule {
                 int read = audioRecord.read(buffer, 0, buffer.length);
 
                 if (read > 0) {
-                    nativePushAudio(buffer, read);
+                    AsrEngine engine = currentEngine;
+                    if (engine != null) {
+                        engine.pushAudio(buffer, read);
+                    }
                 }
             }
 

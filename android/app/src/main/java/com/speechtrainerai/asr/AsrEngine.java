@@ -28,6 +28,9 @@ public interface AsrEngine {
     /** Запуск распознавания */
     boolean startRecognition();
 
+    /** Подача внешнего PCM16 аудио для движков, которые его требуют */
+    void pushAudio(short[] data, int frames);
+
     /** Остановка распознавания */
     void stopRecognition();
 

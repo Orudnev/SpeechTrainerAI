@@ -45,6 +45,11 @@ public class VoskAsrEngine implements AsrEngine {
     }
 
     @Override
+    public void pushAudio(short[] data, int frames) {
+        RnJavaConnectorModule.nativePushAudio(data, frames);
+    }
+
+    @Override
     public void stopRecognition() {
         Log.i("VoskAsrEngine", "stopRecognition()");
         RnJavaConnectorModule.nativeStopRecognition();

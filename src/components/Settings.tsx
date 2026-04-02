@@ -56,6 +56,7 @@ export function Settings() {
 
     const reverseMode = getAppSettingValue<boolean>('reverseMode');
     const fullAccess = getAppSettingValue<boolean>('fullAccess');
+    const openAiApiKey = getAppSettingValue<string>('openAiApiKey');
     const rowsCloudDataSource = getAppSettingValue<string>('rowsCloudDataSource');
     const selectedTopics = getAppSettingValue<string[]>('selectedTopics');
     const selectedTopicsSet = new Set(selectedTopics);
@@ -91,12 +92,12 @@ export function Settings() {
                         />
                     </Toolbar>
                     <ScrollView contentContainerStyle={styles.content}>
-                        <View style={styles.rowBetween}>
+                        <View style={styles.labelWithControl}>
                             <Text style={styles.label}>ASR engine</Text>
                             <SegmentedButtons
-                                style={{width: 200}}
+                                style={{ width: 300 }}
                                 value={asrModelType}
-                                onValueChange={(newValue)=>{
+                                onValueChange={(newValue) => {
                                     setAsrModelType(newValue);
                                     setAppSettingValue('asrModelType', newValue);
                                 }}
@@ -106,12 +107,33 @@ export function Settings() {
                                         label: 'Vosk',
                                     },
                                     {
+                                        value: 'openai',
+                                        label: 'OpenAI',
+                                    },
+                                    {
                                         value: 'android',
                                         label: 'Android',
                                     },
                                 ]}
                             />
                         </View>
+                        {asrModelType === 'openai' && (
+                            <>
+                                <Text style={styles.sectionTitle}>OpenAI API key</Text>
+                                <TextInput
+                                    mode="outlined"
+                                    value={openAiApiKey}
+                                    onChangeText={text => {
+                                        setAppSettingValue('openAiApiKey', text);
+                                        setSettingsVersion(prev => prev + 1);
+                                    }}
+                                    placeholder="sk-..."
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    secureTextEntry
+                                />
+                            </>
+                        )}
                         <View style={styles.rowBetween}>
                             <Text style={styles.label}>reverseMode</Text>
                             <Switch
@@ -206,6 +228,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+    },
+    labelWithControl: {
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 8,
     },
     label: {
         fontSize: 18,

@@ -179,6 +179,11 @@ public class AndroidSpeechRecognizerAsrEngine implements AsrEngine {
     }
 
     @Override
+    public void pushAudio(short[] data, int frames) {
+        // Android SpeechRecognizer reads the microphone on its own.
+    }
+
+    @Override
     public void stopRecognition() {
         shouldBeListening.set(false);
         restartGeneration.incrementAndGet();

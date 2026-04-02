@@ -4,6 +4,7 @@ import { TDiagramPeriodName } from '../helpers/statistics';
 export type TSettingName =
   | 'fullAccess'
   | 'asrModelType'
+  | 'openAiApiKey'
   | 'reverseMode'
   | 'rowsCloudDataSource'
   | 'selectedTopics'
@@ -28,6 +29,10 @@ export const AppSettings: TsettingsItem[] = [
   {
     name: 'asrModelType',
     defaultValue: 'vosk',
+  },
+  {
+    name: 'openAiApiKey',
+    defaultValue: '',
   },
   {
     name: 'reverseMode',

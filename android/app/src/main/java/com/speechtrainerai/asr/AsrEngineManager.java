@@ -19,6 +19,10 @@ public class AsrEngineManager {
         engines.put("vosk-en", new VoskAsrEngine("vosk-en"));
         engines.put("vosk-ru", new VoskAsrEngine("vosk-ru"));
 
+        // OpenAI Realtime движки
+        engines.put("openai-en", new OpenAiRealtimeAsrEngine("openai-en", "en"));
+        engines.put("openai-ru", new OpenAiRealtimeAsrEngine("openai-ru", "ru"));
+
         // Android SpeechRecognizer движки
         engines.put("android-en", new AndroidSpeechRecognizerAsrEngine("android-en", Locale.US));
         engines.put("android-ru", new AndroidSpeechRecognizerAsrEngine("android-ru", new Locale("ru", "RU")));

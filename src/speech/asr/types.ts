@@ -2,7 +2,9 @@ export type AsrEngineId =
   | "vosk-en"
   | "vosk-ru"
   | "android-en"
-  | "android-ru";
+  | "android-ru"
+  | "openai-en"
+  | "openai-ru";
 
 export type AsrResultEvent = {
   engine: AsrEngineId;

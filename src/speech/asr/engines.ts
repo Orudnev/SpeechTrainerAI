@@ -9,4 +9,6 @@ export const SupportedEngines: AsrEngineId[] = [
   "vosk-ru",
   "android-en",
   "android-ru",
+  "openai-en",
+  "openai-ru",
 ];
