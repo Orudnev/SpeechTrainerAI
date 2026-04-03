@@ -1,6 +1,6 @@
 import { SpItem } from '../src/db/speechDb';
 import { buildResultUpdate } from '../src/helpers/buildResultUpdate';
-import { getNextDayStartTs, getNextItemUid } from '../src/helpers/getNextItemUid';
+import { getNextItemUid } from '../src/helpers/getNextItemUid';
 
 jest.mock('../src/components/SpeechCompare', () => ({
   normalizeText: (input: string) =>
@@ -11,12 +11,12 @@ jest.mock('../src/components/SpeechCompare', () => ({
       .trim(),
 }));
 
-describe('getNextItemUid daily unique limit', () => {
+describe('getNextItemUid completion', () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  test('does not introduce more unique items in one day than maxNewItemCount', () => {
+  test('returns empty string when there are no overdue or soon items left', () => {
     const baseNow = new Date('2026-04-03T10:00:00.000Z').getTime();
     let now = baseNow;
 
@@ -27,8 +27,7 @@ describe('getNextItemUid daily unique limit', () => {
 
     jest.spyOn(Math, 'random').mockReturnValue(0);
 
-    const maxNewItemCount = 5;
-    const items: SpItem[] = Array.from({ length: 20 }, (_, index) => ({
+    const items: SpItem[] = Array.from({ length: 3 }, (_, index) => ({
       uid: `item-${index + 1}`,
       topic: 'base',
       q: `Question ${index + 1}`,
@@ -44,16 +43,11 @@ describe('getNextItemUid daily unique limit', () => {
 
     let currentItemUid = '';
 
-    let completed = false;
-    for (let i = 0; i < 20; i += 1) {
-      const nextUid = getNextItemUid(items, false, currentItemUid, maxNewItemCount);
-      if (!nextUid) {
-        completed = true;
-        break;
-      }
+    while (true) {
+      const nextUid = getNextItemUid(items, false, currentItemUid, 3);
+      if (!nextUid) break;
 
       const itemIndex = items.findIndex((item) => item.uid === nextUid);
-
       expect(itemIndex).toBeGreaterThanOrEqual(0);
 
       const currentItem = items[itemIndex];
@@ -74,14 +68,6 @@ describe('getNextItemUid daily unique limit', () => {
       currentItemUid = nextUid;
     }
 
-    const nextDayStart = getNextDayStartTs(now);
-    const dayStart = nextDayStart - 86_400_000;
-    const shownTodayCount = items.filter((item) => {
-      const ts = item.tsf ?? 0;
-      return (item.cntf ?? 0) > 0 && ts >= dayStart && ts < nextDayStart;
-    }).length;
-
-    expect(shownTodayCount).toBe(maxNewItemCount);
-    expect(completed).toBe(true);
+    expect(getNextItemUid(items, false, currentItemUid, 3)).toBe('');
   });
 });

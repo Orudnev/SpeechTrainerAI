@@ -164,7 +164,9 @@ export default function SpeechTrainerPhrase() {
       }
 
       const nextItemUid = getNextItemUid(data, reverseMode, "");
-      const initialIndex = data.findIndex(itm => itm.uid == nextItemUid);
+      const initialIndex = nextItemUid
+        ? data.findIndex(itm => itm.uid == nextItemUid)
+        : 0;
 
       setItems(data);
       setPhraseIndex(initialIndex);
@@ -358,10 +360,21 @@ export default function SpeechTrainerPhrase() {
       //   reverseMode,
       // );
 
-      const nextItemUid = getNextItemUid(updatedItems, reverseMode, rawItem.uid);
-      const nextIndex = updatedItems.findIndex(itm => itm.uid == nextItemUid);
-
       setListeningStartedAt(null);
+      const nextItemUid = getNextItemUid(updatedItems, reverseMode, rawItem.uid);
+      if (!nextItemUid) {
+        setPhase('idle');
+        refreshDiagram(updatedItems[phraseIndex]);
+        return;
+      }
+
+      const nextIndex = updatedItems.findIndex(itm => itm.uid == nextItemUid);
+      if (nextIndex < 0) {
+        setPhase('idle');
+        refreshDiagram(updatedItems[phraseIndex]);
+        return;
+      }
+
       setPhraseIndex(nextIndex);
       refreshDiagram(updatedItems[nextIndex]);
 
@@ -449,8 +462,20 @@ export default function SpeechTrainerPhrase() {
     //   reverseMode,
     // );
     const nextItemUid = getNextItemUid(items, reverseMode, rawItem.uid);
-    const nextIndex = items.findIndex(itm => itm.uid == nextItemUid);
+    if (!nextItemUid) {
+      setListeningStartedAt(null);
+      setPhase('idle');
+      refreshDiagram(items[phraseIndex]);
+      return;
+    }
 
+    const nextIndex = items.findIndex(itm => itm.uid == nextItemUid);
+    if (nextIndex < 0) {
+      setListeningStartedAt(null);
+      setPhase('idle');
+      refreshDiagram(items[phraseIndex]);
+      return;
+    }
 
     setListeningStartedAt(null);
     setPhraseIndex(nextIndex);

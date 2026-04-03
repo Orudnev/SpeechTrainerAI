@@ -255,7 +255,7 @@ export async function syncPhrasesRows(rows: any[]) {
     if (existing[0].rows.length > 0) {
       await db.executeSql(
         `UPDATE phrases
-          SET topic=?, q=?, a=?, variants=?, cntf=?, cntr=?, df=?, dr=?, dwf=?, dwr=?, tsf=?, tsr=?, correctf=?, correctr=?, streakf=?, streakr=?
+          SET topic=?, q=?, a=?, variants=?, cntf=?, cntr=?, df=?, dr=?, dwf=?, dwr=?, tsf=?, tsr=?, correctf=?, correctr=?, streakf=?, streakr=?, intf=?, intr=?
           WHERE uid=?`,
         [
           row.topic,
@@ -274,6 +274,8 @@ export async function syncPhrasesRows(rows: any[]) {
           row.correctr ?? 0,
           row.streakf ?? 0,
           row.streakr ?? 0,
+          row.intf ?? 0,
+          row.intr ?? 0,
           row.uid,
         ]
       );

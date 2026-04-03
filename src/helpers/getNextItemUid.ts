@@ -68,7 +68,7 @@ function wasShownToday(item: SpItem, isReverse: boolean, now: number) {
 export function getNextItemUid(
   allItems: SpItem[],
   isReverse = false,
-  currentItemUid: string,
+  currentItemUid: string = "",
   maxNewItemCount: number = 15,
 ): string {
   const items = allItems;
@@ -95,39 +95,39 @@ export function getNextItemUid(
     return overdue[0].uid;
   }
 
-  const todayShownItemsCount = items.filter((item) =>
-    wasShownToday(item, isReverse, now)
-  ).length;
+  const fresh = items.filter((item) =>
+    item.uid !== currentItemUid &&
+    getInterval(item, isReverse) <= minItemInterval
+  );
 
-  if (todayShownItemsCount < plannedDayItemCount) {
-    const fresh = items.filter((item) =>
-      item.uid !== currentItemUid &&
-      getInterval(item, isReverse) <= minItemInterval
+  if (fresh.length > 0) {
+    fresh.sort((a, b) => {
+      let sort = getCorrect(a, isReverse) - getCorrect(b, isReverse);
+      if (sort !== 0) return sort;
+
+      sort = getStreak(a, isReverse) - getStreak(b, isReverse);
+      if (sort !== 0) return sort;
+
+      sort = getCnt(a, isReverse) - getCnt(b, isReverse);
+      if (sort !== 0) return sort;
+
+      return getTs(a, isReverse) - getTs(b, isReverse);
+    });
+
+    const repeatedFresh = fresh.filter((item) =>
+      getTs(item, isReverse) > 0 &&
+      now - getTs(item, isReverse) > minItemInterval
     );
+    if (repeatedFresh.length > 0) {
+      console.log(`*** Fresh repeated:${repeatedFresh[0].uid}`);
+      return repeatedFresh[0].uid;
+    }
 
-    if (fresh.length > 0) {
-      fresh.sort((a, b) => {
-        let sort = getCorrect(a, isReverse) - getCorrect(b, isReverse);
-        if (sort !== 0) return sort;
+    const todayShownItemsCount = items.filter((item) =>
+      wasShownToday(item, isReverse, now)
+    ).length;
 
-        sort = getStreak(a, isReverse) - getStreak(b, isReverse);
-        if (sort !== 0) return sort;
-
-        sort = getCnt(a, isReverse) - getCnt(b, isReverse);
-        if (sort !== 0) return sort;
-
-        return getTs(a, isReverse) - getTs(b, isReverse);
-      });
-
-      const repeatedFresh = fresh.filter((item) =>
-        getTs(item, isReverse) > 0 &&
-        now - getTs(item, isReverse) > minItemInterval
-      );
-      if (repeatedFresh.length > 0) {
-        console.log(`*** Fresh repeated:${repeatedFresh[0].uid}`);
-        return repeatedFresh[0].uid;
-      }
-
+    if (todayShownItemsCount < plannedDayItemCount) {
       const unseenTodayFresh = fresh.filter((item) =>
         !wasShownToday(item, isReverse, now)
       );
@@ -151,15 +151,6 @@ export function getNextItemUid(
     return soon[0].uid;
   }
 
-  const maintenance = items.filter((item) => MSS(item, isReverse) > 80);
-  if (maintenance.length > 0) {
-    const index = Math.floor(Math.random() * maintenance.length);
-    console.log(`*** Maintenance:${maintenance[index].uid}`);
-    return maintenance[index].uid;
-  }
-
-  const fallbackItems = items.filter((item) => item.uid !== currentItemUid);
-  const index = Math.floor(Math.random() * fallbackItems.length);
-  console.log(`*** Fallback:${fallbackItems[index].uid} prev:${currentItemUid}`);
-  return fallbackItems[index].uid;
+  console.log(`*** Complete: no overdue or soon items. prev:${currentItemUid}`);
+  return "";
 }
