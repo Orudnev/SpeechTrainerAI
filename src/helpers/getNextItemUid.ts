@@ -1,11 +1,5 @@
-import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
-import { normalizeText } from "../components/SpeechCompare";
-import { MSS, SpItem, SpItemResult } from "../db/speechDb";
+import { MSS, SpItem } from "../db/speechDb";
 import { minItemInterval } from "./buildResultUpdate";
-
-const DAY = 86400000;
-
-// helpers
 
 export function getInterval(item: SpItem, isReverse: boolean) {
   return isReverse ? item.intr ?? 0 : item.intf ?? 0;
@@ -27,36 +21,30 @@ export function getStreak(item: SpItem, isReverse: boolean) {
   return isReverse ? item.streakr ?? 0 : item.streakf ?? 0;
 }
 
-
 function isOverdue(item: SpItem, isReverse: boolean, now: number) {
-  if (getCnt(item, isReverse) == 0) return false; // -C- Новые элементы не просрочены
+  if (getCnt(item, isReverse) === 0) return false;
+  if (getTs(item, isReverse) === 0) return false;
   return now >= getTs(item, isReverse) + getInterval(item, isReverse);
 }
 
 function isSoon(item: SpItem, isReverse: boolean, now: number, limit: number) {
   const interval = getInterval(item, isReverse);
-  if (interval <= minItemInterval) return false; // Новые элементы и элементы с минимальным интервалом не должны попадать в категорию "soon"
+  if (interval <= minItemInterval) return false;
+
   const next = getTs(item, isReverse) + interval;
   return next > now && next <= limit;
 }
 
-function isTodayItem(item: SpItem, isReverse: boolean, now: number) {
-  if (isOverdue(item, isReverse, now)) {
-    return true;
-  }
-  return isSoon(item, isReverse, now, getNextDayStartTs(now));
-}
-
-
-function randNoise() {
-  return Math.random() * 0.01;
-}
-
-// -----------------------------------------------------
 export function clamp(value: number, minValue: number, maxValue: number) {
   if (value < minValue) return minValue;
   if (value > maxValue) return maxValue;
   return value;
+}
+
+function getDayStartTs(ts: number): number {
+  const date = new Date(ts);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
 }
 
 export function getNextDayStartTs(ts: number): number {
@@ -66,108 +54,112 @@ export function getNextDayStartTs(ts: number): number {
   return date.getTime();
 }
 
+function wasShownToday(item: SpItem, isReverse: boolean, now: number) {
+  if (getCnt(item, isReverse) === 0) return false;
 
+  const ts = getTs(item, isReverse);
+  if (ts === 0) return false;
 
+  const dayStart = getDayStartTs(now);
+  const nextDayStart = getNextDayStartTs(now);
+  return ts >= dayStart && ts < nextDayStart;
+}
 
-export function getNextItemUid(allItems: SpItem[], isReverse = false, currentItemUid: string, maxNewItemCount: number = 20): string {
+export function getNextItemUid(
+  allItems: SpItem[],
+  isReverse = false,
+  currentItemUid: string,
+  maxNewItemCount: number = 15,
+): string {
   const items = allItems;
-  const PlannedDayItemCount = 50; // дневная норма (если осталось меньше чем DayItemCountLimit, то добавляются новые элементы)
+  const plannedDayItemCount = maxNewItemCount;
   const now = Date.now();
 
-  // Build overdue list
-  const overdue = items.filter(itm =>
-    itm.uid !== currentItemUid &&
-    isOverdue(itm, isReverse, now)
+  const overdue = items.filter((item) =>
+    item.uid !== currentItemUid &&
+    isOverdue(item, isReverse, now)
   );
 
   if (overdue.length > 0) {
-    // -F- Select weakest
     overdue.sort((a, b) => {
-      if (a.uid == currentItemUid) return 1; // a - текущий элемент, сдвинуть его вниз списка 
-      if (b.uid == currentItemUid) return -1; // b - текущий элемент, сдвинуть его вниз списка
-      const m = MSS(a, isReverse) - MSS(b, isReverse);
-      if (m !== 0) return m;
+      const mssDiff = MSS(a, isReverse) - MSS(b, isReverse);
+      if (mssDiff !== 0) return mssDiff;
 
-      const i =
-        getInterval(a, isReverse) -
-        getInterval(b, isReverse);
-      if (i !== 0) return i;
+      const intervalDiff = getInterval(a, isReverse) - getInterval(b, isReverse);
+      if (intervalDiff !== 0) return intervalDiff;
 
-      return randNoise();
+      return getTs(a, isReverse) - getTs(b, isReverse);
     });
-    console.log(`*** Overdue:${overdue[0].uid}`);
+
+    console.log(`*** Overdue:${overdue[0].uid} Now:${now}`);
     return overdue[0].uid;
   }
 
-  const todayItemsCount = items.filter(itm => isTodayItem(itm, isReverse, now)).length;
-  if (todayItemsCount < PlannedDayItemCount) {
-    // Количество элементов на сегодня меншьше плана, добавляем новый элемент
-    let fresh = items.filter(itm =>
-      itm.uid !== currentItemUid &&
-      getInterval(itm, isReverse) <= minItemInterval
-    );
-    if (fresh.length > 0) {
-      fresh.sort((a: SpItem, b: SpItem) => {
-        let s = getCorrect(a, isReverse) - getCorrect(b, isReverse);
-        if (s !== 0) return s;
-        s = getStreak(a, isReverse) - getStreak(b, isReverse);
-        if (s !== 0) return s;
-        s = getCnt(a, isReverse) - getCnt(b, isReverse)
-        if (s !== 0) return s;
-        s = getTs(a, isReverse) - getTs(b, isReverse);
-        return s;
-      });
-      if (fresh.some(itm => Date.now() - getTs(itm, isReverse) > minItemInterval)) {
+  const todayShownItemsCount = items.filter((item) =>
+    wasShownToday(item, isReverse, now)
+  ).length;
 
-        console.log(`*** Fresh repeated:${fresh[0].uid}`);
-        return fresh[0].uid;
-      } else {
-        const r = Math.random();
-        const ind = Math.floor(r * fresh.length);
-        console.log(`*** Fresh:${fresh[ind].uid}`);
-        return fresh[ind].uid;
+  if (todayShownItemsCount < plannedDayItemCount) {
+    const fresh = items.filter((item) =>
+      item.uid !== currentItemUid &&
+      getInterval(item, isReverse) <= minItemInterval
+    );
+
+    if (fresh.length > 0) {
+      fresh.sort((a, b) => {
+        let sort = getCorrect(a, isReverse) - getCorrect(b, isReverse);
+        if (sort !== 0) return sort;
+
+        sort = getStreak(a, isReverse) - getStreak(b, isReverse);
+        if (sort !== 0) return sort;
+
+        sort = getCnt(a, isReverse) - getCnt(b, isReverse);
+        if (sort !== 0) return sort;
+
+        return getTs(a, isReverse) - getTs(b, isReverse);
+      });
+
+      const repeatedFresh = fresh.filter((item) =>
+        getTs(item, isReverse) > 0 &&
+        now - getTs(item, isReverse) > minItemInterval
+      );
+      if (repeatedFresh.length > 0) {
+        console.log(`*** Fresh repeated:${repeatedFresh[0].uid}`);
+        return repeatedFresh[0].uid;
+      }
+
+      const unseenTodayFresh = fresh.filter((item) =>
+        !wasShownToday(item, isReverse, now)
+      );
+      if (unseenTodayFresh.length > 0) {
+        const index = Math.floor(Math.random() * unseenTodayFresh.length);
+        console.log(`*** Fresh:${unseenTodayFresh[index].uid}`);
+        return unseenTodayFresh[index].uid;
       }
     }
-  } else {
-    // Build soon list
-    const soonLimit = getNextDayStartTs(now);
-    const soon = items.filter(itm =>
-      itm.uid !== currentItemUid &&
-      isSoon(itm, isReverse, now, soonLimit)
-    );
-
-    if (soon.length > 0) {
-
-      soon.sort((a, b) =>
-        MSS(a, isReverse) - MSS(b, isReverse)
-      );
-      console.log(`*** Soon:${soon[0].uid}`);
-      return soon[0].uid; // -Z-
-    }
   }
-  //Maintenance
-  const maintenance = items.filter(itm =>
-    MSS(itm, isReverse) > 80
+
+  const soonLimit = getNextDayStartTs(now);
+  const soon = items.filter((item) =>
+    item.uid !== currentItemUid &&
+    isSoon(item, isReverse, now, soonLimit)
   );
 
+  if (soon.length > 0) {
+    soon.sort((a, b) => MSS(a, isReverse) - MSS(b, isReverse));
+    console.log(`*** Soon:${soon[0].uid}`);
+    return soon[0].uid;
+  }
+
+  const maintenance = items.filter((item) => MSS(item, isReverse) > 80);
   if (maintenance.length > 0) {
-
-    //Random maintenance
-    const index = Math.floor(
-      Math.random() * maintenance.length
-    );
+    const index = Math.floor(Math.random() * maintenance.length);
     console.log(`*** Maintenance:${maintenance[index].uid}`);
-    return maintenance[index].uid; // -Z-
+    return maintenance[index].uid;
   }
-  // Fallback
-  const fallBackItems = items.filter(itm => itm.uid !== currentItemUid);
-  const index = Math.floor(Math.random() * fallBackItems.length);
-  console.log(`*** Fallback:${items[index].uid} prev:${currentItemUid}`);
-  if (fallBackItems[index].uid == currentItemUid) {
-    console.warn(`Selected current item ${currentItemUid} in fallback, this should be avoided if possible`);
-  }
-  return fallBackItems[index].uid; // -Z-
+
+  const fallbackItems = items.filter((item) => item.uid !== currentItemUid);
+  const index = Math.floor(Math.random() * fallbackItems.length);
+  console.log(`*** Fallback:${fallbackItems[index].uid} prev:${currentItemUid}`);
+  return fallbackItems[index].uid;
 }
-
-
-

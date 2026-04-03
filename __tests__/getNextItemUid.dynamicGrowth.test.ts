@@ -55,7 +55,7 @@ describe('getNextItemUid growth dynamics', () => {
       intf: r.intf,
     }));
 
-    const iterationCount = 1000;
+    const iterationCount = 150;
     const itemCount = testItems.length;
     // const testItems: SpItem[] = Array.from({ length: itemCount }, (_, idx) => ({
     //   uid: `Itm${idx}`,
@@ -90,17 +90,21 @@ describe('getNextItemUid growth dynamics', () => {
       );
       patch.dwf = 500;
 
-      if(currItem.uid === 'ID89PNYW') {
-        let s = 1;
-      }
-
       testItems[itemIndex] = {
         ...currItem,
         ...patch,
       };
 
+      let ci = testItems[itemIndex];
+      if(!ci.order){
+        ci.order = (loopCounter + 1).toString();
+      } else {
+        ci.order += "," + (loopCounter + 1).toString();
+      }
+
+
       if (loopCounter % 100 == 0) {
-        lastDateNow += 1000 * 60 * 60 * 24 * 5;
+        //lastDateNow += 1000 * 60 * 60 * 24 * 5;
       }
       currUid = nextUid;
       loopCounter += 1;
@@ -116,10 +120,16 @@ describe('getNextItemUid growth dynamics', () => {
         uid: item.uid,
         ts: item.tsf,
         streakf: item.streakf ?? 0,
-        dwf: item.dwf ?? 0,
+        dwf: Math.round(item.dwf) ?? 0,
         intf: item.intf ?? 0,
         mssf: Number(MSS(item, false).toFixed(2)),
+        a: item.a.substring(0, 20),
+        order: item.order ?? 0,
       };
+    }).sort((a, b) => {
+      if (typeof(a.order) !== "string" ) a.order = "";
+      if (typeof(b.order) !== "string")  b.order = "";
+      return a.order.localeCompare(b.order);
     });
 
     console.table(printRows);
