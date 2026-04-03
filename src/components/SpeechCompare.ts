@@ -12,10 +12,12 @@ export type SpeechCompareSnapshot = {
  */
 export function normalizeText(input: string): string {
   if (!input) return '';
+
   return input
     .toLowerCase()
     .replace(/ё/g, 'е')
     .replace(/'/g, '')
+    .replace(/’/g, '')
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -107,7 +109,7 @@ export class SpeechCompareEngine {
     this.asrResult = asrText;
 
     // -D-
-    // Normalize ASR text and split into spoken words.
+    // Normalize ASR text and split into spoken words.  
     const casrrWords = normalizeText(asrText).split(' ').filter(Boolean);
     if (isTolerantCompare) {
       return this.tolerantCompare(asrText, variants, isTolerantCompare);
