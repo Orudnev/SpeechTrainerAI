@@ -82,14 +82,7 @@ export function Settings() {
             {hasData && (
                 <>
                     <Toolbar>
-                        <Appbar.Action
-                            icon="location-exit"
-                            onPress={() => {
-                                persistSettingsAndExit().catch(err => {
-                                    console.warn('Failed to save app settings', err);
-                                });
-                            }}
-                        />
+                        <Appbar.Action icon="cog-outline" disabled />
                     </Toolbar>
                     <ScrollView contentContainerStyle={styles.content}>
                         <View style={styles.labelWithControl}>

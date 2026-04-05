@@ -40,8 +40,6 @@ import { buildResultUpdate } from '../helpers/buildResultUpdate';
 import { getAsrEngineId } from '../speech/asr/AsrService';
 import Svg from 'react-native-svg';
 import SvgTest from './SvgTest';
-import { BarChart, TBarChartDataItem } from './BarChart';
-import { getDataForBarDiagram, TDiagramPeriodName, TDiagramScopeName } from '../helpers/statistics';
 import { SvgButton } from './SvgButton';
 import { GradientPanel } from './GradientPanel';
 /**
@@ -59,21 +57,7 @@ export default function SpeechTrainerPhrase() {
   const ctx = useContext(AppContext);
   const screenSize = useWindowDimensions();
   const isLandscape = screenSize.width > screenSize.height;
-  const scw = (scwUnitsPortrait: number, scwUnitsLandscape: number) => {
-    if (isLandscape) {
-      return (screenSize.width / 100) * scwUnitsLandscape;
-    } else {
-      return (screenSize.width / 100) * scwUnitsPortrait;
-    }
-  }
-  const sch = (scwUnitsPortrait: number, scwUnitsLandscape: number) => {
-    if (isLandscape) {
-      return (screenSize.height / 100) * scwUnitsLandscape;
-    } else {
-      return (screenSize.height / 100) * scwUnitsPortrait;
-    }
-  };
-
+  
   // ============================================================
   // Core trainer state
   // ============================================================
@@ -84,7 +68,6 @@ export default function SpeechTrainerPhrase() {
   const reverseMode = getAppSettingValue<boolean>('reverseMode');
   const [showCurrentItem, setShowCurrentItem] = useState(false);
   const [openWordCounter, setOpenWordCounter] = useState(0); // Счетчик для принудительного обновления при открытии слова
-  const [barDiagramItems, setBarDiagramItems] = useState<TBarChartDataItem[]>([]);
   // ============================================================
   // ASR integration (SINGLE SOURCE)
   // ============================================================
@@ -170,7 +153,6 @@ export default function SpeechTrainerPhrase() {
 
       setItems(data);
       setPhraseIndex(initialIndex);
-      refreshDiagram(data[initialIndex]);
     }
 
     load();
@@ -364,19 +346,16 @@ export default function SpeechTrainerPhrase() {
       const nextItemUid = getNextItemUid(updatedItems, reverseMode, rawItem.uid);
       if (!nextItemUid) {
         setPhase('idle');
-        refreshDiagram(updatedItems[phraseIndex]);
         return;
       }
 
       const nextIndex = updatedItems.findIndex(itm => itm.uid == nextItemUid);
       if (nextIndex < 0) {
         setPhase('idle');
-        refreshDiagram(updatedItems[phraseIndex]);
         return;
       }
 
       setPhraseIndex(nextIndex);
-      refreshDiagram(updatedItems[nextIndex]);
 
     } finally {
       handlingMatchRef.current = false;
@@ -440,14 +419,6 @@ export default function SpeechTrainerPhrase() {
     }
   }
 
-  function refreshDiagram(item?: SpItem) {
-    async function refreshDiargamImpl() {
-      let items: TBarChartDataItem[] = await getDataForBarDiagram(reverseMode, item);
-      setBarDiagramItems(items);
-    }
-    refreshDiargamImpl();
-  }
-
   function handleNextPhrasePress() {
     if (!hasData) return;
 
@@ -465,7 +436,6 @@ export default function SpeechTrainerPhrase() {
     if (!nextItemUid) {
       setListeningStartedAt(null);
       setPhase('idle');
-      refreshDiagram(items[phraseIndex]);
       return;
     }
 
@@ -473,13 +443,11 @@ export default function SpeechTrainerPhrase() {
     if (nextIndex < 0) {
       setListeningStartedAt(null);
       setPhase('idle');
-      refreshDiagram(items[phraseIndex]);
       return;
     }
 
     setListeningStartedAt(null);
     setPhraseIndex(nextIndex);
-    refreshDiagram(items[nextIndex]);
   }
   const openWordDisabled = phase !== 'listening';
   const styles = isLandscape ? lStyles : pStyles;
@@ -517,12 +485,6 @@ export default function SpeechTrainerPhrase() {
                   )}
                 </AnchoredOverlay>
               )}
-            <Appbar.Action
-              icon="cog-outline"
-              onPress={() => {
-                ctx?.setCurrPage('settings');
-              }}
-            />
           </Toolbar>
           {/* Всплывающее окно с подсказкой */}
           <Portal>
@@ -558,23 +520,6 @@ export default function SpeechTrainerPhrase() {
             }
           }}
           />
-      </View>
-      <View style={styles.statisticsSection}>
-        <BarChart
-          title={isLandscape ? '' : 'Memory Strength Score'}
-          width={scw(100, 100)}
-          height={sch(20, 24)}
-          colorStep={25}
-          colors={[
-            "#3b82f6",
-            "#10b981",
-            "#f59e0b",
-            "#ef4444",
-          ]}
-          data={barDiagramItems}
-          valueFormat='99.99'
-          onGroupingsChanged={() => { return refreshDiagram(currentItem ? currentItem : undefined); }}
-        />
       </View>
       <View style={styles.buttonSection}>
         {phase === 'idle' && (
@@ -632,16 +577,13 @@ const pStyles = StyleSheet.create({
     flex: 1,
   },
   questionSection: {
-    flex: 29,
+    flex: 40,
   },
   asrResultSection: {
-    flex: 29,
-  },
-  statisticsSection: {
-    flex: 27,
+    flex: 40,
   },
   buttonSection: {
-    flex: 15,
+    flex: 20,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
@@ -661,20 +603,17 @@ const lStyles = StyleSheet.create({
     flex: 1,
   },
   questionSection: {
-    flex: 22,
+    flex: 50,
     width: "85%",
   },
   asrResultSection: {
-    flex: 22,
+    flex: 50,
     width: "85%",
-  },
-  statisticsSection: {
-    width: "83.5%",
   },
   buttonSection: {
     flex: 1,
     position: "absolute",
-    top: 71,
+    top: 60,
     right: 25,
     width: 100,
     gap: 10,

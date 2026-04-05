@@ -13,6 +13,7 @@ import Svg, {
 
 import { Text } from 'react-native';
 import { white } from "react-native-paper/lib/typescript/styles/themes/v2/colors";
+import { useScreenScale } from "../helpers/screen";
 
 type GradientPanelProps = {
     label: string,
@@ -34,7 +35,7 @@ export const GradientPanel: React.FC<GradientPanelProps> = ({
     onPress
 }) => {
     const screenSize = useWindowDimensions();
-    const isLandscape = screenSize.width > screenSize.height; 
+    const {isLandscape, sch, scw} = useScreenScale()
     let labelTop = 10;
     let labelLeft = 10;
     let textTop = 35;
@@ -43,11 +44,11 @@ export const GradientPanel: React.FC<GradientPanelProps> = ({
         width = screenSize.width - 150; 
         labelLeft = 20;
         textTop = 8;
-        textLeft = 155
-        height = 85;
+        textLeft = 155; 
+        height = sch(27);
     } else {
         width = screenSize.width - 8;
-        height = 210;
+        height = 250;
     }
     return (
         <View style={{ width: '100%' }} onTouchEnd={onPress}>

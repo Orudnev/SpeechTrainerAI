@@ -1,54 +1,108 @@
-import {
-  View,
-  Text,
-  useColorScheme,
-  Button,
-  Alert,
-  NativeModules,
-  Image,
-  StyleSheet,
-} from 'react-native';
-import {useEffect, useState, createContext} from 'react';
+import { View, useColorScheme, useWindowDimensions } from 'react-native';
+import { useEffect, useMemo, useState, createContext } from 'react';
 import SpeechTrainerPhrase from './src/components/SpeechTrainerPhrase';
-import {speakAndListen} from './src/speech/flow/speechOrchestrator';
-import {registerDebugApi} from './src/debug/registerDebugApi';
-import {AsrService} from './src/speech/asr/AsrService';
-import {MD3DarkTheme, PaperProvider} from 'react-native-paper';
-import {Settings} from './src/components/Settings';
-import {loadAppSettingsFromDb} from './src/db/settings';
+import { registerDebugApi } from './src/debug/registerDebugApi';
+import { AsrService } from './src/speech/asr/AsrService';
+import { BottomNavigation, MD3DarkTheme, PaperProvider } from 'react-native-paper';
+import { Settings } from './src/components/Settings';
+import { saveAppSettingsToDb } from './src/db/settings';
+import { Score } from './src/components/Score';
 
 console.log('Hermes?', (global as any).HermesInternal != null);
-const {RnJavaConnector} = NativeModules;
 
-export type TPages = 'main' | 'settings';
+export type TPages = 'main' | 'score' | 'settings';
 type AppContextType = {
-  setCurrPage: React.Dispatch<React.SetStateAction<TPages>>;
+  setCurrPage: (page: TPages) => void | Promise<void>;
 };
+type AppRoute = {
+  key: TPages;
+  title: string;
+  focusedIcon: string;
+};
+
+const APP_ROUTES: AppRoute[] = [
+  { key: 'main', title: 'Trainer', focusedIcon: 'account-voice' },
+  { key: 'score', title: 'Score', focusedIcon: 'chart-bar' },
+  { key: 'settings', title: 'Settings', focusedIcon: 'cog-outline' },
+];
 
 export const AppContext = createContext<AppContextType | null>(null);
 
 export default function App() {
   const isDark = useColorScheme() === 'dark';
-  useEffect( () => {
+  const screenSize = useWindowDimensions();
+  const isLandscape = screenSize.width > screenSize.height;
+  useEffect(() => {
     AsrService.initAllEngines();
     registerDebugApi();
   }, []);
   const [currPage, setCurrPage] = useState<TPages>('main');
+  const compactTrainerNav = isLandscape && currPage === 'main';
+  const navigationIndex = useMemo(
+    () => {
+      const index = APP_ROUTES.findIndex(route => route.key === currPage);
+      return index >= 0 ? index : 0;
+    },
+    [currPage],
+  );
+
+  async function handlePageChange(nextPage: TPages) {
+    if (currPage === nextPage) {
+      return;
+    }
+
+    if (currPage === 'settings') {
+      try {
+        await saveAppSettingsToDb();
+      } catch (err) {
+        console.warn('Failed to save app settings', err);
+      }
+    }
+
+    setCurrPage(nextPage);
+  }
 
   return (
     <PaperProvider theme={MD3DarkTheme}>
-      <AppContext.Provider value={{setCurrPage}}>
+      <AppContext.Provider value={{ setCurrPage: handlePageChange }}>
         <View
           style={{
             flex: 1,
             backgroundColor: isDark ? '#000' : '#fff',
-            justifyContent: 'center',
-            alignItems: 'center',
           }}>
-          <View style={{flex: 1}}>
-            {currPage === 'main' && <SpeechTrainerPhrase />}
-            {currPage === 'settings' && <Settings />}
-          </View>
+          <BottomNavigation
+            navigationState={{ index: navigationIndex, routes: APP_ROUTES }}
+            labeled={!compactTrainerNav}
+            compact={compactTrainerNav}
+            barStyle={
+              compactTrainerNav
+                ? {
+                  height: 48,
+                  justifyContent:'center',
+                  overflow:'hidden',
+                }
+                : undefined
+            }
+            onIndexChange={index => {
+              const nextRoute = APP_ROUTES[index];
+              if (nextRoute) {
+                handlePageChange(nextRoute.key);
+              }
+            }}
+            renderScene={({ route }) => {
+              switch (route.key) {
+                case 'main':
+                  return <SpeechTrainerPhrase />;
+                case 'score':
+                  return <Score />;
+                case 'settings':
+                  return <Settings />;
+                default:
+                  return null;
+              }
+            }}
+            sceneAnimationEnabled={false}
+          />
         </View>
       </AppContext.Provider>
     </PaperProvider>
