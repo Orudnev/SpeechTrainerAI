@@ -16,7 +16,7 @@ import {
   getSelectedTaskTopics,
   loadAppSettingsFromDb,
 } from '../db/settings';
-import {getNextItemUid} from '../helpers/getNextItemUid';
+import {getItemUid, GetLearnTaskUid} from '../helpers/getNextItemUid';
 import {useScreenScale} from '../helpers/screen';
 
 export function Score() {
@@ -52,9 +52,10 @@ export function Score() {
         return;
       }
 
-      const nextItemUid = getNextItemUid(data, reverseMode, '');
-      const initialIndex = nextItemUid
-        ? data.findIndex(item => item.uid === nextItemUid)
+      const currTask = getItemUid(data,'current');
+      const currItemUid = GetLearnTaskUid(currTask,reverseMode);
+      const initialIndex = currItemUid
+        ? data.findIndex(item => item.uid === currItemUid)
         : 0;
       const rawItem = data[Math.max(initialIndex, 0)];
       const itemForChart = reverseMode ? toReverse(rawItem) : rawItem;

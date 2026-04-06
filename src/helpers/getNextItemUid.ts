@@ -1,3 +1,4 @@
+import { AppSettings, getAppSettingValue, setAppSettingValue } from "../db/settings";
 import { MSS, SpItem } from "../db/speechDb";
 import { minItemInterval } from "./buildResultUpdate";
 
@@ -76,8 +77,16 @@ export type LearnTask = {
   name: string;
   selectedTopics: string[];
   plannedDayItemCount: number;
-  maxFreshItemCount:number;
+  maxFreshItemCount: number;
   itemUids: string[];
+  indf: number;
+  indr: number;
+}
+
+export function GetLearnTaskUid(task:LearnTask,isReverse:boolean):string{
+  const idx = isReverse?task.indr:task.indf;
+  const uid = task.itemUids[idx];
+  return uid;
 }
 
 export function getItemType(item: SpItem, isReverse: boolean, now: number): TItemType {
@@ -87,7 +96,7 @@ export function getItemType(item: SpItem, isReverse: boolean, now: number): TIte
 }
 
 export function convertToTaskDisplayItem(item: SpItem, isReverse: boolean, now: number): TaskDisplayItem {
-  const result = { ...item, mss: Math.round((MSS(item, isReverse)*100))/100, itmType: getItemType(item, isReverse, now) };
+  const result = { ...item, mss: Math.round((MSS(item, isReverse) * 100)) / 100, itmType: getItemType(item, isReverse, now) };
   return result;
 }
 
@@ -141,7 +150,7 @@ export function CreateTask(
     });
 
   return result
-    .slice(0, Math.max(0, plannedDayItemCount));    
+    .slice(0, Math.max(0, plannedDayItemCount));
 }
 
 function wasShownToday(item: SpItem, isReverse: boolean, now: number) {
@@ -155,92 +164,35 @@ function wasShownToday(item: SpItem, isReverse: boolean, now: number) {
   return ts >= dayStart && ts < nextDayStart;
 }
 
-export function getNextItemUid(
+export function getItemUid(
   allItems: SpItem[],
-  isReverse = false,
-  currentItemUid: string = "",
-  maxNewItemCount: number = 15,
-): string {
-  const items = allItems;
-  const plannedDayItemCount = maxNewItemCount;
-  const now = Date.now();
-
-  const overdue = items.filter((item) =>
-    item.uid !== currentItemUid &&
-    isOverdue(item, isReverse, now)
-  );
-
-  if (overdue.length > 0) {
-    overdue.sort((a, b) => {
-      const mssDiff = MSS(a, isReverse) - MSS(b, isReverse);
-      if (mssDiff !== 0) return mssDiff;
-
-      const intervalDiff = getInterval(a, isReverse) - getInterval(b, isReverse);
-      if (intervalDiff !== 0) return intervalDiff;
-
-      return getTs(a, isReverse) - getTs(b, isReverse);
-    });
-
-    console.log(`*** Overdue:${overdue[0].uid} Now:${now}`);
-    return overdue[0].uid;
+  itmKind: 'next'|'current'
+): LearnTask {
+  const isReverse = getAppSettingValue<boolean>('reverseMode');
+  const taskList = getAppSettingValue<LearnTask[]>('taskList');
+  const selectedTaskName = getAppSettingValue<string>('selectedTask')
+  const selectedTaskData = taskList.find(t => t.name === selectedTaskName);
+  if (!selectedTaskData) {
+    throw Error(`Task ${selectedTaskName} not found`);
   }
-
-  const fresh = items.filter((item) =>
-    item.uid !== currentItemUid &&
-    getInterval(item, isReverse) <= minItemInterval
-  );
-
-  if (fresh.length > 0) {
-    fresh.sort((a, b) => {
-      let sort = getCorrect(a, isReverse) - getCorrect(b, isReverse);
-      if (sort !== 0) return sort;
-
-      sort = getStreak(a, isReverse) - getStreak(b, isReverse);
-      if (sort !== 0) return sort;
-
-      sort = getCnt(a, isReverse) - getCnt(b, isReverse);
-      if (sort !== 0) return sort;
-
-      return getTs(a, isReverse) - getTs(b, isReverse);
-    });
-
-    const repeatedFresh = fresh.filter((item) =>
-      getTs(item, isReverse) > 0 &&
-      now - getTs(item, isReverse) > minItemInterval
-    );
-    if (repeatedFresh.length > 0) {
-      console.log(`*** Fresh repeated:${repeatedFresh[0].uid}`);
-      return repeatedFresh[0].uid;
+  const indGet = () => isReverse ? selectedTaskData.indr : selectedTaskData.indf;
+  const indSet = (newValue: number) => {
+    if (isReverse) {
+      selectedTaskData.indr = newValue;
+    } else {
+      selectedTaskData.indf = newValue;
     }
+    setAppSettingValue('taskList',taskList);
+  };
 
-    const todayShownItemsCount = items.filter((item) =>
-      wasShownToday(item, isReverse, now)
-    ).length;
-
-    if (todayShownItemsCount < plannedDayItemCount) {
-      const unseenTodayFresh = fresh.filter((item) =>
-        !wasShownToday(item, isReverse, now)
-      );
-      if (unseenTodayFresh.length > 0) {
-        const index = Math.floor(Math.random() * unseenTodayFresh.length);
-        console.log(`*** Fresh:${unseenTodayFresh[index].uid}`);
-        return unseenTodayFresh[index].uid;
-      }
-    }
+  if(itmKind == 'current'){
+    return selectedTaskData;
   }
 
-  const soonLimit = getSoonRangeTs(now);
-  const soon = items.filter((item) =>
-    item.uid !== currentItemUid &&
-    isSoon(item, isReverse, now, soonLimit)
-  );
-
-  if (soon.length > 0) {
-    soon.sort((a, b) => compareByMssAndTs(a, b, isReverse));
-    console.log(`*** Soon:${soon[0].uid}`);
-    return soon[0].uid;
+  if (indGet() + 1 < selectedTaskData.itemUids.length) {
+    indSet(indGet() + 1);
+  } else {
+    indSet(0);
   }
-
-  console.log(`*** Complete: no overdue or soon items. prev:${currentItemUid}`);
-  return "";
+  return selectedTaskData;
 }

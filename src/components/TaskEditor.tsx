@@ -65,6 +65,25 @@ function buildTaskPreviewData(
     ).map(item => convertToTaskDisplayItem(item, false, now));
 }
 
+function buildTaskItems(
+    items: SpItem[],
+    selectedTopics: string[],
+    plannedDayItemCount: number,
+    maxFreshItemCount: number,
+    isReverse: boolean,
+): SpItem[] {
+    const selectedTopicItems = items.filter(
+        item => selectedTopics.length === 0 || selectedTopics.includes(item.topic),
+    );
+
+    return CreateTask(
+        selectedTopicItems,
+        plannedDayItemCount,
+        maxFreshItemCount,
+        isReverse,
+    );
+}
+
 function TaskSlider({
     label,
     value,
@@ -208,14 +227,25 @@ export function TaskEditor() {
             }
             setTopics(dbTopics);
             setAllItems(loadedItems);
+            const initialTaskItems = buildTaskItems(
+                loadedItems,
+                loadedSelectedTopics,
+                loadedCurrentTask?.plannedDayItemCount ?? 0,
+                loadedCurrentTask?.maxFreshItemCount ?? 0,
+                loadedReverseMode,
+            );
+            const nextTaskList = applyTaskFieldDrafts(
+                loadedTaskList,
+                loadedSelectedTask,
+                loadedSelectedTopics,
+                loadedCurrentTask?.plannedDayItemCount ?? 0,
+                loadedCurrentTask?.maxFreshItemCount ?? 0,
+                initialTaskItems.map(item => item.uid),
+            );
+            setTaskList(nextTaskList);
+            taskListRef.current = nextTaskList;
             setTableData(
-                buildTaskPreviewData(
-                    loadedItems,
-                    loadedSelectedTopics,
-                    loadedCurrentTask?.plannedDayItemCount ?? 0,
-                    loadedCurrentTask?.maxFreshItemCount ?? 0,
-                    loadedReverseMode,
-                ),
+                initialTaskItems.map(item => convertToTaskDisplayItem(item, false, Date.now())),
             );
             setIsPreviewDirty(false);
             setHasData(true);
@@ -271,6 +301,7 @@ export function TaskEditor() {
         nextSelectedTopics: string[],
         nextPlannedDayItemCountInput: number,
         nextMaxFreshItemCountInput: number,
+        nextItemUids?: string[],
     ): LearnTask[] {
         return sourceTaskList.map(task =>
             task.name === taskName
@@ -279,6 +310,7 @@ export function TaskEditor() {
                     selectedTopics: [...nextSelectedTopics],
                     plannedDayItemCount: nextPlannedDayItemCountInput,
                     maxFreshItemCount: nextMaxFreshItemCountInput,
+                    itemUids: nextItemUids ? [...nextItemUids] : [...task.itemUids],
                 }
                 : task,
         );
@@ -310,15 +342,26 @@ export function TaskEditor() {
     }
 
     function applyTaskPreview() {
-        setTableData(
-            buildTaskPreviewData(
-                allItems,
-                selectedTopics,
-                plannedDayItemCountInputRef.current,
-                maxFreshItemCountInputRef.current,
-                isReverse,
-            ),
+        const nextTaskItems = buildTaskItems(
+            allItems,
+            selectedTopics,
+            plannedDayItemCountInputRef.current,
+            maxFreshItemCountInputRef.current,
+            isReverse,
         );
+        setTableData(
+            nextTaskItems.map(item => convertToTaskDisplayItem(item, false, Date.now())),
+        );
+        const nextTaskList = applyTaskFieldDrafts(
+            taskListRef.current,
+            selectedTaskRef.current,
+            selectedTopicsRef.current,
+            plannedDayItemCountInputRef.current,
+            maxFreshItemCountInputRef.current,
+            nextTaskItems.map(item => item.uid),
+        );
+        setTaskList(nextTaskList);
+        taskListRef.current = nextTaskList;
         setIsPreviewDirty(false);
     }
 
@@ -326,16 +369,28 @@ export function TaskEditor() {
         nextSelectedTopics: string[],
         nextPlannedDayItemCount: number,
         nextMaxFreshItemCount: number,
+        taskName: string = selectedTaskRef.current,
     ) {
-        setTableData(
-            buildTaskPreviewData(
-                allItems,
-                nextSelectedTopics,
-                nextPlannedDayItemCount,
-                nextMaxFreshItemCount,
-                isReverse,
-            ),
+        const nextTaskItems = buildTaskItems(
+            allItems,
+            nextSelectedTopics,
+            nextPlannedDayItemCount,
+            nextMaxFreshItemCount,
+            isReverse,
         );
+        setTableData(
+            nextTaskItems.map(item => convertToTaskDisplayItem(item, false, Date.now())),
+        );
+        const nextTaskList = applyTaskFieldDrafts(
+            taskListRef.current,
+            taskName,
+            nextSelectedTopics,
+            nextPlannedDayItemCount,
+            nextMaxFreshItemCount,
+            nextTaskItems.map(item => item.uid),
+        );
+        setTaskList(nextTaskList);
+        taskListRef.current = nextTaskList;
         setIsPreviewDirty(false);
     }
 
@@ -356,6 +411,8 @@ export function TaskEditor() {
             selectedTopics: [...selectedTopicsRef.current],
             plannedDayItemCount: plannedDayItemCountInputRef.current,
             maxFreshItemCount: maxFreshItemCountInputRef.current,
+            indf:0,
+            indr:0,
             itemUids: [...(currentTask?.itemUids ?? [])],
         };
         const nextTaskList = [...taskListRef.current, nextTask];
@@ -415,6 +472,7 @@ export function TaskEditor() {
                                     nextTask?.selectedTopics ?? [],
                                     nextTask?.plannedDayItemCount ?? 0,
                                     nextTask?.maxFreshItemCount ?? 0,
+                                    item.value,
                                 );
                             }}
                         />

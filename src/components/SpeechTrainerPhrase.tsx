@@ -35,7 +35,7 @@ import Toolbar from './Toolbar';
 import { Appbar, FAB, Portal, Modal } from 'react-native-paper';
 import { AppContext } from '../../App';
 import { getAppSettingValue, getSelectedTaskTopics, loadAppSettingsFromDb } from '../db/settings';
-import { getNextItemUid } from '../helpers/getNextItemUid';
+import { getItemUid, GetLearnTaskUid, LearnTask } from '../helpers/getNextItemUid';
 import { buildResultUpdate } from '../helpers/buildResultUpdate';
 import { getAsrEngineId } from '../speech/asr/AsrService';
 import Svg from 'react-native-svg';
@@ -68,6 +68,11 @@ export default function SpeechTrainerPhrase() {
   const reverseMode = getAppSettingValue<boolean>('reverseMode');
   const [showCurrentItem, setShowCurrentItem] = useState(false);
   const [openWordCounter, setOpenWordCounter] = useState(0); // Счетчик для принудительного обновления при открытии слова
+  const [counterText,setCounterText] = useState("0/0");
+  const updateCounterText = (task:LearnTask)=>{
+    setCounterText(`${reverseMode?task.indr+1:task.indf+1}/${task.itemUids.length}`);
+  };
+  
   // ============================================================
   // ASR integration (SINGLE SOURCE)
   // ============================================================
@@ -145,13 +150,13 @@ export default function SpeechTrainerPhrase() {
         return;
       }
 
-      const nextItemUid = getNextItemUid(data, reverseMode, "");
-      const initialIndex = nextItemUid
-        ? data.findIndex(itm => itm.uid == nextItemUid)
-        : 0;
-
+      const currTask = getItemUid(data, "current");
+      updateCounterText(currTask);
+      const currItemUid = GetLearnTaskUid(currTask,reverseMode);
+      const initialIndex = data.findIndex(itm => itm.uid == currItemUid)
       setItems(data);
       setPhraseIndex(initialIndex);
+
     }
 
     load();
@@ -342,13 +347,16 @@ export default function SpeechTrainerPhrase() {
       // );
 
       setListeningStartedAt(null);
-      const nextItemUid = getNextItemUid(updatedItems, reverseMode, rawItem.uid);
-      if (!nextItemUid) {
-        setPhase('idle');
-        return;
-      }
-
-      const nextIndex = updatedItems.findIndex(itm => itm.uid == nextItemUid);
+      const currTask = getItemUid(updatedItems, 'next');
+      updateCounterText(currTask);
+      const currItemUid = GetLearnTaskUid(currTask,reverseMode);
+      
+      // if (!nextItemUid) {
+      //   setPhase('idle');
+      //   return;
+      // }
+      
+      const nextIndex = updatedItems.findIndex(itm => itm.uid == currItemUid);
       if (nextIndex < 0) {
         setPhase('idle');
         return;
@@ -431,14 +439,18 @@ export default function SpeechTrainerPhrase() {
     //   rawItem.uid,
     //   reverseMode,
     // );
-    const nextItemUid = getNextItemUid(items, reverseMode, rawItem.uid);
-    if (!nextItemUid) {
-      setListeningStartedAt(null);
-      setPhase('idle');
-      return;
-    }
+    const currTask = getItemUid(items, 'next');
+    updateCounterText(currTask);
+    const currItemUid = GetLearnTaskUid(currTask,reverseMode);
+      
 
-    const nextIndex = items.findIndex(itm => itm.uid == nextItemUid);
+    // if (!nextItemUid) {
+    //   setListeningStartedAt(null);
+    //   setPhase('idle');
+    //   return;
+    // }
+
+    const nextIndex = items.findIndex(itm => itm.uid == currItemUid);
     if (nextIndex < 0) {
       setListeningStartedAt(null);
       setPhase('idle');
@@ -503,7 +515,8 @@ export default function SpeechTrainerPhrase() {
             </Modal>
           </Portal>
           <View style={styles.questionSection}>
-            <GradientPanel label="Current question:" mainText={currentQuestion} 
+            <GradientPanel label="Current question:" mainText={currentQuestion} counterText={counterText}
+
             onPress={() => { setShowCurrentItem(true); }} />
           </View>
         </>

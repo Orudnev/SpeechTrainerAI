@@ -1,5 +1,5 @@
 import React from "react";
-import { TouchableOpacity, View,useWindowDimensions } from "react-native";
+import { TouchableOpacity, View, useWindowDimensions } from "react-native";
 
 import Svg, {
     Rect,
@@ -20,6 +20,7 @@ type GradientPanelProps = {
     mainText: string,
     suffixText?: string,
     statusText?: string,
+    counterText?: string,
     width?: number,
     height?: number,
     onPress: () => void
@@ -30,21 +31,26 @@ export const GradientPanel: React.FC<GradientPanelProps> = ({
     mainText,
     suffixText,
     statusText,
+    counterText,
     width = 400,
     height = 170,
     onPress
 }) => {
     const screenSize = useWindowDimensions();
-    const {isLandscape, sch, scw} = useScreenScale()
+    const { isLandscape, sch, scw } = useScreenScale()
     let labelTop = 10;
     let labelLeft = 10;
     let textTop = 35;
-    let textLeft = 12;   
-    if(isLandscape){
-        width = screenSize.width - 150; 
+    let counterTop = 10;
+    let counterRight = 15;
+    let textLeft = 12;
+    if (isLandscape) {
+        width = screenSize.width - 150;
         labelLeft = 20;
         textTop = 8;
-        textLeft = 155; 
+        textLeft = 155;
+        counterTop = 8;
+        counterRight = 25;
         height = sch(27);
     } else {
         width = screenSize.width - 8;
@@ -82,6 +88,12 @@ export const GradientPanel: React.FC<GradientPanelProps> = ({
                 />
             </Svg>
             <Text style={{ color: '#9AA3B2', fontSize: 15, position: 'absolute', top: labelTop, left: labelLeft }} >{label}</Text>
+            {/* Counter */}
+            {counterText && (
+                <View style={{ position: 'absolute', top: counterTop, right: counterRight }}>
+                    <Text style={{ color: '#9AA3B2', fontSize: 15 }} >{counterText}</Text>
+                </View>
+            )}
             <View style={{ position: 'absolute', top: textTop, left: textLeft }}>
                 <Text style={{ color: '#E6F1FF', fontSize: 18, fontWeight: '600', lineHeight: 24 }}   >
                     {mainText}
@@ -95,12 +107,12 @@ export const GradientPanel: React.FC<GradientPanelProps> = ({
             {statusText && (
                 <View style={{
                     borderWidth: 1,
-                    borderColor: '#FFFFFF', 
-                    backgroundColor: "#087e2b", 
-                    borderRadius: 15, 
-                    width: 200, 
-                    height: 50, 
-                    position: "absolute", 
+                    borderColor: '#FFFFFF',
+                    backgroundColor: "#087e2b",
+                    borderRadius: 15,
+                    width: 200,
+                    height: 50,
+                    position: "absolute",
                     bottom: 10, left: 10, alignItems: "center"
                 }}>
                     <Text style={{ fontSize: 18, lineHeight: 45, fontWeight: 800, color: "FFFFFF" }}>{statusText}</Text>

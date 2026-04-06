@@ -62,6 +62,8 @@ export const AppSettings: TsettingsItem[] = [
       itemUids: [],
       plannedDayItemCount: 30,
       maxFreshItemCount: 10,
+      indf:0,
+      indr:0
     }] as LearnTask [],
   },
   {
@@ -86,7 +88,9 @@ function isLearnTask(value: any): value is LearnTask {
     typeof value.name === 'string' &&
     (!('selectedTopics' in value) || Array.isArray(value.selectedTopics)) &&
     Array.isArray(value.itemUids) &&
-    value.itemUids.every((uid: unknown) => typeof uid === 'string'),
+    value.itemUids.every((uid: unknown) => typeof uid === 'string') &&
+    (!('indf' in value) || typeof value.indf === 'number') &&
+    (!('indr' in value) || typeof value.indr === 'number'),
   );
 }
 
@@ -99,6 +103,8 @@ function normalizeTaskList(
     return defaultValue.map(task => ({
       ...task,
       selectedTopics: [...task.selectedTopics],
+      indf: task.indf ?? 0,
+      indr: task.indr ?? 0,
       itemUids: [...task.itemUids],
     }));
   }
@@ -110,6 +116,8 @@ function normalizeTaskList(
       : [...legacySelectedTopics],
     plannedDayItemCount:task.plannedDayItemCount,
     maxFreshItemCount:task.maxFreshItemCount,
+    indf: typeof task.indf === 'number' ? task.indf : 0,
+    indr: typeof task.indr === 'number' ? task.indr : 0,
     itemUids: [...task.itemUids]    
   }));
 
@@ -118,6 +126,8 @@ function normalizeTaskList(
     : defaultValue.map(task => ({
       ...task,
       selectedTopics: [...task.selectedTopics],
+      indf: task.indf ?? 0,
+      indr: task.indr ?? 0,
       itemUids: [...task.itemUids],
     }));
 }
@@ -191,6 +201,16 @@ export function getAppSettingValue<T = any>(name: TSettingName): T {
     setting.defaultValue,
   ) as T;
   return result;
+}
+
+export function getSelectedTask():LearnTask|undefined{
+  const selTaskName = getAppSettingValue<string>('selectedTask');
+  const selTaskData = getAppSettingValue<LearnTask[]>('taskList').find(t=>t.name === selTaskName);
+  if(selTaskData){
+    return selTaskData;
+  } else {
+    return undefined;
+  }    
 }
 
 export function setAppSettingValue(name: TSettingName, value: any) {
