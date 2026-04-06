@@ -35,6 +35,13 @@ function isSoon(item: SpItem, isReverse: boolean, now: number, limit: number) {
   return next > now && next <= limit;
 }
 
+function compareByMssAndTs(a: SpItem, b: SpItem, isReverse: boolean) {
+  const mssDiff = MSS(a, isReverse) - MSS(b, isReverse);
+  if (mssDiff !== 0) return mssDiff;
+
+  return getTs(a, isReverse) - getTs(b, isReverse);
+}
+
 export function clamp(value: number, minValue: number, maxValue: number) {
   if (value < minValue) return minValue;
   if (value > maxValue) return maxValue;
@@ -47,11 +54,82 @@ function getDayStartTs(ts: number): number {
   return date.getTime();
 }
 
-export function getNextDayStartTs(ts: number): number {
+export function getSoonRangeTs(ts: number, dayCount: number = 1): number {
   const date = new Date(ts);
   date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + 1);
+  date.setDate(date.getDate() + dayCount);
   return date.getTime();
+}
+
+export type TaskItem = Pick<SpItem, "uid" | "q" | "a"> & {
+  mss: number;
+  itmType: "overdue" | "fresh" | "other";
+};
+
+export function CreateTask(
+  items: SpItem[],
+  plannedDayItemCount: number,
+  maxFreshItemCount: number,
+  isReverse = false,
+): TaskItem[] {
+  const now = Date.now();
+  const toTaskItemEntry = (
+    item: SpItem,
+    itmType: TaskItem["itmType"],
+  ) => {
+    const mss = MSS(item, isReverse);
+    return {
+      uid: item.uid,
+      ts: getTs(item, isReverse),
+      taskItem: {
+        uid: item.uid,
+        q: item.q,
+        a: item.a,
+        mss,
+        itmType,
+      } satisfies TaskItem,
+    };
+  };
+
+  const overdue = items
+    .filter((item) => isOverdue(item, isReverse, now))
+    .map((item) => toTaskItemEntry(item, "overdue"));
+
+  const fresh = items
+    .filter((item) => getInterval(item, isReverse) <= minItemInterval)
+    .sort((a, b) => compareByMssAndTs(a, b, isReverse))
+    .slice(0, Math.max(0, maxFreshItemCount))
+    .map((item) => toTaskItemEntry(item, "fresh"));
+
+  const other = items
+    .filter((item) => !overdue.some((itmo)=>itmo.uid === item.uid) && !fresh.some((itmf)=>itmf.uid === item.uid))
+    .map((item) => toTaskItemEntry(item, "other")).filter(item => item.taskItem.mss > 0);
+
+  const cmpTypes = (a: TaskItem, b: TaskItem) => {
+    const typePriority = {
+      overdue: 0,
+      fresh: 1,
+      other: 2,
+    };
+    const priorityDiff = typePriority[a.itmType] - typePriority[b.itmType];
+    return priorityDiff;
+  };
+
+  const result = [...overdue, ...fresh, ...other]
+    .filter((item, index, array) =>
+      array.findIndex((candidate) => candidate.uid === item.uid) === index
+    )
+    .sort((a, b) => {
+      const typeDiff = cmpTypes(a.taskItem, b.taskItem);
+      if (typeDiff !== 0) return typeDiff;      
+      const mssDiff = a.taskItem.mss - b.taskItem.mss;
+      if (mssDiff !== 0) return mssDiff;
+      return a.ts - b.ts;
+    });
+  
+  return result
+    .slice(0, Math.max(0, plannedDayItemCount))
+    .map((item) => item.taskItem);
 }
 
 function wasShownToday(item: SpItem, isReverse: boolean, now: number) {
@@ -61,7 +139,7 @@ function wasShownToday(item: SpItem, isReverse: boolean, now: number) {
   if (ts === 0) return false;
 
   const dayStart = getDayStartTs(now);
-  const nextDayStart = getNextDayStartTs(now);
+  const nextDayStart = getSoonRangeTs(now);
   return ts >= dayStart && ts < nextDayStart;
 }
 
@@ -139,14 +217,14 @@ export function getNextItemUid(
     }
   }
 
-  const soonLimit = getNextDayStartTs(now);
+  const soonLimit = getSoonRangeTs(now);
   const soon = items.filter((item) =>
     item.uid !== currentItemUid &&
     isSoon(item, isReverse, now, soonLimit)
   );
 
   if (soon.length > 0) {
-    soon.sort((a, b) => MSS(a, isReverse) - MSS(b, isReverse));
+    soon.sort((a, b) => compareByMssAndTs(a, b, isReverse));
     console.log(`*** Soon:${soon[0].uid}`);
     return soon[0].uid;
   }

@@ -9,11 +9,14 @@ import {
   SpItem,
   syncPhrasesRows,
   MSS,
-  SpItemExport
+  SpItemExport,
+  executeSql
 } from "../db/speechDb";
 import { ReceiveAllRowsFromCloud, SendDatabaseToCloud } from "../helpers/webApiWrapper";
 import { AsrService } from "../speech/asr/AsrService";
 import { dataRows } from "./testPhraseData";
+import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
+import { CreateTask } from "../helpers/getNextItemUid";
 
 export async function dropPhrasesTable() {
   const db = await openSpeechDb();
@@ -117,7 +120,100 @@ export function fireSpeechResultEvent(asrResultText: string) {
   }));
 }
 
+export async function getSelTopicItems(): Promise<SpItem[]> {
+  const selectedTopics = getAppSettingValue<string[]>("selectedTopics");
+  if (!selectedTopics || !Array.isArray(selectedTopics)) return [];
+  
+  // Build the SQL query with placeholders for IN clause
+  const placeholders = selectedTopics.map(() => '?').join(',');
+  const sql = `SELECT * FROM phrases WHERE topic IN (${placeholders})`;
+  
+  // Execute the query
+  const db = await openSpeechDb();
+  const res = await db.executeSql(sql, selectedTopics);
+  // Extract rows
 
+  let rows: SpItem[] = [];
+  for (let i = 0; i < res[0].rows.length; i++) {
+    rows.push(res[0].rows.item(i));
+  }  
+  return rows;
+}
+
+export async function test(){
+  const selTopicItems = await getSelTopicItems();
+  const taskItems = CreateTask(selTopicItems, 30,10,false);
+  printObjectArray(taskItems.map((r,idx) => ({idx:idx+1, uid: r.uid,  q: r.q, mss: r.mss, itmType: r.itmType })));
+}
+
+
+export function printObjectArray(objArray: any[]) {
+  console.log("printObjectArray:");
+
+  if (!Array.isArray(objArray)) {
+    console.log("input is not an array");
+    return;
+  }
+
+  if (objArray.length === 0) {
+    console.log("[]");
+    return;
+  }
+
+  const columns = Array.from(
+    new Set(
+      objArray.flatMap((item) =>
+        item && typeof item === "object" ? Object.keys(item) : []
+      )
+    )
+  );
+
+  if (columns.length === 0) {
+    console.log("array contains no object properties");
+    return;
+  }
+
+  const stringifyCell = (value: unknown) => {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value);
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  };
+
+  const widths = columns.map((column) => {
+    const cellWidth = Math.max(
+      ...objArray.map((item) => stringifyCell(item?.[column]).length)
+    );
+    return Math.max(column.length, cellWidth);
+  });
+
+  const pad = (value: string, width: number) => value.padEnd(width, " ");
+
+  const header = columns
+    .map((column, index) => pad(column, widths[index]))
+    .join(" | ");
+
+  const separator = widths
+    .map((width) => "-".repeat(width))
+    .join("-+-");
+
+  console.log(header);
+  console.log(separator);
+
+  for (const item of objArray) {
+    const row = columns
+      .map((column, index) => pad(stringifyCell(item?.[column]), widths[index]))
+      .join(" | ");
+    console.log(row);
+  }
+}
 
 export async function asrinit() {
   await AsrService.initAllEngines();

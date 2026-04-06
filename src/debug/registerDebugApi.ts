@@ -1,6 +1,7 @@
 import { executeSql } from "../db/speechDb";
 import { getDataForBarDiagram } from "../helpers/statistics";
-import { clearDb, reseedDb, list,listc, asrinit, asrshutdown, grantFullAccess, fireSpeechResultEvent } from "./debugCommands";
+import { clearDb, reseedDb, list,listc, asrinit, asrshutdown, 
+grantFullAccess, fireSpeechResultEvent,getSelTopicItems,printObjectArray,test } from "./debugCommands";
 export const testReg = ()=>{
     console.log("blablabla");
 };
@@ -20,6 +21,9 @@ export function registerDebugApi() {
     grantFullAccess,
     fireSpeechResultEvent,
     executeSql,
+    getSelTopicItems,
+    printObjectArray,
+    test
   };
 
   console.log("✅ Debug API registered: globalThis.dbg");
