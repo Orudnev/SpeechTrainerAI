@@ -1,5 +1,6 @@
 import {initSpeechDb, openSpeechDb} from './speechDb';
 import { TDiagramPeriodName } from '../helpers/statistics';
+import { LearnTask } from '../helpers/getNextItemUid';
 
 export type TSettingName =
   | 'fullAccess'
@@ -60,7 +61,7 @@ export const AppSettings: TsettingsItem[] = [
   },
   {
     name: 'taskList',
-    defaultValue: ['Default Task'] as string[],
+    defaultValue: [{ name: 'Default Task', itemUids: [] }] as LearnTask [],
   },
   {
     name: 'selectedTask',
@@ -77,8 +78,58 @@ function getAppSettingOrFail(name: TSettingName): TsettingsItem {
   return found;
 }
 
+function isLearnTask(value: any): value is LearnTask {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    typeof value.name === 'string' &&
+    Array.isArray(value.itemUids) &&
+    value.itemUids.every((uid: unknown) => typeof uid === 'string'),
+  );
+}
+
+function normalizeTaskList(value: any, defaultValue: LearnTask[]): LearnTask[] {
+  if (!Array.isArray(value)) {
+    return defaultValue;
+  }
+
+  const normalized = value.filter(isLearnTask).map(task => ({
+    name: task.name,
+    itemUids: [...task.itemUids],
+  }));
+
+  return normalized.length > 0
+    ? normalized
+    : defaultValue.map(task => ({ ...task, itemUids: [...task.itemUids] }));
+}
+
+function normalizeSelectedTask(value: any, taskList: LearnTask[], defaultValue: string): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    return defaultValue;
+  }
+
+  return taskList.some(task => task.name === value) ? value : defaultValue;
+}
+
 function applySettingsFromObject(payload: Record<string, any>) {
+  const defaultTaskList = getAppSettingOrFail('taskList').defaultValue as LearnTask[];
+  const taskList = normalizeTaskList(payload.taskList, defaultTaskList);
+
   for (const item of AppSettings) {
+    if (item.name === 'taskList') {
+      item.value = taskList;
+      continue;
+    }
+
+    if (item.name === 'selectedTask') {
+      item.value = normalizeSelectedTask(
+        payload.selectedTask,
+        taskList,
+        item.defaultValue,
+      );
+      continue;
+    }
+
     item.value = payload[item.name] ?? item.defaultValue;
   }
 }
@@ -107,12 +158,13 @@ function normalizeSettingValueByDefaultValue(
   return value;
 }
 
-export function getAppSettingValue<T = any>(name: TSettingName): T {
+export function getAppSettingValue<T = any>(name: TSettingName): T {  
   const setting = getAppSettingOrFail(name);
-  return normalizeSettingValueByDefaultValue(
+  const result = normalizeSettingValueByDefaultValue(
     setting.value,
     setting.defaultValue,
   ) as T;
+  return result;
 }
 
 export function setAppSettingValue(name: TSettingName, value: any) {
@@ -122,8 +174,27 @@ export function setAppSettingValue(name: TSettingName, value: any) {
 
 function buildSettingsObjectFromMemory(): Record<TSettingName, any> {
   const nextPayload = {} as Record<TSettingName, any>;
+  const taskListSetting = getAppSettingOrFail('taskList');
+  const normalizedTaskList = normalizeTaskList(
+    taskListSetting.value,
+    taskListSetting.defaultValue as LearnTask[],
+  );
 
   for (const item of AppSettings) {
+    if (item.name === 'taskList') {
+      nextPayload[item.name] = normalizedTaskList;
+      continue;
+    }
+
+    if (item.name === 'selectedTask') {
+      nextPayload[item.name] = normalizeSelectedTask(
+        item.value,
+        normalizedTaskList,
+        item.defaultValue,
+      );
+      continue;
+    }
+
     nextPayload[item.name] = item.value ?? item.defaultValue;
   }
 

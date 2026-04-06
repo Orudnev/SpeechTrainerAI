@@ -72,6 +72,11 @@ export type TaskDisplayItem = Pick<SpItem, "uid" | "a"> & {
   itmType: TItemType;
 };
 
+export type LearnTask = {
+  name: string;
+  itemUids: string[];
+}
+
 export function getItemType(item: SpItem, isReverse: boolean, now: number): TItemType {
   if (isOverdue(item, isReverse, now)) return "overdue";
   if (isFresh(item, isReverse)) return "fresh";
