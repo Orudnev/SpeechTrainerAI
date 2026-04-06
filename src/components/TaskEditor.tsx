@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
         borderColor: '#8ab4f8',
     },
     table: {
-        minWidth: 820,
+        minWidth: 350,
         borderWidth: 1,
         borderColor: '#3a3a3a',
         borderRadius: 8,
@@ -680,9 +680,9 @@ const styles = StyleSheet.create({
         paddingRight: 16,
     },
     typeColumn: {
-        width: 120,
-        paddingLeft: 16,
-        paddingRight: 12,
+        width: 60,
+        paddingLeft: 0,
+        paddingRight: 0,
     },
     headerTextLeft: {
         textAlign: 'left',
