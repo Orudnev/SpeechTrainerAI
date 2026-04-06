@@ -11,7 +11,11 @@ import {
   seedSpeechDbIfEmpty,
   toReverse,
 } from '../db/speechDb';
-import {getAppSettingValue, loadAppSettingsFromDb} from '../db/settings';
+import {
+  getAppSettingValue,
+  getSelectedTaskTopics,
+  loadAppSettingsFromDb,
+} from '../db/settings';
 import {getNextItemUid} from '../helpers/getNextItemUid';
 import {useScreenScale} from '../helpers/screen';
 
@@ -28,7 +32,7 @@ export function Score() {
       await loadAppSettingsFromDb();
 
       const reverseMode = getAppSettingValue<boolean>('reverseMode');
-      const selectedTopics = getAppSettingValue<string[]>('selectedTopics');
+      const selectedTopics = getSelectedTaskTopics();
       const data = (await loadAllPhrases()).filter(item => {
         if (!item.topic) {
           return false;

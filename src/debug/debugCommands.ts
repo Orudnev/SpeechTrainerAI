@@ -1,5 +1,10 @@
 import { DeviceEventEmitter } from "react-native";
-import { getAppSettingValue, saveAppSettingsToDb, setAppSettingValue } from "../db/settings";
+import {
+  getAppSettingValue,
+  getSelectedTaskTopics,
+  saveAppSettingsToDb,
+  setAppSettingValue,
+} from "../db/settings";
 import {
   initSpeechDb,
   seedSpeechDbIfEmpty,
@@ -121,7 +126,7 @@ export function fireSpeechResultEvent(asrResultText: string) {
 }
 
 export async function getSelTopicItems(): Promise<SpItem[]> {
-  const selectedTopics = getAppSettingValue<string[]>("selectedTopics");
+  const selectedTopics = getSelectedTaskTopics();
   if (!selectedTopics || !Array.isArray(selectedTopics)) return [];
   
   // Build the SQL query with placeholders for IN clause

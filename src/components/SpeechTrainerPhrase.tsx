@@ -34,7 +34,7 @@ import { VariantPicker } from './VariantPicker';
 import Toolbar from './Toolbar';
 import { Appbar, FAB, Portal, Modal } from 'react-native-paper';
 import { AppContext } from '../../App';
-import { AppSettings, getAppSettingValue, loadAppSettingsFromDb, setAppSettingValue } from '../db/settings';
+import { getAppSettingValue, getSelectedTaskTopics, loadAppSettingsFromDb } from '../db/settings';
 import { getNextItemUid } from '../helpers/getNextItemUid';
 import { buildResultUpdate } from '../helpers/buildResultUpdate';
 import { getAsrEngineId } from '../speech/asr/AsrService';
@@ -127,7 +127,7 @@ export default function SpeechTrainerPhrase() {
         console.warn('Failed to load app settings', err);
       });
 
-      const selectedTopics = getAppSettingValue<string[]>('selectedTopics');
+      const selectedTopics = getSelectedTaskTopics();
       console.log(`Selected topics:${selectedTopics}`);
       const data = (await loadAllPhrases()).filter(item => {
         if (!item.topic) {
@@ -140,7 +140,6 @@ export default function SpeechTrainerPhrase() {
         return true;
       });
       if (data.length === 0) {
-        setAppSettingValue('selectedTopics', []);
         setItems(data);
         setPhraseIndex(0);
         return;

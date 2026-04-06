@@ -53,7 +53,7 @@ export default function App() {
       return;
     }
 
-    if (currPage === 'settings' || currPage === 'task') {
+    if (currPage === 'settings') {
       try {
         await saveAppSettingsToDb();
       } catch (err) {

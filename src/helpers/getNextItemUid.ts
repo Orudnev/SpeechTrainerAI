@@ -74,6 +74,9 @@ export type TaskDisplayItem = Pick<SpItem, "uid" | "a"> & {
 
 export type LearnTask = {
   name: string;
+  selectedTopics: string[];
+  plannedDayItemCount: number;
+  maxFreshItemCount:number;
   itemUids: string[];
 }
 

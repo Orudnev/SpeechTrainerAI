@@ -8,7 +8,6 @@ export type TSettingName =
   | 'openAiApiKey'
   | 'reverseMode'
   | 'rowsCloudDataSource'
-  | 'selectedTopics'
   | 'groupingPeriod' 
   | 'groupingScope' // phrase|current topic|all selected topics  grouping for statistics diagram
   | 'taskList'
@@ -41,10 +40,6 @@ export const AppSettings: TsettingsItem[] = [
     defaultValue: false,
   },
   {
-    name: 'selectedTopics',
-    defaultValue: [],
-  },
-  {
     name: 'rowsCloudDataSource',
     defaultValue: '',
     needAdvancedRights: true,
@@ -61,7 +56,13 @@ export const AppSettings: TsettingsItem[] = [
   },
   {
     name: 'taskList',
-    defaultValue: [{ name: 'Default Task', itemUids: [] }] as LearnTask [],
+    defaultValue: [{
+      name: 'Default Task',
+      selectedTopics: [],
+      itemUids: [],
+      plannedDayItemCount: 30,
+      maxFreshItemCount: 10,
+    }] as LearnTask [],
   },
   {
     name: 'selectedTask',
@@ -83,24 +84,42 @@ function isLearnTask(value: any): value is LearnTask {
     value &&
     typeof value === 'object' &&
     typeof value.name === 'string' &&
+    (!('selectedTopics' in value) || Array.isArray(value.selectedTopics)) &&
     Array.isArray(value.itemUids) &&
     value.itemUids.every((uid: unknown) => typeof uid === 'string'),
   );
 }
 
-function normalizeTaskList(value: any, defaultValue: LearnTask[]): LearnTask[] {
+function normalizeTaskList(
+  value: any,
+  defaultValue: LearnTask[],
+  legacySelectedTopics: string[] = [],
+): LearnTask[] {
   if (!Array.isArray(value)) {
-    return defaultValue;
+    return defaultValue.map(task => ({
+      ...task,
+      selectedTopics: [...task.selectedTopics],
+      itemUids: [...task.itemUids],
+    }));
   }
 
   const normalized = value.filter(isLearnTask).map(task => ({
     name: task.name,
-    itemUids: [...task.itemUids],
+    selectedTopics: Array.isArray(task.selectedTopics)
+      ? task.selectedTopics.filter((topic: unknown) => typeof topic === 'string')
+      : [...legacySelectedTopics],
+    plannedDayItemCount:task.plannedDayItemCount,
+    maxFreshItemCount:task.maxFreshItemCount,
+    itemUids: [...task.itemUids]    
   }));
 
   return normalized.length > 0
     ? normalized
-    : defaultValue.map(task => ({ ...task, itemUids: [...task.itemUids] }));
+    : defaultValue.map(task => ({
+      ...task,
+      selectedTopics: [...task.selectedTopics],
+      itemUids: [...task.itemUids],
+    }));
 }
 
 function normalizeSelectedTask(value: any, taskList: LearnTask[], defaultValue: string): string {
@@ -113,7 +132,14 @@ function normalizeSelectedTask(value: any, taskList: LearnTask[], defaultValue: 
 
 function applySettingsFromObject(payload: Record<string, any>) {
   const defaultTaskList = getAppSettingOrFail('taskList').defaultValue as LearnTask[];
-  const taskList = normalizeTaskList(payload.taskList, defaultTaskList);
+  const legacySelectedTopics = Array.isArray(payload.selectedTopics)
+    ? payload.selectedTopics.filter((topic: unknown) => typeof topic === 'string')
+    : [];
+  const taskList = normalizeTaskList(
+    payload.taskList,
+    defaultTaskList,
+    legacySelectedTopics,
+  );
 
   for (const item of AppSettings) {
     if (item.name === 'taskList') {
@@ -236,4 +262,11 @@ export async function saveAppSettingsToDb() {
   await db.executeSql(`INSERT INTO appSettings(settings) VALUES(?);`, [
     JSON.stringify(payload),
   ]);
+}
+
+export function getSelectedTaskTopics(): string[] {
+  const taskList = getAppSettingValue<LearnTask[]>('taskList');
+  const selectedTask = getAppSettingValue<string>('selectedTask');
+  const currentTask = taskList.find(task => task.name === selectedTask);
+  return currentTask?.selectedTopics ?? [];
 }
