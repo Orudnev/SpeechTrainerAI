@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
@@ -8,24 +8,18 @@ import {
     Alert,
 } from 'react-native';
 import Toolbar from './Toolbar';
-import { Appbar, Button, Chip, Switch, TextInput, SegmentedButtons } from 'react-native-paper';
-import { AppContext } from '../../App';
+import { Appbar, Button, Switch, TextInput, SegmentedButtons } from 'react-native-paper';
 import {
     getAppSettingValue,
     loadAppSettingsFromDb,
-    saveAppSettingsToDb,
     setAppSettingValue,
 } from '../db/settings';
-import { initSpeechDb, loadAllPhrases, openSpeechDb, syncPhrasesRows } from '../db/speechDb';
-import { ReceiveAllRowsFromCloud, SendDatabaseToCloud } from '../helpers/webApiWrapper';
+import { initSpeechDb } from '../db/speechDb';
 import { synchCloudToLocal, synchLocalToCloud } from '../debug/debugCommands';
 
 export function Settings() {
     const screenSize = useWindowDimensions();
-    const ctx = useContext(AppContext);
-
     const [hasData, setHasData] = useState(false);
-    const [topics, setTopics] = useState<string[]>([]);
     const [, setSettingsVersion] = useState(0);
     const [commandStage, setCommandStage] = useState<'idle' | 'processing'>('idle');
     const [asrModelType, setAsrModelType] = useState(getAppSettingValue<string>('asrModelType'));
@@ -33,20 +27,6 @@ export function Settings() {
         async function load() {
             await initSpeechDb();
             await loadAppSettingsFromDb();
-            const db = await openSpeechDb();
-            const res = await db.executeSql(
-                `SELECT DISTINCT topic FROM phrases ORDER BY topic;`,
-            );
-
-            const dbTopics: string[] = [];
-            for (let i = 0; i < res[0].rows.length; i++) {
-                const row = res[0].rows.item(i);
-                if (typeof row.topic === 'string' && row.topic.trim()) {
-                    dbTopics.push(row.topic);
-                }
-            }
-
-            setTopics(dbTopics);
             setHasData(true);
             setSettingsVersion(prev => prev + 1);
         }
@@ -58,22 +38,6 @@ export function Settings() {
     const fullAccess = getAppSettingValue<boolean>('fullAccess');
     const openAiApiKey = getAppSettingValue<string>('openAiApiKey');
     const rowsCloudDataSource = getAppSettingValue<string>('rowsCloudDataSource');
-    const selectedTopics = getAppSettingValue<string[]>('selectedTopics');
-    const selectedTopicsSet = new Set(selectedTopics);
-
-    function toggleTopic(topic: string) {
-        const nextSelectedTopics = selectedTopicsSet.has(topic)
-            ? selectedTopics.filter(currTopic => currTopic !== topic)
-            : [...selectedTopics, topic];
-
-        setAppSettingValue('selectedTopics', nextSelectedTopics);
-        setSettingsVersion(prev => prev + 1);
-    }
-
-    async function persistSettingsAndExit() {
-        await saveAppSettingsToDb();
-        ctx?.setCurrPage('main');
-    }
 
     return (
         <View style={[styles.settingsRoot, { width: screenSize.width }]}>
@@ -136,19 +100,6 @@ export function Settings() {
                                     setSettingsVersion(prev => prev + 1);
                                 }}
                             />
-                        </View>
-
-                        <Text style={styles.sectionTitle}>selectedTopics</Text>
-                        <View style={styles.chipWrap}>
-                            {topics.map(topic => (
-                                <Chip
-                                    key={topic}
-                                    selected={selectedTopicsSet.has(topic)}
-                                    onPress={() => toggleTopic(topic)}
-                                    style={styles.topicChip}>
-                                    {topic}
-                                </Chip>
-                            ))}
                         </View>
 
                         {fullAccess && (
@@ -233,15 +184,6 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-    },
-    chipWrap: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    topicChip: {
-        marginRight: 8,
-        marginBottom: 8,
     },
     actionsRow: {
         marginTop: 8,

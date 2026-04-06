@@ -7,10 +7,11 @@ import { BottomNavigation, MD3DarkTheme, PaperProvider } from 'react-native-pape
 import { Settings } from './src/components/Settings';
 import { saveAppSettingsToDb } from './src/db/settings';
 import { Score } from './src/components/Score';
+import { TaskEditor } from './src/components/TaskEditor';
 
 console.log('Hermes?', (global as any).HermesInternal != null);
 
-export type TPages = 'main' | 'score' | 'settings';
+export type TPages = 'main' | 'score' | 'task' | 'settings';
 type AppContextType = {
   setCurrPage: (page: TPages) => void | Promise<void>;
 };
@@ -23,6 +24,7 @@ type AppRoute = {
 const APP_ROUTES: AppRoute[] = [
   { key: 'main', title: 'Trainer', focusedIcon: 'account-voice' },
   { key: 'score', title: 'Score', focusedIcon: 'chart-bar' },
+  { key: 'task', title: 'Task', focusedIcon: 'playlist-edit' },
   { key: 'settings', title: 'Settings', focusedIcon: 'cog-outline' },
 ];
 
@@ -51,7 +53,7 @@ export default function App() {
       return;
     }
 
-    if (currPage === 'settings') {
+    if (currPage === 'settings' || currPage === 'task') {
       try {
         await saveAppSettingsToDb();
       } catch (err) {
@@ -95,6 +97,8 @@ export default function App() {
                   return <SpeechTrainerPhrase />;
                 case 'score':
                   return <Score />;
+                case 'task':
+                  return <TaskEditor />;
                 case 'settings':
                   return <Settings />;
                 default:

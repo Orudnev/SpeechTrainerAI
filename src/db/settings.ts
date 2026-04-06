@@ -8,10 +8,11 @@ export type TSettingName =
   | 'reverseMode'
   | 'rowsCloudDataSource'
   | 'selectedTopics'
-  | 'groupingPeriod'
-  | 'groupingScope' // phrase|current topic|all selected topics
+  | 'groupingPeriod' 
+  | 'groupingScope' // phrase|current topic|all selected topics  grouping for statistics diagram
+  | 'taskList'
+  | 'selectedTask'
 export type TServiceCommandName = 'downloadRowsFromCloud' | 'uploadRowsToCloud';
-
 
 
 export type TsettingsItem = {
@@ -57,6 +58,14 @@ export const AppSettings: TsettingsItem[] = [
     defaultValue: 'Phrase',
     needAdvancedRights: false
   },
+  {
+    name: 'taskList',
+    defaultValue: ['Default Task'] as string[],
+  },
+  {
+    name: 'selectedTask',
+    defaultValue: 'Default Task',
+  }
 ];
 
 function getAppSettingOrFail(name: TSettingName): TsettingsItem {

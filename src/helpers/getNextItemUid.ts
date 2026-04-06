@@ -27,6 +27,10 @@ function isOverdue(item: SpItem, isReverse: boolean, now: number) {
   return now >= getTs(item, isReverse) + getInterval(item, isReverse);
 }
 
+function isFresh(item: SpItem, isReverse: boolean) {
+  return getInterval(item, isReverse) <= minItemInterval;
+}
+
 function isSoon(item: SpItem, isReverse: boolean, now: number, limit: number) {
   const interval = getInterval(item, isReverse);
   if (interval <= minItemInterval) return false;
@@ -61,57 +65,54 @@ export function getSoonRangeTs(ts: number, dayCount: number = 1): number {
   return date.getTime();
 }
 
-export type TaskItem = Pick<SpItem, "uid" | "q" | "a"> & {
+export type TItemType = "overdue" | "fresh" | "other";
+
+export type TaskDisplayItem = Pick<SpItem, "uid" | "a"> & {
   mss: number;
-  itmType: "overdue" | "fresh" | "other";
+  itmType: TItemType;
 };
+
+export function getItemType(item: SpItem, isReverse: boolean, now: number): TItemType {
+  if (isOverdue(item, isReverse, now)) return "overdue";
+  if (isFresh(item, isReverse)) return "fresh";
+  return "other";
+}
+
+export function convertToTaskDisplayItem(item: SpItem, isReverse: boolean, now: number): TaskDisplayItem {
+  const result = { ...item, mss: Math.round((MSS(item, isReverse)*100))/100, itmType: getItemType(item, isReverse, now) };
+  return result;
+}
+
 
 export function CreateTask(
   items: SpItem[],
   plannedDayItemCount: number,
   maxFreshItemCount: number,
   isReverse = false,
-): TaskItem[] {
+): SpItem[] {
   const now = Date.now();
-  const toTaskItemEntry = (
-    item: SpItem,
-    itmType: TaskItem["itmType"],
-  ) => {
-    const mss = MSS(item, isReverse);
-    return {
-      uid: item.uid,
-      ts: getTs(item, isReverse),
-      taskItem: {
-        uid: item.uid,
-        q: item.q,
-        a: item.a,
-        mss,
-        itmType,
-      } satisfies TaskItem,
-    };
-  };
 
   const overdue = items
-    .filter((item) => isOverdue(item, isReverse, now))
-    .map((item) => toTaskItemEntry(item, "overdue"));
+    .filter((item) => isOverdue(item, isReverse, now));
 
   const fresh = items
-    .filter((item) => getInterval(item, isReverse) <= minItemInterval)
+    .filter((item) => isFresh(item, isReverse))
     .sort((a, b) => compareByMssAndTs(a, b, isReverse))
-    .slice(0, Math.max(0, maxFreshItemCount))
-    .map((item) => toTaskItemEntry(item, "fresh"));
+    .slice(0, Math.max(0, maxFreshItemCount));
 
   const other = items
-    .filter((item) => !overdue.some((itmo)=>itmo.uid === item.uid) && !fresh.some((itmf)=>itmf.uid === item.uid))
-    .map((item) => toTaskItemEntry(item, "other")).filter(item => item.taskItem.mss > 0);
+    .filter((item) => getItemType(item, isReverse, now) === "other")
+    .filter(item => getCorrect(item, isReverse) > 0);
 
-  const cmpTypes = (a: TaskItem, b: TaskItem) => {
+  const cmpTypes = (a: SpItem, b: SpItem) => {
     const typePriority = {
       overdue: 0,
       fresh: 1,
       other: 2,
     };
-    const priorityDiff = typePriority[a.itmType] - typePriority[b.itmType];
+    const typeA = getItemType(a, isReverse, now);
+    const typeB = getItemType(b, isReverse, now);
+    const priorityDiff = typePriority[typeA] - typePriority[typeB];
     return priorityDiff;
   };
 
@@ -120,16 +121,19 @@ export function CreateTask(
       array.findIndex((candidate) => candidate.uid === item.uid) === index
     )
     .sort((a, b) => {
-      const typeDiff = cmpTypes(a.taskItem, b.taskItem);
-      if (typeDiff !== 0) return typeDiff;      
-      const mssDiff = a.taskItem.mss - b.taskItem.mss;
+      const typeDiff = cmpTypes(a, b);
+      if (typeDiff !== 0) return typeDiff;
+      const mssA = MSS(a, isReverse);
+      const mssB = MSS(b, isReverse);
+      const mssDiff = mssA - mssB;
       if (mssDiff !== 0) return mssDiff;
-      return a.ts - b.ts;
+      const ats = getTs(a, isReverse);
+      const bts = getTs(b, isReverse);
+      return ats - bts;
     });
-  
+
   return result
-    .slice(0, Math.max(0, plannedDayItemCount))
-    .map((item) => item.taskItem);
+    .slice(0, Math.max(0, plannedDayItemCount));    
 }
 
 function wasShownToday(item: SpItem, isReverse: boolean, now: number) {

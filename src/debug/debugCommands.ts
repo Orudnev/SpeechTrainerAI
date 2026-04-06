@@ -16,7 +16,7 @@ import { ReceiveAllRowsFromCloud, SendDatabaseToCloud } from "../helpers/webApiW
 import { AsrService } from "../speech/asr/AsrService";
 import { dataRows } from "./testPhraseData";
 import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
-import { CreateTask } from "../helpers/getNextItemUid";
+import { convertToTaskDisplayItem, CreateTask } from "../helpers/getNextItemUid";
 
 export async function dropPhrasesTable() {
   const db = await openSpeechDb();
@@ -142,8 +142,8 @@ export async function getSelTopicItems(): Promise<SpItem[]> {
 
 export async function test(){
   const selTopicItems = await getSelTopicItems();
-  const taskItems = CreateTask(selTopicItems, 30,10,false);
-  printObjectArray(taskItems.map((r,idx) => ({idx:idx+1, uid: r.uid,  q: r.q, mss: r.mss, itmType: r.itmType })));
+  const taskItems = CreateTask(selTopicItems, 300,10,false).map(item => convertToTaskDisplayItem(item, false, Date.now()));
+  printObjectArray(taskItems.map((r,idx) => ({idx:idx+1, uid: r.uid,  q: r.a, mss: r.mss, itmType: r.itmType })));
 }
 
 
