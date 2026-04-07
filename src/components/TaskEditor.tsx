@@ -185,6 +185,30 @@ export function TaskEditor() {
     const maxFreshItemCountInputRef = useRef(0);
     const isLoadedRef = useRef(false);
 
+    function syncTaskSettings(nextTaskList: LearnTask[], nextSelectedTask: string) {
+        setAppSettingValue('taskList', nextTaskList);
+        setAppSettingValue('selectedTask', nextSelectedTask);
+    }
+
+    function persistTaskSettings(nextTaskList: LearnTask[], nextSelectedTask: string) {
+        syncTaskSettings(nextTaskList, nextSelectedTask);
+        void saveAppSettingsToDb().catch(err => {
+            console.warn('Failed to save task editor settings', err);
+        });
+    }
+
+    async function persistTaskSettingsAndWait(
+        nextTaskList: LearnTask[],
+        nextSelectedTask: string,
+    ) {
+        syncTaskSettings(nextTaskList, nextSelectedTask);
+        try {
+            await saveAppSettingsToDb();
+        } catch (err) {
+            console.warn('Failed to save task editor settings', err);
+        }
+    }
+
     useEffect(() => {
         async function load() {
             await initSpeechDb();
@@ -244,6 +268,7 @@ export function TaskEditor() {
             );
             setTaskList(nextTaskList);
             taskListRef.current = nextTaskList;
+            syncTaskSettings(nextTaskList, loadedSelectedTask);
             setTableData(
                 initialTaskItems.map(item => convertToTaskDisplayItem(item, false, Date.now())),
             );
@@ -266,11 +291,7 @@ export function TaskEditor() {
                 plannedDayItemCountInputRef.current,
                 maxFreshItemCountInputRef.current,
             );
-            setAppSettingValue('taskList', committedTaskList);
-            setAppSettingValue('selectedTask', selectedTaskRef.current);
-            void saveAppSettingsToDb().catch(err => {
-                console.warn('Failed to save task editor settings', err);
-            });
+            persistTaskSettings(committedTaskList, selectedTaskRef.current);
         };
     }, []);
 
@@ -329,6 +350,7 @@ export function TaskEditor() {
 
         setTaskList(nextTaskList);
         taskListRef.current = nextTaskList;
+        syncTaskSettings(nextTaskList, selectedTaskRef.current);
         const nextCurrentTask = nextTaskList.find(task => task.name === nextSelectedTaskName);
         const nextSelectedTopics = [...(nextCurrentTask?.selectedTopics ?? [])];
         const nextPlanned = nextCurrentTask?.plannedDayItemCount ?? 0;
@@ -362,6 +384,7 @@ export function TaskEditor() {
         );
         setTaskList(nextTaskList);
         taskListRef.current = nextTaskList;
+        persistTaskSettings(nextTaskList, selectedTaskRef.current);
         setIsPreviewDirty(false);
     }
 
@@ -391,6 +414,7 @@ export function TaskEditor() {
         );
         setTaskList(nextTaskList);
         taskListRef.current = nextTaskList;
+        syncTaskSettings(nextTaskList, taskName);
         setIsPreviewDirty(false);
     }
 
@@ -421,6 +445,7 @@ export function TaskEditor() {
         taskListRef.current = nextTaskList;
         setSelectedTask(trimmedTaskName);
         selectedTaskRef.current = trimmedTaskName;
+        persistTaskSettings(nextTaskList, trimmedTaskName);
         setShowSaveAs(false);
         setNewTaskName('');
         setSaveAsError('');
@@ -461,10 +486,14 @@ export function TaskEditor() {
                             labelField="label"
                             valueField="value"
                             value={selectedTask}
-                            onChange={item => {
+                            onChange={async item => {
                                 commitCurrentTaskDraft(item.value);
                                 setSelectedTask(item.value);
                                 selectedTaskRef.current = item.value;
+                                await persistTaskSettingsAndWait(
+                                    taskListRef.current,
+                                    item.value,
+                                );
                                 const nextTask = taskListRef.current.find(
                                     task => task.name === item.value,
                                 );
