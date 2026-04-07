@@ -52,7 +52,7 @@ export function Score() {
         return;
       }
 
-      const currTask = getItemUid(data,'current');
+      const currTask = getItemUid('current');
       const currItemUid = GetLearnTaskUid(currTask,reverseMode);
       const initialIndex = currItemUid
         ? data.findIndex(item => item.uid === currItemUid)

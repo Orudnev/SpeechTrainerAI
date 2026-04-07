@@ -165,7 +165,6 @@ function wasShownToday(item: SpItem, isReverse: boolean, now: number) {
 }
 
 export function getItemUid(
-  allItems: SpItem[],
   itmKind: 'next'|'current'
 ): LearnTask {
   const isReverse = getAppSettingValue<boolean>('reverseMode');

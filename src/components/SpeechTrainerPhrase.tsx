@@ -34,7 +34,7 @@ import { VariantPicker } from './VariantPicker';
 import Toolbar from './Toolbar';
 import { Appbar, FAB, Portal, Modal } from 'react-native-paper';
 import { AppContext } from '../../App';
-import { getAppSettingValue, getSelectedTaskTopics, loadAppSettingsFromDb } from '../db/settings';
+import { getAppSettingValue, loadAppSettingsFromDb } from '../db/settings';
 import { getItemUid, GetLearnTaskUid, LearnTask } from '../helpers/getNextItemUid';
 import { buildResultUpdate } from '../helpers/buildResultUpdate';
 import { getAsrEngineId } from '../speech/asr/AsrService';
@@ -49,6 +49,19 @@ export type VariantStat = {
   text: string;
   count: number;
 };
+
+function getTaskItemIndex(
+  allItems: SpItem[],
+  task: LearnTask,
+  isReverse: boolean,
+) {
+  const itemUid = GetLearnTaskUid(task, isReverse);
+  if (!itemUid) {
+    return -1;
+  }
+
+  return allItems.findIndex(item => item.uid === itemUid);
+}
 
 
 
@@ -132,29 +145,17 @@ export default function SpeechTrainerPhrase() {
         console.warn('Failed to load app settings', err);
       });
 
-      const selectedTopics = getSelectedTaskTopics();
-      console.log(`Selected topics:${selectedTopics}`);
-      const data = (await loadAllPhrases()).filter(item => {
-        if (!item.topic) {
-          return false;
-        }
-        if (selectedTopics.length > 0) {
-          let result = selectedTopics.includes(item.topic);
-          return result;
-        }
-        return true;
-      });
+      const data = await loadAllPhrases();
       if (data.length === 0) {
         setItems(data);
         setPhraseIndex(0);
         return;
       }
 
-      const currTask = getItemUid(data, "current");
+      const currTask = getItemUid("current");
       updateCounterText(currTask);
-      const currItemUid = GetLearnTaskUid(currTask,reverseMode);
-      const initialIndex = data.findIndex(itm => itm.uid == currItemUid)
       setItems(data);
+      const initialIndex = getTaskItemIndex(data, currTask, reverseMode);
       setPhraseIndex(initialIndex);
 
     }
@@ -347,16 +348,9 @@ export default function SpeechTrainerPhrase() {
       // );
 
       setListeningStartedAt(null);
-      const currTask = getItemUid(updatedItems, 'next');
+      const currTask = getItemUid('next');
       updateCounterText(currTask);
-      const currItemUid = GetLearnTaskUid(currTask,reverseMode);
-      
-      // if (!nextItemUid) {
-      //   setPhase('idle');
-      //   return;
-      // }
-      
-      const nextIndex = updatedItems.findIndex(itm => itm.uid == currItemUid);
+      const nextIndex = getTaskItemIndex(updatedItems, currTask, reverseMode);
       if (nextIndex < 0) {
         setPhase('idle');
         return;
@@ -439,18 +433,9 @@ export default function SpeechTrainerPhrase() {
     //   rawItem.uid,
     //   reverseMode,
     // );
-    const currTask = getItemUid(items, 'next');
+    const currTask = getItemUid('next');
     updateCounterText(currTask);
-    const currItemUid = GetLearnTaskUid(currTask,reverseMode);
-      
-
-    // if (!nextItemUid) {
-    //   setListeningStartedAt(null);
-    //   setPhase('idle');
-    //   return;
-    // }
-
-    const nextIndex = items.findIndex(itm => itm.uid == currItemUid);
+    const nextIndex = getTaskItemIndex(items, currTask, reverseMode);
     if (nextIndex < 0) {
       setListeningStartedAt(null);
       setPhase('idle');
