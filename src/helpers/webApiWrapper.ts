@@ -1,7 +1,21 @@
+import { AppSettings } from "../db/settings";
 import { loadAllPhrases, SpItem } from "../db/speechDb";
-const API_URL = "https://script.google.com/macros/s/AKfycbyCiPQi9eP1PvwKwaG1WgkExegwo89uTANlcewPxvVCg0cbH9Zmdj4hAwe0O26K_C1-jQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwBXGOkKmUKYpnUywHlYvT9eK8e2-KZ6ys34VhLHkatjqcX3LF2fjs4OfOV4TcMPqsp8w/exec";
 
 
+async function backupSettings(){ 
+  const response = await fetch(API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      methodName: "BackupSettings",
+      payload: AppSettings
+    }),
+  });
+  
+}
 
 
 export async function SendDatabaseToCloud(Payload: any) {
@@ -22,6 +36,7 @@ export async function SendDatabaseToCloud(Payload: any) {
 
   const data = await response.json();
   console.log(data);
+  backupSettings();
 }
 
 export async function ReceiveAllRowsFromCloud() {
