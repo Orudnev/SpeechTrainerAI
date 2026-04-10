@@ -13,6 +13,7 @@ console.log('Hermes?', (global as any).HermesInternal != null);
 
 export type TPages = 'main' | 'score' | 'task' | 'settings';
 type AppContextType = {
+  currPage: TPages;
   setCurrPage: (page: TPages) => void | Promise<void>;
 };
 type AppRoute = {
@@ -66,7 +67,7 @@ export default function App() {
 
   return (
     <PaperProvider theme={MD3DarkTheme}>
-      <AppContext.Provider value={{ setCurrPage: handlePageChange }}>
+      <AppContext.Provider value={{ currPage, setCurrPage: handlePageChange }}>
         <View
           style={{
             flex: 1,

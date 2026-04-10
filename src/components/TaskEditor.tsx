@@ -186,6 +186,11 @@ export function TaskEditor() {
     const isLoadedRef = useRef(false);
 
     function syncTaskSettings(nextTaskList: LearnTask[], nextSelectedTask: string) {
+        let nextTask = nextTaskList.find(task => task.name === nextSelectedTask);
+        if (nextTask) {
+            nextTask.indf = 0; 
+            nextTask.indr = 0;
+        }
         setAppSettingValue('taskList', nextTaskList);
         setAppSettingValue('selectedTask', nextSelectedTask);
     }
@@ -195,6 +200,18 @@ export function TaskEditor() {
         void saveAppSettingsToDb().catch(err => {
             console.warn('Failed to save task editor settings', err);
         });
+    }
+
+    function formatScheduledTime(date: Date): string {
+        if (!(date instanceof Date) || isNaN(date.getTime())) {
+            throw new Error('Параметр должен быть валидной датой');
+        }
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const dayMonth = date.getDate().toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${day}.${month} ${hours}:${minutes}`;
     }
 
     async function persistTaskSettingsAndWait(
@@ -241,7 +258,7 @@ export function TaskEditor() {
                 `SELECT DISTINCT topic FROM phrases ORDER BY topic;`,
             );
             const loadedItems = await loadAllPhrases();
- 
+
             const dbTopics: string[] = [];
             for (let i = 0; i < res[0].rows.length; i++) {
                 const row = res[0].rows.item(i);
@@ -435,8 +452,8 @@ export function TaskEditor() {
             selectedTopics: [...selectedTopicsRef.current],
             plannedDayItemCount: plannedDayItemCountInputRef.current,
             maxFreshItemCount: maxFreshItemCountInputRef.current,
-            indf:0,
-            indr:0,
+            indf: 0,
+            indr: 0,
             itemUids: [...(currentTask?.itemUids ?? [])],
         };
         const nextTaskList = [...taskListRef.current, nextTask];
@@ -588,6 +605,9 @@ export function TaskEditor() {
                                             <View style={[styles.typeColumn, styles.cellBox]}>
                                                 <Text style={styles.headerTextLeft}>itmType</Text>
                                             </View>
+                                            <View style={[styles.typeColumn, styles.cellBox]}>
+                                                <Text style={styles.headerTextLeft}>schedule</Text>
+                                            </View>
                                         </View>
                                         {tableData.map((item, index) => (
                                             <View key={item.uid} style={styles.gridRow}>
@@ -614,6 +634,11 @@ export function TaskEditor() {
                                                 <View style={[styles.typeColumn, styles.cellBox]}>
                                                     <Text style={styles.cellTextLeft}>
                                                         {item.itmType}
+                                                    </Text>
+                                                </View>
+                                                <View style={[styles.schdTimeColumn, styles.cellBox]}>
+                                                    <Text style={styles.cellTextLeft}>
+                                                        {formatScheduledTime(item.scheduledTime)}
                                                     </Text>
                                                 </View>
                                             </View>
@@ -768,6 +793,11 @@ const styles = StyleSheet.create({
     },
     typeColumn: {
         width: 60,
+        paddingLeft: 0,
+        paddingRight: 0,
+    },
+    schdTimeColumn: {
+        width: 160,
         paddingLeft: 0,
         paddingRight: 0,
     },

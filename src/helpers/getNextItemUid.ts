@@ -68,9 +68,10 @@ export function getSoonRangeTs(ts: number, dayCount: number = 1): number {
 
 export type TItemType = "overdue" | "fresh" | "other";
 
-export type TaskDisplayItem = Pick<SpItem, "uid" | "a"> & {
+export type TaskDisplayItem = Pick<SpItem, "uid" | "a"  > & {
   mss: number;
   itmType: TItemType;
+  scheduledTime:Date;
 };
 
 export type LearnTask = {
@@ -96,7 +97,7 @@ export function getItemType(item: SpItem, isReverse: boolean, now: number): TIte
 }
 
 export function convertToTaskDisplayItem(item: SpItem, isReverse: boolean, now: number): TaskDisplayItem {
-  const result = { ...item, mss: Math.round((MSS(item, isReverse) * 100)) / 100, itmType: getItemType(item, isReverse, now) };
+  const result = { ...item, mss: Math.round((MSS(item, isReverse) * 100)) / 100, itmType: getItemType(item, isReverse, now), scheduledTime: new Date(getTs(item, isReverse) + getInterval(item, isReverse)) };
   return result;
 }
 
