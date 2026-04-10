@@ -86,6 +86,19 @@ export default function SpeechTrainerPhrase() {
     setCounterText(`${reverseMode?task.indr+1:task.indf+1}/${task.itemUids.length}`);
   };
   
+  function syncCurrentTaskItem(nextItems: SpItem[]) {
+    const currTask = getItemUid('current');
+    updateCounterText(currTask);
+
+    if (nextItems.length === 0) {
+      setPhraseIndex(0);
+      return;
+    }
+
+    const nextIndex = getTaskItemIndex(nextItems, currTask, reverseMode);
+    setPhraseIndex(nextIndex >= 0 ? nextIndex : 0);
+  }
+  
   // ============================================================
   // ASR integration (SINGLE SOURCE)
   // ============================================================
@@ -152,16 +165,21 @@ export default function SpeechTrainerPhrase() {
         return;
       }
 
-      const currTask = getItemUid("current");
-      updateCounterText(currTask);
       setItems(data);
-      const initialIndex = getTaskItemIndex(data, currTask, reverseMode);
-      setPhraseIndex(initialIndex);
+      syncCurrentTaskItem(data);
 
     }
 
     load();
   }, []);
+
+  useEffect(() => {
+    if (ctx?.currPage !== 'main' || items.length === 0) {
+      return;
+    }
+
+    syncCurrentTaskItem(items);
+  }, [ctx?.currPage, items, reverseMode]);
 
   // ============================================================
   // TTS ready
