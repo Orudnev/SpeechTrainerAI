@@ -380,12 +380,17 @@ export function TaskEditor() {
         maxFreshItemCountInputRef.current = nextFresh;
     }
 
-    function applyTaskPreview() {
+    function refreshTaskPreview(
+        nextSelectedTopics: string[] = selectedTopicsRef.current,
+        nextPlannedDayItemCount: number = plannedDayItemCountInputRef.current,
+        nextMaxFreshItemCount: number = maxFreshItemCountInputRef.current,
+        taskName: string = selectedTaskRef.current,
+    ) {
         const nextTaskItems = buildTaskItems(
             allItems,
-            selectedTopics,
-            plannedDayItemCountInputRef.current,
-            maxFreshItemCountInputRef.current,
+            nextSelectedTopics,
+            nextPlannedDayItemCount,
+            nextMaxFreshItemCount,
             isReverse,
         );
         setTableData(
@@ -393,16 +398,20 @@ export function TaskEditor() {
         );
         const nextTaskList = applyTaskFieldDrafts(
             taskListRef.current,
-            selectedTaskRef.current,
-            selectedTopicsRef.current,
-            plannedDayItemCountInputRef.current,
-            maxFreshItemCountInputRef.current,
+            taskName,
+            nextSelectedTopics,
+            nextPlannedDayItemCount,
+            nextMaxFreshItemCount,
             nextTaskItems.map(item => item.uid),
         );
         setTaskList(nextTaskList);
         taskListRef.current = nextTaskList;
-        persistTaskSettings(nextTaskList, selectedTaskRef.current);
+        persistTaskSettings(nextTaskList, taskName);
         setIsPreviewDirty(false);
+    }
+
+    function applyTaskPreview() {
+        refreshTaskPreview(selectedTopics, plannedDayItemCountInputRef.current, maxFreshItemCountInputRef.current);
     }
 
     function applyTaskPreviewForValues(
@@ -563,6 +572,11 @@ export function TaskEditor() {
                                             setSaveAsError('');
                                         }}>
                                         Save as
+                                    </Button>
+                                    <Button
+                                        mode="outlined"
+                                        onPress={() => refreshTaskPreview()}>
+                                        Refresh
                                     </Button>
                                 </View>
                                 {showSaveAs && (
