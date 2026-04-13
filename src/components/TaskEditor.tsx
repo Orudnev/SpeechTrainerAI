@@ -192,7 +192,7 @@ export function TaskEditor() {
             nextTask.indr = 0;
         }
         setAppSettingValue('taskList', nextTaskList);
-        setAppSettingValue('selectedTask', nextSelectedTask);
+        setAppSettingValue('selectedTaskName', nextSelectedTask);
     }
 
     function persistTaskSettings(nextTaskList: LearnTask[], nextSelectedTask: string) {
@@ -232,7 +232,7 @@ export function TaskEditor() {
             await loadAppSettingsFromDb();
             const loadedTaskList = getAppSettingValue<LearnTask[]>('taskList');
             const loadedSelectedTask =
-                getAppSettingValue<string>('selectedTask') || 'Default Task';
+                getAppSettingValue<string>('selectedTaskName') || 'Default Task';
             const loadedReverseMode = getAppSettingValue<boolean>('reverseMode');
             const loadedCurrentTask = loadedTaskList.find(
                 task => task.name === loadedSelectedTask,
@@ -841,3 +841,4 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
 });
+

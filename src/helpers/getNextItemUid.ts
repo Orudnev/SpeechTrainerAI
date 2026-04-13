@@ -170,7 +170,7 @@ export function getItemUid(
 ): LearnTask {
   const isReverse = getAppSettingValue<boolean>('reverseMode');
   const taskList = getAppSettingValue<LearnTask[]>('taskList');
-  const selectedTaskName = getAppSettingValue<string>('selectedTask')
+  const selectedTaskName = getAppSettingValue<string>('selectedTaskName')
   const selectedTaskData = taskList.find(t => t.name === selectedTaskName);
   if (!selectedTaskData) {
     throw Error(`Task ${selectedTaskName} not found`);
@@ -196,3 +196,4 @@ export function getItemUid(
   }
   return selectedTaskData;
 }
+

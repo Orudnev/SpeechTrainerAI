@@ -11,7 +11,7 @@ export type TSettingName =
   | 'groupingPeriod' 
   | 'groupingScope' // phrase|current topic|all selected topics  grouping for statistics diagram
   | 'taskList'
-  | 'selectedTask'
+  | 'selectedTaskName'
 export type TServiceCommandName = 'downloadRowsFromCloud' | 'uploadRowsToCloud';
 
 
@@ -67,7 +67,7 @@ export const AppSettings: TsettingsItem[] = [
     }] as LearnTask [],
   },
   {
-    name: 'selectedTask',
+    name: 'selectedTaskName',
     defaultValue: 'Default Task',
   }
 ];
@@ -157,9 +157,9 @@ function applySettingsFromObject(payload: Record<string, any>) {
       continue;
     }
 
-    if (item.name === 'selectedTask') {
+    if (item.name === 'selectedTaskName') {
       item.value = normalizeSelectedTask(
-        payload.selectedTask,
+        payload.selectedTaskName ?? payload.selectedTask,
         taskList,
         item.defaultValue,
       );
@@ -204,7 +204,7 @@ export function getAppSettingValue<T = any>(name: TSettingName): T {
 }
 
 export function getSelectedTask():LearnTask|undefined{
-  const selTaskName = getAppSettingValue<string>('selectedTask');
+  const selTaskName = getAppSettingValue<string>('selectedTaskName');
   const selTaskData = getAppSettingValue<LearnTask[]>('taskList').find(t=>t.name === selTaskName);
   if(selTaskData){
     return selTaskData;
@@ -232,7 +232,7 @@ function buildSettingsObjectFromMemory(): Record<TSettingName, any> {
       continue;
     }
 
-    if (item.name === 'selectedTask') {
+    if (item.name === 'selectedTaskName') {
       nextPayload[item.name] = normalizeSelectedTask(
         item.value,
         normalizedTaskList,
@@ -286,7 +286,8 @@ export async function saveAppSettingsToDb() {
 
 export function getSelectedTaskTopics(): string[] {
   const taskList = getAppSettingValue<LearnTask[]>('taskList');
-  const selectedTask = getAppSettingValue<string>('selectedTask');
+  const selectedTask = getAppSettingValue<string>('selectedTaskName');
   const currentTask = taskList.find(task => task.name === selectedTask);
   return currentTask?.selectedTopics ?? [];
 }
+
