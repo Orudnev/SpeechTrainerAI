@@ -182,6 +182,11 @@ function TaskSlider({
   onComplete,
 }: TaskSliderProps) {
   const [trackWidth, setTrackWidth] = useState(0);
+  const [localValue, setLocalValue] = useState(value);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
 
   const panResponder = useMemo(() => {
     function updateValue(locationX: number) {
@@ -192,7 +197,7 @@ function TaskSlider({
       const ratio = clampSliderValue(locationX / trackWidth, 0, 1);
       const rawValue = min + ratio * (max - min);
       const steppedValue = Math.round(rawValue / step) * step;
-      onChange(clampSliderValue(steppedValue, min, max));
+      setLocalValue(clampSliderValue(steppedValue, min, max));
     }
 
     return PanResponder.create({
@@ -205,25 +210,27 @@ function TaskSlider({
         updateValue(event.nativeEvent.locationX);
       },
       onPanResponderRelease: () => {
+        onChange(localValue);
         onComplete?.();
       },
       onPanResponderTerminate: () => {
+        onChange(localValue);
         onComplete?.();
       },
     });
-  }, [max, min, onChange, onComplete, step, trackWidth]);
+  }, [localValue, max, min, onChange, onComplete, step, trackWidth]);
 
   function handleTrackLayout(event: LayoutChangeEvent) {
     setTrackWidth(event.nativeEvent.layout.width);
   }
 
-  const ratio = max === min ? 0 : (value - min) / (max - min);
+  const ratio = max === min ? 0 : (localValue - min) / (max - min);
 
   return (
     <View style={styles.sliderBlock}>
       <View style={styles.sliderHeader}>
         <Text style={styles.sliderLabel}>{label}</Text>
-        <Text style={styles.sliderValue}>{value}</Text>
+        <Text style={styles.sliderValue}>{localValue}</Text>
       </View>
       <View
         style={styles.sliderTouchArea}
@@ -466,8 +473,9 @@ export function TaskEditor() {
     }
   }
 
-  async function refreshTaskPreview() {
+  async function reloadTaskPreview() {
     try {
+      setIsPreviewDirty(false);  
       const loadedSettings = await loadTaskEditorSettingsFromAppSettings();
       setSelectedTaskName(loadedSettings.selectedTaskName);
       selectedTaskNameRef.current = loadedSettings.selectedTaskName;
@@ -489,7 +497,7 @@ export function TaskEditor() {
       );
       applyLocalTaskState(resetTaskList, calculatedState.tableData);
       syncCurrentTaskInputs(resetTaskList, loadedSettings.selectedTaskName);
-      setIsPreviewDirty(true);
+      setIsPreviewDirty(false);
     } catch (err) {
       console.warn('Failed to refresh task editor settings', err);
     }
@@ -623,14 +631,14 @@ export function TaskEditor() {
                   <Button
                     mode="outlined"
                     onPress={() => {
-                      refreshTaskPreview().catch(err => {
+                      reloadTaskPreview().catch(err => {
                         console.warn(
-                          'Failed to refresh task editor settings',
+                          'Failed to reload task editor settings',
                           err,
                         );
                       });
                     }}>
-                    Refresh
+                    Reload
                   </Button>
                 </View>
                 {showSaveAs && (
