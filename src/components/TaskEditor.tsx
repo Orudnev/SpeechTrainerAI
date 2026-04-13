@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     PanResponder,
     ScrollView,
@@ -169,7 +169,7 @@ export function TaskEditor() {
     const [allItems, setAllItems] = useState<SpItem[]>([]);
     const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
     const [taskList, setTaskList] = useState<LearnTask[]>([]);
-    const [selectedTask, setSelectedTask] = useState('Default Task');
+    const [selectedTaskName, setSelectedTaskName] = useState('Default Task');
     const [plannedDayItemCountInput, setPlannedDayItemCountInput] = useState(0);
     const [maxFreshItemCountInput, setMaxFreshItemCountInput] = useState(0);
     const [tableData, setTableData] = useState<TaskDisplayItem[]>([]);
@@ -241,7 +241,7 @@ export function TaskEditor() {
 
             setSelectedTopics(loadedSelectedTopics);
             setTaskList(loadedTaskList);
-            setSelectedTask(loadedSelectedTask);
+            setSelectedTaskName(loadedSelectedTask);
             setIsReverse(loadedReverseMode);
             setPlannedDayItemCountInput(loadedCurrentTask?.plannedDayItemCount ?? 0);
             setMaxFreshItemCountInput(loadedCurrentTask?.maxFreshItemCount ?? 0);
@@ -313,7 +313,7 @@ export function TaskEditor() {
     }, []);
 
     const selectedTopicsSet = new Set(selectedTopics);
-    const currentTask = taskList.find(task => task.name === selectedTask);
+    const currentTask = taskList.find(task => task.name === selectedTaskName);
     const taskOptions = useMemo(
         () =>
             taskList.map(task => ({
@@ -355,7 +355,7 @@ export function TaskEditor() {
     }
 
     function commitCurrentTaskDraft(
-        nextSelectedTaskName: string = selectedTask,
+        nextSelectedTaskName: string = selectedTaskName,
     ) {
         const nextTaskList = applyTaskFieldDrafts(
             taskListRef.current,
@@ -469,7 +469,7 @@ export function TaskEditor() {
 
         setTaskList(nextTaskList);
         taskListRef.current = nextTaskList;
-        setSelectedTask(trimmedTaskName);
+        setSelectedTaskName(trimmedTaskName);
         selectedTaskRef.current = trimmedTaskName;
         persistTaskSettings(nextTaskList, trimmedTaskName);
         setShowSaveAs(false);
@@ -511,10 +511,10 @@ export function TaskEditor() {
                             data={taskOptions}
                             labelField="label"
                             valueField="value"
-                            value={selectedTask}
+                            value={selectedTaskName}
                             onChange={async item => {
                                 commitCurrentTaskDraft(item.value);
-                                setSelectedTask(item.value);
+                                setSelectedTaskName(item.value);
                                 selectedTaskRef.current = item.value;
                                 await persistTaskSettingsAndWait(
                                     taskListRef.current,
