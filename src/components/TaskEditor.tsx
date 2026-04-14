@@ -142,7 +142,7 @@ function calculateTaskEditorTableData(
 
   return {
     tableData: nextTaskItems.map(item =>
-      convertToTaskDisplayItem(item, false, Date.now()),
+      convertToTaskDisplayItem(item, isReverse, Date.now()),
     ),
     taskList: nextTaskList,
   };

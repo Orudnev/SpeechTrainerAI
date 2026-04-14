@@ -136,6 +136,7 @@ export function CreateTask(
 
   const result = [...overdue, ...fresh, ...other]
     .filter((item, index, array) =>
+      //удаление дубликатов по полю uid (на всякий cлучай )
       array.findIndex((candidate) => candidate.uid === item.uid) === index
     )
     .sort((a, b) => {
@@ -144,7 +145,9 @@ export function CreateTask(
       const mssA = MSS(a, isReverse);
       const mssB = MSS(b, isReverse);
       const mssDiff = mssA - mssB;
-      if (mssDiff !== 0) return mssDiff;
+      if (mssDiff !== 0) {
+        return mssDiff;
+      }
       const ats = getTs(a, isReverse);
       const bts = getTs(b, isReverse);
       return ats - bts;
