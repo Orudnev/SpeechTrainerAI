@@ -476,6 +476,8 @@ export function TaskEditor() {
   async function reloadTaskPreview() {
     try {
       setIsPreviewDirty(false);  
+      const loadedItems = await loadAllPhrases();
+      setAllItems(loadedItems);
       const loadedSettings = await loadTaskEditorSettingsFromAppSettings();
       setSelectedTaskName(loadedSettings.selectedTaskName);
       selectedTaskNameRef.current = loadedSettings.selectedTaskName;
