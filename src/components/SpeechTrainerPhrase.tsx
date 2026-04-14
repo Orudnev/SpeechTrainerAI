@@ -34,7 +34,11 @@ import { VariantPicker } from './VariantPicker';
 import Toolbar from './Toolbar';
 import { Appbar, FAB, Portal, Modal } from 'react-native-paper';
 import { AppContext } from '../../App';
-import { getAppSettingValue, loadAppSettingsFromDb } from '../db/settings';
+import {
+  getAppSettingValue,
+  loadAppSettingsFromDb,
+  saveAppSettingsToDb,
+} from '../db/settings';
 import { getItemUid, GetLearnTaskUid, LearnTask } from '../helpers/getNextItemUid';
 import { buildResultUpdate } from '../helpers/buildResultUpdate';
 import { getAsrEngineId } from '../speech/asr/AsrService';
@@ -367,6 +371,9 @@ export default function SpeechTrainerPhrase() {
 
       setListeningStartedAt(null);
       const currTask = getItemUid('next');
+      await saveAppSettingsToDb().catch(err => {
+        console.warn('Failed to persist task progress', err);
+      });
       updateCounterText(currTask);
       const nextIndex = getTaskItemIndex(updatedItems, currTask, reverseMode);
       if (nextIndex < 0) {
@@ -438,7 +445,7 @@ export default function SpeechTrainerPhrase() {
     }
   }
 
-  function handleNextPhrasePress() {
+  async function handleNextPhrasePress() {
     if (!hasData) return;
 
     if (!rawItem) {
@@ -452,6 +459,9 @@ export default function SpeechTrainerPhrase() {
     //   reverseMode,
     // );
     const currTask = getItemUid('next');
+    await saveAppSettingsToDb().catch(err => {
+      console.warn('Failed to persist task progress', err);
+    });
     updateCounterText(currTask);
     const nextIndex = getTaskItemIndex(items, currTask, reverseMode);
     if (nextIndex < 0) {
@@ -546,7 +556,11 @@ export default function SpeechTrainerPhrase() {
             />
           </View>
         )}
-        <SvgButton title="Skip Phrase" iconId='skipPhrase' onPress={handleNextPhrasePress} width={isLandscape ? 120 : 150} />
+        <SvgButton title="Skip Phrase" iconId='skipPhrase' onPress={() => {
+          handleNextPhrasePress().catch(err => {
+            console.warn('Failed to skip phrase', err);
+          });
+        }} width={isLandscape ? 120 : 150} />
         <SvgButton title="Can't Remember" iconId='cantRemember' onPress={() => { handleMatched(true); }} width={isLandscape ? 120 : 150} />
         <SvgButton title="Open Word" iconId='openWord' onPress={() => {
           if (!currentWord) return;
@@ -692,7 +706,4 @@ const pFieldstyles = StyleSheet.create({
 //   { bottomLabel: "30", value: 88 }
 
 // ]}
-
-
-
 
