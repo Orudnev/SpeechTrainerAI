@@ -12,6 +12,7 @@ export type TSettingName =
   | 'groupingScope' // phrase|current topic|all selected topics  grouping for statistics diagram
   | 'taskList'
   | 'selectedTaskName'
+  | 'synonyms'
 export type TServiceCommandName = 'downloadRowsFromCloud' | 'uploadRowsToCloud';
 
 
@@ -69,6 +70,10 @@ export const AppSettings: TsettingsItem[] = [
   {
     name: 'selectedTaskName',
     defaultValue: 'Default Task',
+  },
+  {
+    name: 'synonyms',
+    defaultValue:[["he's", "he is"]]
   }
 ];
 

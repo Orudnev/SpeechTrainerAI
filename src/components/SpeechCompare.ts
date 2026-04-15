@@ -1,3 +1,4 @@
+import { getAppSettingValue } from '../db/settings';
 import { Tvariant } from '../db/speechDb';
 import * as Snowball from 'snowball-stemmers';
 
@@ -16,9 +17,8 @@ export function normalizeText(input: string): string {
   return input
     .toLowerCase()
     .replace(/ё/g, 'е')
-    .replace(/'/g, '')
-    .replace(/’/g, '')
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/’/g, "'")
+    .replace(/[^\p{L}\p{N}\s']/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -29,6 +29,12 @@ export type tolerantCompareDictItem = {
 }
 
 const stemmer = Snowball.newStemmer('russian');
+
+type TsynonymSearchResult = {
+  isFound: boolean,
+  matchedEtalonWordCount: number,
+  nextAsrWordIndex: number
+}
 
 /**
  * Speech compare logic container (no UI)
@@ -69,7 +75,10 @@ export class SpeechCompareEngine {
     const casrrWords = normalizeText(asrText).split(' ').filter(Boolean);
     const foundIndex = casrrWords.findIndex(w => stemmer.stem(w) === stemmer.stem(etalonWord));
     if (foundIndex === -1) {
-      return this.tryMarkByVariant(etalonWord, variants, asrText);
+      // try variants
+      if (this.checkVariants(etalonWord, variants, asrText)) {
+        return this.markWordMatched(etalonWord);
+      }
     }
 
     if (foundIndex === -1) {
@@ -92,23 +101,55 @@ export class SpeechCompareEngine {
         i++;
         continue;
       }
-      phraseMatched =
-        this.tryMarkByVariant(etalonWord, variants, asrText) || phraseMatched;
+
+      if (this.checkVariants(etalonWord, variants, asrText)) {
+        phraseMatched = this.markWordMatched(etalonWord);
+      }
+
       break;
     }
     return phraseMatched;
   }
 
+  private checkSynonyms(): TsynonymSearchResult {
+    const synonyms = getAppSettingValue<Array<Array<string>>>('synonyms');
+    const notMatchedEtlWords = this.etalonWords.filter((wrd, index) => index >= this.currIndex);
+    const notMatchedEtlStr = notMatchedEtlWords.join(" ");
+    const asrStr = normalizeText(this.asrResult);
+    const asrWords = asrStr.split(' ').filter(Boolean);
+    let result: TsynonymSearchResult = {
+      isFound: false,
+      matchedEtalonWordCount: 0,
+      nextAsrWordIndex: -1
+    };
+    synonyms.some(syn => {
+      const foundEtlSynItm = syn.find(itm => notMatchedEtlStr.startsWith(itm));
+      const foundAsrSynItm = syn.find(itm => asrStr.includes(itm));
+      if (foundEtlSynItm && foundAsrSynItm) {
+        const restEtlStr = notMatchedEtlStr.substring(foundEtlSynItm.length);
+        const remainedEtlWrdCnt = restEtlStr.split(' ').filter(Boolean).length;
+        const firstAsrCharIndex = asrStr.indexOf(foundAsrSynItm) + foundAsrSynItm.length;
+        const restAsrStr = asrStr.substring(firstAsrCharIndex);
+        const restAsrWordsCount = restAsrStr.split(' ').filter(Boolean).length;
+
+        result.isFound = true;
+        result.matchedEtalonWordCount = notMatchedEtlWords.length - remainedEtlWrdCnt;
+        result.nextAsrWordIndex = asrWords.length - restAsrWordsCount;
+        return true;
+      }
+      return false;
+    });
+    return result;
+  }
+
+
   process(asrText: string | null, variants: Tvariant[], isTolerantCompare: boolean): boolean {
-    // -A- / -B- / -Z-
     // Start processing ASR event; if text is missing, stop with no match.
     if (!asrText) return false;
 
-    // -C-
     // Persist raw ASR payload for snapshots/UI.
     this.asrResult = asrText;
 
-    // -D-
     // Normalize ASR text and split into spoken words.  
     const casrrWords = normalizeText(asrText).split(' ').filter(Boolean);
     if (isTolerantCompare) {
@@ -116,73 +157,88 @@ export class SpeechCompareEngine {
     }
 
 
-    // -E- / -F-
     // Load the current expected word and stop if phrase is already exhausted.
     let etalonWord = this.etalonWords[this.currIndex];
 
     if (!etalonWord) return false;
 
-    // -G- / -H- / -H1- / -M-
-    // Empty ASR word list: try matching current expected word by variants.
-    if (casrrWords.length === 0) {
-      return this.tryMarkByVariant(etalonWord, variants, asrText);
-    }
-
-    // -I- / -J-
-    // Find where expected word appears in ASR words; fallback to variants if absent.
-    const foundIndex = casrrWords.findIndex(w => w === etalonWord);
-
+    let phraseMatched = false;
+    // Skip noice words
+    let foundIndex = casrrWords.findIndex(w => w === etalonWord);
     if (foundIndex === -1) {
-      return this.tryMarkByVariant(etalonWord, variants, asrText);
+      //No words except noice, try variants
+      if (this.checkVariants(etalonWord, variants, asrText)) {
+        //variant found
+        phraseMatched = this.markWordMatched(etalonWord);
+      } else {
+        //variant not found, try synonyms
+        const csRes = this.checkSynonyms();
+        if (csRes.isFound) {
+          // synonym found
+          for (let mi = 0; mi < csRes.matchedEtalonWordCount; mi++) {
+            phraseMatched = this.markWordMatched(etalonWord);
+            if (phraseMatched) {
+              return true;
+            }
+          }
+          foundIndex = csRes.nextAsrWordIndex;
+        } else {
+          // synonym not matched
+          return false;
+        }
+      }
     }
 
-    // -K-
     // Initialize scan position and phrase-level match flag.
     let i = foundIndex;
-    let phraseMatched = false;
 
-    // -L-
-    // Iterate through spoken words from the first found position.
+    // Iterate through spoken words from the first not-noice word.
     while (i < casrrWords.length) {
-      // -N- / -O-
       // Reload expected word because currIndex may move after each mark.
       etalonWord = this.etalonWords[this.currIndex];
       if (!etalonWord) break;
-
-      // -P-
       const spoken = casrrWords[i];
-
-      // -Q- / -M- / -M1- / -M2- / -M3- / -M4- / -S- / -T- / -U-
       // Exact match path: mark word, potentially complete phrase, advance scan.
       if (spoken === etalonWord) {
-        phraseMatched = this.markWordMatched(etalonWord) || phraseMatched;
+        phraseMatched = this.markWordMatched(etalonWord);
+        if (phraseMatched) {
+          //all words matched
+          break;
+        }
+        //only current word matched
         i++;
         continue;
       }
 
+      //current word is not matched, try to compare by variants
+      if (this.checkVariants(etalonWord, variants, asrText)) {
+        phraseMatched = this.markWordMatched(etalonWord);
+        if (phraseMatched) {
+          //all words matched
+          break;
+        }
+        //only current word matched
+        i++;
+        continue;
+      }
 
-      // -V- / -W-
-      // Mismatch path: attempt variant-based match once, then finish this pass.
-      phraseMatched =
-        this.tryMarkByVariant(etalonWord, variants, asrText) || phraseMatched;
+      //current word is not matched, try to compare by synonyms
+      const csRes = this.checkSynonyms();
+      if (csRes.isFound) {
+        // synonym found
+        for (let mi = 0; mi < csRes.matchedEtalonWordCount; mi++) {
+          phraseMatched = this.markWordMatched(etalonWord);
+          if (phraseMatched) {
+            break;
+          }
+        }
+        i = i + csRes.nextAsrWordIndex;
+      } 
+      
       break;
     }
-
-    // -R- / -END-
     // Return phrase-level result for caller decision (including optional onMatched).
     return phraseMatched;
-  }
-
-  private tryMarkByVariant(
-    etalonWord: string,
-    variants: Tvariant[],
-    casrr: string,
-  ): boolean {
-    if (!this.checkVariants(etalonWord, variants, casrr)) {
-      return false;
-    }
-
-    return this.markWordMatched(etalonWord);
   }
 
   private markWordMatched(word: string): boolean {
