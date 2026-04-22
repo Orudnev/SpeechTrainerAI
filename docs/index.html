@@ -84,11 +84,16 @@
       margin-bottom: 24px;
       border: 1px solid white;
       border-radius: 20px;
-      width: 650px;
-      height: 99px;
       background: #000000;
-      padding-left: 25px;      
+      padding-left: 25px;
+      width: 80%;
+      height: 99px;
     }
+    
+    .heto-top h1{
+      line-height: 99px;
+    }
+
 
     .logo-wrap {
       display: inline-flex;
@@ -287,8 +292,8 @@
       font-size: 0.95em;
     }
 
-    .sshot{
-      width:250px;
+    .sshot {
+      width: 250px;
       margin-right: 10px;
     }
 
@@ -298,6 +303,8 @@
       .grid-two {
         grid-template-columns: 1fr 1fr;
       }
+      
+
     }
 
     @media (max-width: 680px) {
@@ -312,8 +319,10 @@
       }
 
       .hero-top {
-        align-items: flex-start;
       }
+
+
+
 
       .logo-wrap {
         width: 68px;
@@ -325,6 +334,13 @@
         grid-template-columns: 1fr;
       }
     }
+
+    @media (max-width: 584px) {
+      .hero-top h1 {
+        font-size: 20px;
+      }
+    }
+
   </style>
 </head>
 
@@ -376,7 +392,7 @@
         </div>
       </div>
     </section>
-    <div style="height: 50px;" >
+    <div style="height: 50px;">
     </div>
     <section class="hero">
       <img src="pg1.jpg" class="sshot" />
