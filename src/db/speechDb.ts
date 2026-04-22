@@ -327,7 +327,7 @@ export async function seedSpeechDbIfEmpty() {
   if (count > 0) return;
 
   console.log("Seeding database...");
-  reseedDb();
+  await reseedDb();
 }
 
 export async function executeSql(sql: string) {

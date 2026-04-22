@@ -1,6 +1,19 @@
 import {initSpeechDb, openSpeechDb} from './speechDb';
 import { TDiagramPeriodName } from '../helpers/statistics';
 import { LearnTask } from '../helpers/getNextItemUid';
+import { dataRows } from '../debug/testPhraseData';
+
+const defaultTaskSelectedTopics = Array.from(
+  new Set(
+    dataRows.data
+      .map(row => row.SheetName)
+      .filter((topic): topic is string => typeof topic === 'string' && !!topic),
+  ),
+);
+
+const defaultTaskItemUids = dataRows.data
+  .map(row => row.Uid)
+  .filter((uid): uid is string => typeof uid === 'string' && !!uid);
 
 export type TSettingName =
   | 'fullAccess'
@@ -59,8 +72,8 @@ export const AppSettings: TsettingsItem[] = [
     name: 'taskList',
     defaultValue: [{
       name: 'Default Task',
-      selectedTopics: [],
-      itemUids: [],
+      selectedTopics: defaultTaskSelectedTopics,
+      itemUids: defaultTaskItemUids,
       plannedDayItemCount: 30,
       maxFreshItemCount: 10,
       indf:0,
