@@ -1,5 +1,6 @@
 import { DeviceEventEmitter } from "react-native";
 import {
+  applyAppSettingsPayload,
   getAppSettingValue,
   getSelectedTaskTopics,
   saveAppSettingsToDb,
@@ -17,7 +18,11 @@ import {
   SpItemExport,
   executeSql
 } from "../db/speechDb";
-import { ReceiveAllRowsFromCloud, SendDatabaseToCloud } from "../helpers/webApiWrapper";
+import {
+  ReceiveAllRowsFromCloud,
+  restoreSettings,
+  SendDatabaseToCloud,
+} from "../helpers/webApiWrapper";
 import { AsrService } from "../speech/asr/AsrService";
 import { dataRows } from "./testPhraseData";
 import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
@@ -58,6 +63,12 @@ export async function synchCloudToLocal() {
   }
   const rows = await response.json();
   await syncPhrasesRows(rows);
+
+  const cloudSettingsJson = await restoreSettings();
+  const cloudSettings = JSON.parse(cloudSettingsJson);
+  applyAppSettingsPayload(cloudSettings);
+  await saveAppSettingsToDb();
+
   console.log("Cloud data synchronized to local database");
 }
 

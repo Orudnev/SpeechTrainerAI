@@ -236,6 +236,38 @@ export function setAppSettingValue(name: TSettingName, value: any) {
   setting.value = value;
 }
 
+export function applyAppSettingsPayload(payload: unknown) {
+  if (Array.isArray(payload)) {
+    const nextPayload: Partial<Record<TSettingName, any>> = {};
+
+    for (const item of payload) {
+      if (!item || typeof item !== 'object') {
+        continue;
+      }
+
+      const name = (item as TsettingsItem).name;
+      if (!name || !AppSettings.some(setting => setting.name === name)) {
+        continue;
+      }
+
+      nextPayload[name] =
+        Object.prototype.hasOwnProperty.call(item, 'value')
+          ? (item as TsettingsItem).value
+          : (item as TsettingsItem).defaultValue;
+    }
+
+    applySettingsFromObject(nextPayload as Record<string, any>);
+    return;
+  }
+
+  if (payload && typeof payload === 'object') {
+    applySettingsFromObject(payload as Record<string, any>);
+    return;
+  }
+
+  applySettingsFromObject({});
+}
+
 function buildSettingsObjectFromMemory(): Record<TSettingName, any> {
   const nextPayload = {} as Record<TSettingName, any>;
   const taskListSetting = getAppSettingOrFail('taskList');
@@ -288,7 +320,7 @@ export async function loadAppSettingsFromDb() {
       parsed = {};
     }
   }
-  applySettingsFromObject(parsed);
+  applyAppSettingsPayload(parsed);
 }
 
 export async function saveAppSettingsToDb() {
