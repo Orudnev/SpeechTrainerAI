@@ -278,7 +278,7 @@ export function TaskEditor() {
 
   function formatScheduledTime(date: Date): string {
     if (!(date instanceof Date) || isNaN(date.getTime())) {
-      throw new Error('Invalid scheduled date');
+      return '';
     }
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
