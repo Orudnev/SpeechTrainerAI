@@ -4,6 +4,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbz4WxbxI8mHZZFF70H2awGj
 
 
 async function backupSettings(){ 
+  let s = AppSettings;
   const response = await fetch(API_URL, {
     method: "POST",
     headers: {
@@ -54,7 +55,7 @@ export async function SendDatabaseToCloud(Payload: any) {
 
   const data = await response.json();
   console.log(data);
-  backupSettings();
+  await backupSettings();
 }
 
 export async function ReceiveAllRowsFromCloud() {

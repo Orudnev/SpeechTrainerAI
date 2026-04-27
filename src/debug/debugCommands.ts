@@ -1,6 +1,7 @@
 import { DeviceEventEmitter } from "react-native";
 import {
   applyAppSettingsPayload,
+  AppSettings,
   getAppSettingValue,
   getSelectedTaskTopics,
   saveAppSettingsToDb,
@@ -156,10 +157,16 @@ export async function getSelTopicItems(): Promise<SpItem[]> {
   return rows;
 }
 
+// export async function test(){
+//   const selTopicItems = await getSelTopicItems();
+//   const taskItems = CreateTask(selTopicItems, 300,10,false).map(item => convertToTaskDisplayItem(item, false, Date.now()));
+//   printObjectArray(taskItems.map((r,idx) => ({idx:idx+1, uid: r.uid,  q: r.a, mss: r.mss, itmType: r.itmType })));
+// }
+
 export async function test(){
-  const selTopicItems = await getSelTopicItems();
-  const taskItems = CreateTask(selTopicItems, 300,10,false).map(item => convertToTaskDisplayItem(item, false, Date.now()));
-  printObjectArray(taskItems.map((r,idx) => ({idx:idx+1, uid: r.uid,  q: r.a, mss: r.mss, itmType: r.itmType })));
+  let allItems = (await loadAllPhrases()).filter(itm=>itm.topic == 'IntrvBlocks');
+  console.log(allItems); 
+  //console.log(AppSettings);
 }
 
 
