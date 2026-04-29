@@ -271,6 +271,9 @@ export async function addItemToErrorTask(item: SpItem) {
   if (!errTask) {
     tl.push({ name: ErrorItemsTask, itemUids: [item.uid], plannedDayItemCount: 10, selectedTopics: [ErrorItemsTaskTopic], maxFreshItemCount: 0, indf: 0, indr: 0 });
   } else {
+    if(errTask.itemUids.length+1>errTask.plannedDayItemCount){
+      errTask.itemUids.pop();
+    }
     errTask.itemUids.push(item.uid);
   }
   await saveAppSettingsToDb();
