@@ -1,4 +1,4 @@
-﻿import React, {useEffect, useMemo, useRef, useState} from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   PanResponder,
   ScrollView,
@@ -8,9 +8,10 @@ import {
   type LayoutChangeEvent,
   useWindowDimensions,
 } from 'react-native';
-import {Appbar, Button, Chip, DataTable, TextInput} from 'react-native-paper';
+import { Appbar, Button, Chip, DataTable, TextInput } from 'react-native-paper';
 import Toolbar from './Toolbar';
 import {
+  AppSettings,
   getAppSettingValue,
   loadAppSettingsFromDb,
   saveAppSettingsToDb,
@@ -22,7 +23,7 @@ import {
   openSpeechDb,
   SpItem,
 } from '../db/speechDb';
-import {Dropdown} from 'react-native-element-dropdown';
+import { Dropdown } from 'react-native-element-dropdown';
 import {
   convertToTaskDisplayItem,
   CreateTask,
@@ -67,9 +68,16 @@ function buildTaskItems(
   maxFreshItemCount: number,
   isReverse: boolean,
 ): SpItem[] {
-  const selectedTopicItems = items.filter(
-    item => selectedTopics.length === 0 || selectedTopics.includes(item.topic),
-  );
+  if (!selectedTopics.includes(ErrorItemsTaskTopic)) {
+    var selectedTopicItems = items.filter(
+      item => selectedTopics.length === 0 || selectedTopics.includes(item.topic),
+    );
+  } else {
+    let tl = getAppSettingValue<LearnTask[]>('taskList');
+    let errTask = tl.find(itm=>itm.name == ErrorItemsTask);
+    selectedTopicItems = items.filter(item=>errTask?.itemUids.includes(item.uid));
+  }
+
 
   return CreateTask(
     selectedTopicItems,
@@ -87,13 +95,13 @@ function updateTaskDraft(
   return sourceTaskList.map(task =>
     task.name === taskName
       ? {
-          ...task,
-          ...patch,
-          selectedTopics: patch.selectedTopics
-            ? [...patch.selectedTopics]
-            : [...task.selectedTopics],
-          itemUids: patch.itemUids ? [...patch.itemUids] : [...task.itemUids],
-        }
+        ...task,
+        ...patch,
+        selectedTopics: patch.selectedTopics
+          ? [...patch.selectedTopics]
+          : [...task.selectedTopics],
+        itemUids: patch.itemUids ? [...patch.itemUids] : [...task.itemUids],
+      }
       : task,
   );
 }
@@ -164,10 +172,10 @@ function resetCurrentTaskIndices(
   return sourceTaskList.map(task =>
     task.name === selectedTaskName
       ? {
-          ...task,
-          indf: 0,
-          indr: 0,
-        }
+        ...task,
+        indf: 0,
+        indr: 0,
+      }
       : task,
   );
 }
@@ -240,19 +248,32 @@ function TaskSlider({
           <View
             style={[
               styles.sliderFill,
-              {width: `${clampSliderValue(ratio * 100, 0, 100)}%`},
+              { width: `${clampSliderValue(ratio * 100, 0, 100)}%` },
             ]}
           />
           <View
             style={[
               styles.sliderThumb,
-              {left: `${clampSliderValue(ratio * 100, 0, 100)}%`},
+              { left: `${clampSliderValue(ratio * 100, 0, 100)}%` },
             ]}
           />
         </View>
       </View>
     </View>
   );
+}
+
+export const ErrorItemsTask = "ErrorItems";
+export const ErrorItemsTaskTopic = "Err";
+export async function addItemToErrorTask(item: SpItem) {
+  const tl = getAppSettingValue<LearnTask[]>('taskList');
+  const errTask = tl.find(t => t.name == ErrorItemsTask);
+  if (!errTask) {
+    tl.push({ name: ErrorItemsTask, itemUids: [item.uid], plannedDayItemCount: 10, selectedTopics: [ErrorItemsTaskTopic], maxFreshItemCount: 0, indf: 0, indr: 0 });
+  } else {
+    errTask.itemUids.push(item.uid);
+  }
+  await saveAppSettingsToDb();
 }
 
 export function TaskEditor() {
@@ -399,7 +420,7 @@ export function TaskEditor() {
     const nextTaskList = updateTaskDraft(
       taskListRef.current,
       selectedTaskNameRef.current,
-      {selectedTopics: nextSelectedTopics},
+      { selectedTopics: nextSelectedTopics },
     );
 
     setSelectedTopics(nextSelectedTopics);
@@ -475,7 +496,7 @@ export function TaskEditor() {
 
   async function reloadTaskPreview() {
     try {
-      setIsPreviewDirty(false);  
+      setIsPreviewDirty(false);
       const loadedItems = await loadAllPhrases();
       setAllItems(loadedItems);
       const loadedSettings = await loadTaskEditorSettingsFromAppSettings();
@@ -553,7 +574,7 @@ export function TaskEditor() {
   }
 
   return (
-    <View style={[styles.root, {width: screenSize.width}]}>
+    <View style={[styles.root, { width: screenSize.width }]}>
       {!hasData && <Text>Loading task editor...</Text>}
 
       {hasData && (

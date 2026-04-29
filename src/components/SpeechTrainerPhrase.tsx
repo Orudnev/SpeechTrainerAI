@@ -46,6 +46,7 @@ import Svg from 'react-native-svg';
 import SvgTest from './SvgTest';
 import { SvgButton } from './SvgButton';
 import { GradientPanel } from './GradientPanel';
+import { addItemToErrorTask } from './TaskEditor';
 /**
  * Variant statistics (UI only)
  */
@@ -357,6 +358,8 @@ export default function SpeechTrainerPhrase() {
         console.log('✅ Phrase complete!');
         const id = await TtsService.speak('Correct!');
         await TtsService.waitFinish(id);
+      } else {
+        addItemToErrorTask(rawItem);
       }
 
       const historyLimit = Math.max(

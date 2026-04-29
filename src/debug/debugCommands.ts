@@ -27,7 +27,8 @@ import {
 import { AsrService } from "../speech/asr/AsrService";
 import { dataRows } from "./testPhraseData";
 import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
-import { convertToTaskDisplayItem, CreateTask } from "../helpers/getNextItemUid";
+import { convertToTaskDisplayItem, CreateTask, LearnTask } from "../helpers/getNextItemUid";
+import { ErrorItemsTask } from "../components/TaskEditor";
 
 export async function dropPhrasesTable() {
   const db = await openSpeechDb();
@@ -164,9 +165,14 @@ export async function getSelTopicItems(): Promise<SpItem[]> {
 // }
 
 export async function test(){
-  let allItems = (await loadAllPhrases()).filter(itm=>itm.topic == 'IntrvBlocks');
-  console.log(allItems); 
-  //console.log(AppSettings);
+  //let allItems = (await loadAllPhrases()).filter(itm=>itm.topic == 'IntrvBlocks');
+  //console.log(allItems); 
+  // const tl = getAppSettingValue<LearnTask[]>('taskList');
+  // const newTaskList = tl.filter(t=>t.name !== ErrorItemsTask);
+  // setAppSettingValue('taskList',newTaskList);
+  // //console.log(newTaskList);
+  // await saveAppSettingsToDb();
+  console.log(getAppSettingValue<LearnTask[]>('taskList'));
 }
 
 
