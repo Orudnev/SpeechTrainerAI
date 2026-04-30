@@ -418,7 +418,7 @@ export function TaskEditor() {
 
   function toggleTopic(topic: string) {
     const nextSelectedTopics = selectedTopicsSet.has(topic)
-      ? selectedTopics.filter(currTopic => currTopic !== topic)
+      ? selectedTopics.filter(currTopic => currTopic !== topic && currTopic !== ErrorItemsTaskTopic)
       : [...selectedTopics, topic];
     const nextTaskList = updateTaskDraft(
       taskListRef.current,
@@ -438,6 +438,7 @@ export function TaskEditor() {
   }
 
   function handleTaskSelectionChange(nextSelectedTaskName: string) {
+    console.log(nextSelectedTaskName);
     setSelectedTaskName(nextSelectedTaskName);
     selectedTaskNameRef.current = nextSelectedTaskName;
     const nextTask = taskListRef.current.find(
@@ -612,7 +613,7 @@ export function TaskEditor() {
               valueField="value"
               value={selectedTaskName}
               onChange={item => {
-                handleTaskSelectionChange(item.value);
+                handleTaskSelectionChange(item.value); 
               }}
             />
             {currentTask && (

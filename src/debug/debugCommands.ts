@@ -165,14 +165,15 @@ export async function getSelTopicItems(): Promise<SpItem[]> {
 // }
 
 export async function test(){
-  //let allItems = (await loadAllPhrases()).filter(itm=>itm.topic == 'IntrvBlocks');
-  //console.log(allItems); 
+  let allItems = (await loadAllPhrases()).filter(itm=>itm.topic == 'IntrvAnsw');
+  //let allItems = (await loadAllPhrases());
+  console.log(allItems); 
   // const tl = getAppSettingValue<LearnTask[]>('taskList');
   // const newTaskList = tl.filter(t=>t.name !== ErrorItemsTask);
   // setAppSettingValue('taskList',newTaskList);
-  // //console.log(newTaskList);
+  //console.log(newTaskList);
   // await saveAppSettingsToDb();
-  console.log(getAppSettingValue<LearnTask[]>('taskList'));
+  //console.log(getAppSettingValue<LearnTask[]>('taskList'));
 }
 
 
