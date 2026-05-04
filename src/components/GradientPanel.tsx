@@ -94,7 +94,7 @@ export const GradientPanel: React.FC<GradientPanelProps> = ({
                     <Text style={{ color: '#9AA3B2', fontSize: 15 }} >{counterText}</Text>
                 </View>
             )}
-            <View style={{ position: 'absolute', top: textTop, left: textLeft }}>
+            <View style={{ position: 'absolute', top: textTop, left: textLeft,right:10 }}>
                 <Text style={{ color: '#E6F1FF', fontSize: 18, fontWeight: '600', lineHeight: 24 }}   >
                     {mainText}
                     {suffixText && (
