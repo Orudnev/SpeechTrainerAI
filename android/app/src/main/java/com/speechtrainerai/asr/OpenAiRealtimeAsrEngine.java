@@ -1,5 +1,7 @@
 package com.speechtrainerai.asr;
 
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Base64;
 import android.util.Log;
 
@@ -25,15 +27,42 @@ import okhttp3.WebSocketListener;
 public class OpenAiRealtimeAsrEngine implements AsrEngine {
 
     private static final String TAG = "OpenAiRealtimeAsr";
+    private static final int INPUT_SAMPLE_RATE = 16000;
+    private static final long AUTO_COMMIT_SILENCE_MS = 900L;
+    // Approximate one average spoken word; helps avoid committing breaths/noise as utterances.
+    private static final long MIN_SPEECH_MS = 600L;
+    private static final long MAX_SEGMENT_MS = 10000L;
+    private static final int SPEECH_AMPLITUDE_THRESHOLD = 900;
+    private static final long STOP_CLOSE_DELAY_MS = 1200L;
     private static final String REALTIME_URL =
             "wss://api.openai.com/v1/realtime?intent=transcription";
-    private static final String REALTIME_MODEL = "gpt-4o-transcribe";
+    private static final String REALTIME_MODEL = "gpt-realtime-whisper";
 
     private final String id;
     private final String languageCode;
     private final AtomicBoolean isListening = new AtomicBoolean(false);
+    private final AtomicBoolean awaitingFinalAfterStop = new AtomicBoolean(false);
     private final AtomicBoolean sessionReady = new AtomicBoolean(false);
     private final Object socketLock = new Object();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private String lastPartialText = "";
+    private final Map<String, StringBuilder> partialsByItemId = new HashMap<>();
+    private boolean segmentHasSpeech = false;
+    private long segmentSpeechMs = 0L;
+    private long segmentSilenceMs = 0L;
+    private final Runnable stopCloseRunnable = () -> {
+        synchronized (socketLock) {
+            if (awaitingFinalAfterStop.get()) {
+                Log.i(TAG, "Closing OpenAI socket after stop timeout");
+                closeSocketLocked(1000, "stop-timeout");
+                awaitingFinalAfterStop.set(false);
+                resetSegmentState();
+                lastPartialText = "";
+                partialsByItemId.clear();
+                sessionReady.set(false);
+            }
+        }
+    };
 
     @Nullable
     private OkHttpClient httpClient;
@@ -43,9 +72,6 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
 
     @Nullable
     private String apiKey;
-
-    private String lastPartialText = "";
-    private final Map<String, StringBuilder> partialsByItemId = new HashMap<>();
 
     public OpenAiRealtimeAsrEngine(String id, String languageCode) {
         this.id = id;
@@ -95,6 +121,9 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
 
         synchronized (socketLock) {
             closeSocketLocked(1000, "restart");
+            awaitingFinalAfterStop.set(false);
+            mainHandler.removeCallbacks(stopCloseRunnable);
+            resetSegmentState();
             lastPartialText = "";
             partialsByItemId.clear();
             sessionReady.set(false);
@@ -102,7 +131,6 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
             Request request = new Request.Builder()
                     .url(REALTIME_URL)
                     .addHeader("Authorization", "Bearer " + apiKey)
-                    .addHeader("OpenAI-Beta", "realtime=v1")
                     .build();
 
             isListening.set(true);
@@ -127,6 +155,11 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
             return;
         }
 
+        int safeFrames = Math.min(frames, data != null ? data.length : 0);
+        if (safeFrames <= 0) {
+            return;
+        }
+
         short[] upsampled = upsample16kTo24k(data, frames);
         ByteBuffer pcmBytes = ByteBuffer.allocate(upsampled.length * 2)
                 .order(ByteOrder.LITTLE_ENDIAN);
@@ -145,6 +178,7 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
             event.put("type", "input_audio_buffer.append");
             event.put("audio", base64Audio);
             socketSnapshot.send(event.toString());
+            maybeAutoCommitAfterSilence(data, safeFrames, socketSnapshot);
         } catch (JSONException e) {
             Log.e(TAG, "Failed to send audio chunk", e);
             emitError(500, "Failed to serialize audio chunk");
@@ -154,9 +188,27 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
     @Override
     public void stopRecognition() {
         isListening.set(false);
+
+        WebSocket socketSnapshot;
+        synchronized (socketLock) {
+            socketSnapshot = webSocket;
+        }
+
+        if (socketSnapshot != null && sessionReady.get()) {
+            if (sendInputAudioBufferCommit(socketSnapshot)) {
+                awaitingFinalAfterStop.set(true);
+                mainHandler.removeCallbacks(stopCloseRunnable);
+                mainHandler.postDelayed(stopCloseRunnable, STOP_CLOSE_DELAY_MS);
+                return;
+            }
+        }
+
         synchronized (socketLock) {
             closeSocketLocked(1000, "stop");
         }
+        awaitingFinalAfterStop.set(false);
+        mainHandler.removeCallbacks(stopCloseRunnable);
+        resetSegmentState();
         lastPartialText = "";
         partialsByItemId.clear();
         sessionReady.set(false);
@@ -174,26 +226,86 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
     }
 
     private void sendSessionUpdate(WebSocket socket) throws JSONException {
-        JSONObject session = new JSONObject();
-        session.put("input_audio_format", "pcm16");
-        session.put("input_audio_noise_reduction", new JSONObject().put("type", "near_field"));
-        session.put("input_audio_transcription", new JSONObject()
+        JSONObject transcription = new JSONObject()
                 .put("model", REALTIME_MODEL)
-                .put("language", languageCode));
-        session.put("turn_detection", new JSONObject()
-                .put("type", "server_vad")
-                .put("threshold", 0.5)
-                .put("prefix_padding_ms", 300)
-                .put("silence_duration_ms", 500));
+                .put("language", languageCode);
+        JSONObject inputFormat = new JSONObject()
+                .put("type", "audio/pcm")
+                .put("rate", 24000);
+        JSONObject audioInput = new JSONObject()
+                .put("format", inputFormat)
+                .put("transcription", transcription);
+        JSONObject audio = new JSONObject()
+                .put("input", audioInput);
+        JSONObject session = new JSONObject()
+                .put("type", "transcription")
+                .put("audio", audio);
         session.put("include", new org.json.JSONArray()
                 .put("item.input_audio_transcription.logprobs"));
 
         JSONObject event = new JSONObject();
-        event.put("type", "transcription_session.update");
+        event.put("type", "session.update");
         event.put("session", session);
 
         Log.i(TAG, "Sending session.update: " + event);
         socket.send(event.toString());
+    }
+
+    private boolean sendInputAudioBufferCommit(WebSocket socket) {
+        try {
+            JSONObject event = new JSONObject();
+            event.put("type", "input_audio_buffer.commit");
+            Log.i(TAG, "Sending input_audio_buffer.commit");
+            return socket.send(event.toString());
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to serialize input_audio_buffer.commit", e);
+            return false;
+        }
+    }
+
+    private void maybeAutoCommitAfterSilence(short[] data, int frames, WebSocket socket) {
+        if (awaitingFinalAfterStop.get()) {
+            return;
+        }
+
+        long chunkMs = Math.max(1L, Math.round((frames * 1000.0) / INPUT_SAMPLE_RATE));
+        boolean isSpeech = isSpeechChunk(data, frames);
+
+        if (isSpeech) {
+            segmentHasSpeech = true;
+            segmentSpeechMs += chunkMs;
+            segmentSilenceMs = 0L;
+            return;
+        }
+
+        if (!segmentHasSpeech) {
+            return;
+        }
+
+        segmentSilenceMs += chunkMs;
+        if (segmentSpeechMs >= MAX_SEGMENT_MS
+                || (segmentSpeechMs >= MIN_SPEECH_MS && segmentSilenceMs >= AUTO_COMMIT_SILENCE_MS)) {
+            Log.i(TAG, "Auto-committing buffered audio: speechMs=" + segmentSpeechMs
+                    + ", silenceMs=" + segmentSilenceMs);
+            if (sendInputAudioBufferCommit(socket)) {
+                resetSegmentState();
+            }
+        }
+    }
+
+    private boolean isSpeechChunk(short[] data, int frames) {
+        long totalAmplitude = 0L;
+        for (int i = 0; i < frames; i++) {
+            totalAmplitude += Math.abs((int) data[i]);
+        }
+        long averageAmplitude = totalAmplitude / Math.max(1, frames);
+        return averageAmplitude >= SPEECH_AMPLITUDE_THRESHOLD;
+    }
+
+    private void resetSegmentState() {
+        segmentHasSpeech = false;
+        segmentSpeechMs = 0L;
+        segmentSilenceMs = 0L;
     }
 
     private void handleServerMessage(String text) {
@@ -229,6 +341,15 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
                 String transcript = event.optString("transcript", "").trim();
                 partialsByItemId.remove(itemId);
                 emitFinal(transcript);
+                resetSegmentState();
+                if (awaitingFinalAfterStop.get()) {
+                    synchronized (socketLock) {
+                        closeSocketLocked(1000, "stop-complete");
+                    }
+                    awaitingFinalAfterStop.set(false);
+                    mainHandler.removeCallbacks(stopCloseRunnable);
+                    sessionReady.set(false);
+                }
                 return;
             }
 
@@ -243,6 +364,15 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
                 emitError(500, error != null
                         ? error.optString("message", "OpenAI realtime error")
                         : "OpenAI realtime error");
+                resetSegmentState();
+                if (awaitingFinalAfterStop.get()) {
+                    synchronized (socketLock) {
+                        closeSocketLocked(1000, "stop-error");
+                    }
+                    awaitingFinalAfterStop.set(false);
+                    mainHandler.removeCallbacks(stopCloseRunnable);
+                    sessionReady.set(false);
+                }
                 return;
             }
 
@@ -361,6 +491,9 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
                     OpenAiRealtimeAsrEngine.this.webSocket = null;
                 }
             }
+            awaitingFinalAfterStop.set(false);
+            mainHandler.removeCallbacks(stopCloseRunnable);
+            resetSegmentState();
             sessionReady.set(false);
         }
 
@@ -372,6 +505,9 @@ public class OpenAiRealtimeAsrEngine implements AsrEngine {
                     OpenAiRealtimeAsrEngine.this.webSocket = null;
                 }
             }
+            awaitingFinalAfterStop.set(false);
+            mainHandler.removeCallbacks(stopCloseRunnable);
+            resetSegmentState();
             sessionReady.set(false);
             if (isListening.get()) {
                 emitError(response != null ? response.code() : 500, "OpenAI realtime connection failed");
